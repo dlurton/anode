@@ -19,8 +19,7 @@ will hopefully be renamed once a name has actually been chosen.
 The script `tools/build-all-dependencies` will clone all of the repositories of each `lwnn` dependency and build 
 all of them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.  
 This directory may be deleted to conserve disk space after everything has successfully built, if desired.  If 
-successful, the libraries and headers will be installed in `externs/llvm` and `externs/antlr4`.  These must exist 
-prior to attempting to build LWNN itself.
+successful, the libraries and headers of each dependency will be installed in sub-directories of `externs`. 
 
 ### Building LWNN
 
