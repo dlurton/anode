@@ -1,0 +1,65 @@
+#!/bin/bash -e
+
+SCRIPT_DIR=$(dirname $(readlink -f ${0}))
+PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
+source $SCRIPT_DIR/util.sh
+
+EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
+INSTALL_DIR=$EXTERNS_DIR/linenoise-ng
+SCRATCH_DIR=$EXTERNS_DIR/scratch
+SRC_DIR=$SCRATCH_DIR/linenoise-ng
+CMAKE_DIR=$SCRATCH_DIR/linenoise-ng-cmake
+BRANCH=master
+
+say "Directories:"
+echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
+echo "EXTERNS_DIR       " $EXTERNS_DIR
+echo "INSTALL_DIR       " $INSTALL_DIR
+echo "SCRATCH_DIR       " $SCRATCH_DIR
+echo "SRC_DIR           " $SRC_DIR
+echo "CMAKE_DIR         " $CMAKE_DIR
+echo "BRANCH            " $BRANCH
+echo "NUM_CORES         " $NUM_CORES
+#read -p "Press enter to continue"
+
+mkdir -p $EXTERNS_DIR
+
+if [ ! -d $SRC_DIR ]; then
+	mkdir -p $SRC_DIR
+	say "Cloning github linenoise-ng"
+	git clone https://github.com/arangodb/linenoise-ng.git $SRC_DIR
+else 
+	say "Pulling github llvm-linenoise-ng"
+	cd $SRC_DIR
+	git pull
+fi
+
+say "Switching to linenoise-ng branch $BRANCH"
+cd $SRC_DIR
+git checkout $BRANCH
+
+say "Generating cmake cache"
+mkdir -p $CMAKE_DIR
+cd $CMAKE_DIR
+
+set +e
+
+cmake -DCMAKE_INSTALL_PREFIX:PATH=$INSTALL_DIR $SRC_DIR
+
+EC=$?
+if [ $EC -ne 0 ]; then
+	say "cmake reported an error.  Exit code was" $EC
+	read -p "Review the output of cmake above and press enter if you want try to build LLVM anyway."
+fi
+
+set -e
+say "Building linenoise-ng"
+
+make
+
+say "Installing linenoise-ng at" $INSTALL_DIR
+rm -rf $INSTALL_DIR
+make install
+
+say "linenoise-ng built and installed successfully at" $INSTALL_DIR
+

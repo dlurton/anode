@@ -2,4 +2,3 @@
 .idea/
 cmake-build-debug/
 externs/
-llvm-stable/
