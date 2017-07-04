@@ -62,19 +62,18 @@ endif()
 ##############################################################
 # Build lwnn
 ##############################################################
-
 set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
 		main.cpp
 		antlr4_demo.cpp
         llvm_demo.cpp
         llvm_demo.cpp)
 
-link_directories(${EXTERNS_DIR}/antlr4/usr/local/lib $EXTERNS_DIR/llvm/lib)
-include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime)
+include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 
-find_library($LIB_ANTLR4_RUNTIME antlr4-runtime)
+find_library(LIB_ANTLR4_RUNTIME antlr4-runtime PATHS ${EXTERNS_DIR}/antlr4/usr/local/lib)
+find_library(LIB_LINENOISE linenoise PATHS ${EXTERNS_DIR}/linenoise-ng/lib)
 
 add_executable(lwnn ${SOURCE_FILES})
-target_link_libraries(lwnn antlr4-runtime ${LLVM_LIBS})
+target_link_libraries(lwnn ${LIB_LINENOISE} ${LIB_ANTLR4_RUNTIME} ${LLVM_LIBS})
 
 

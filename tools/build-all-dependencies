@@ -7,5 +7,6 @@ say "Building ANTLR4"
 $SCRIPT_DIR/build-antlr4-linux
 say "Building LLVM"
 $SCRIPT_DIR/build-llvm-linux
-
+say "Building linenoise-ng"
+$SCRIPT_DIR/build-linenoise-ng-linux
 
