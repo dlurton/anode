@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstdio>
 
-extern void do_antlr4_demo();
+extern void do_antlr4_demo(const char *lineOfCode);
 extern void do_llvm_demo();
 
 static const char* examples[] = {
@@ -23,7 +23,6 @@ void completionHook (char const* prefix, linenoiseCompletions* lc) {
 
 
 int main(int argc, char **argv) {
-    do_antlr4_demo();
     do_llvm_demo();
 
 
@@ -49,11 +48,11 @@ int main(int argc, char **argv) {
 
     bool keepGoing = true;
     while (keepGoing) {
-        char* result = linenoise(prompt);
+        char* lineOfCode = linenoise(prompt);
 
-        if (result == NULL) {
+        if (lineOfCode == NULL) {
             break;
-        } else if (!strncmp(result, "/history", 8)) {
+        } else if (!strncmp(lineOfCode, "/history", 8)) {
             /* Display the current history. */
             for (int index = 0; ; ++index) {
                 char* hist = linenoiseHistoryLine(index);
@@ -62,14 +61,14 @@ int main(int argc, char **argv) {
                 free(hist);
             }
         }
-        if (*result == '\0') {
+        if (*lineOfCode == '\0') {
             keepGoing = false;
         } else {
-            printf("You said: %s\n", result);
-            linenoiseHistoryAdd(result);
+            do_antlr4_demo(lineOfCode);
+            linenoiseHistoryAdd(lineOfCode);
         }
 
-        free(result);
+        free(lineOfCode);
         linenoiseHistorySave(file);
     }
 

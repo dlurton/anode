@@ -1,10 +1,7 @@
-
-
 set(CMAKE_CXX_STANDARD 14)
 
 set(EXTERNS_DIR "${CMAKE_SOURCE_DIR}/externs")
 set(LINK_LLVM_DYLIB yes)
-
 
 ##############################################################
 # ANTLR4 Parser Generation
@@ -12,17 +9,17 @@ set(LINK_LLVM_DYLIB yes)
 set(ANTLR_JAR_LOCATION ${EXTERNS_DIR}/antlr4/antlr4-complete.jar)
 
 set(GENERATED_SOURCE_FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloBaseListener.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloBaseListener.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloBaseVisitor.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloVisitor.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloVisitor.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloLexer.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloLexer.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloListener.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloListener.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloParser.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/HelloParser.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.h
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseVisitor.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnVisitor.h
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnVisitor.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.h
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.h
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnParser.h
+		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnParser.cpp
 )
 
 foreach( src_file ${GENERATED_SOURCE_FILES} )
@@ -33,9 +30,9 @@ foreach( src_file ${GENERATED_SOURCE_FILES} )
 endforeach(src_file ${GENERATED_SOURCE_FILES})
 
 add_custom_command(
-		COMMAND	"java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -visitor -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnParser ${CMAKE_CURRENT_SOURCE_DIR}/Hello.g4
+		COMMAND	"java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -visitor -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnGeneratedParser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Hello.g4
+		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
 		OUTPUT ${GENERATED_SOURCE_FILES}
 )
 
