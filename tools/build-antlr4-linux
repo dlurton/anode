@@ -1,0 +1,64 @@
+#!/bin/bash -e
+
+SCRIPT_DIR=$(dirname $(readlink -f ${0}))
+PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
+source $SCRIPT_DIR/util.sh
+
+SCRATCH_DIR=$PROJECT_ROOT_DIR/externs/scratch
+ANTLR_SRC_DIR=$SCRATCH_DIR/antlr4
+ANTLR_CPP_RUNTIME_SRC_DIR=$ANTLR_SRC_DIR/runtime/Cpp
+ANTLR_CPP_RUNTIME_BUILD_DIR=$SCRATCH_DIR/antlr4-cmake
+ANTLR_INSTALL_DIR=$SCRIPT_DIR/externs/antlr4
+FINAL_ANTLR_JAR=$ANTLR_INSTALL_DIR/antlr4-complete.jar
+ANTLR_BRANCH=4.7
+
+say "Directories:"
+echo "SCRIPT_DIR                    " $SCRIPT_DIR
+echo "PROJECT_ROOT_DIR              " $PROJECT_ROOT_DIR
+echo "SCRATCH_DIR                   " $SCRATCH_DIR
+echo "ANTLR_SRC_DIR                 " $ANTLR_SRC_DIR
+echo "ANTLR_CPP_RUNTIME_SRC_DIR     " $ANTLR_CPP_RUNTIME_SRC_DIR
+echo "ANTLR_CPP_RUNTIME_BUILD_DIR   " $ANTLR_CPP_RUNTIME_BUILD_DIR
+echo "ANTLR_INSTALL_DIR             " $ANTLR_INSTALL_DIR
+echo "FINAL_ANTLR_JAR               " $FINAL_ANTLR_JAR
+echo "ANTLR_BRANCH                  " $ANTLR_BRANCH
+#read -p "Press enter to continue"
+
+mkdir -p $SCRATCH_DIR
+cd $SCRATCH_DIR
+
+if [ -f $FINAL_ANTLR_JAR ]; then
+    say "$FINAL_ANTLR_JAR already exists"
+else
+    if [ ! -d $ANTLR_SRC_DIR ]; then
+        say "Cloning ANTL4 git repo"
+        git clone https://github.com/antlr/antlr4.git
+        cd $ANTLR_SRC_DIR
+    else
+        say "Updating ANTL4 git repo"
+        cd $ANTLR_SRC_DIR
+        git checkout master
+        git pull
+    fi
+
+    say "Switching ANTL4 $ANTLR_BRANCH branch"
+    git checkout $ANTLR_BRANCH
+
+    say "Building ANTL4 Java Parts"
+    cd $ANTLR_SRC_DIR
+    # https://github.com/antlr/antlr4/blob/4.7/doc/building-antlr.md
+    export MAVEN_OPTS="-Xmx1G" fd
+    mvn -DskipTests install
+
+    say "Copying ANTLR4 executable jar"
+    mkdir -p $ANTLR_INSTALL_DIR
+    cp $ANTLR_SRC_DIR/tool/target/antlr4-4.7-complete.jar $FINAL_ANTLR_JAR
+fi
+
+say "Building ANTLR4 C++ Runtime Parts"
+mkdir -p $ANTLR_CPP_RUNTIME_BUILD_DIR
+cd $ANTLR_CPP_RUNTIME_BUILD_DIR
+pwd
+cmake $ANTLR_CPP_RUNTIME_SRC_DIR -DANTLR_JAR_LOCATION=$FINAL_ANTLR_JAR -DWITH_DEMO=True
+DESTDIR=$ANTLR_INSTALL_DIR make install -j $NUM_CORES
+

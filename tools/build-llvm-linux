@@ -1,0 +1,78 @@
+#!/bin/bash -e
+
+SCRIPT_DIR=$(dirname $(readlink -f ${0}))
+PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
+source $SCRIPT_DIR/util.sh
+
+EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
+LLVM_INSTALL_DIR=$EXTERNS_DIR/llvm
+SCRATCH_DIR=$EXTERNS_DIR/scratch
+LLVM_SRC_DIR=$SCRATCH_DIR/llvm
+LLVM_CMAKE_DIR=$SCRATCH_DIR/llvm-cmake
+LLVM_BRANCH=master
+
+say "Directories:"
+echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
+echo "EXTERNS_DIR       " $EXTERNS_DIR
+echo "LLVM_INSTALL_DIR  " $LLVM_INSTALL_DIR
+echo "SCRATCH_DIR       " $SCRATCH_DIR
+echo "LLVM_SRC_DIR      " $LLVM_SRC_DIR
+echo "LLVM_CMAKE_DIR    " $LLVM_CMAKE_DIR
+echo "LLVM_BRANCH       " $LLVM_BRANCH
+echo "NUM_CORES         " $NUM_CORES
+#read -p "Press enter to continue"
+
+mkdir -p $EXTERNS_DIR
+
+if [ ! -d $LLVM_SRC_DIR ]; then
+	mkdir -p $LLVM_SRC_DIR
+	say "Cloning github llvm-mirror"
+	git clone https://github.com/llvm-mirror/llvm.git $LLVM_SRC_DIR
+else 
+	say "Pulling github llvm-mirror"
+	cd $LLVM_SRC_DIR
+	git pull
+fi
+
+say "Switching to LLVM branch $LLVM_BRANCH"
+cd $LLVM_SRC_DIR
+git checkout $LLVM_BRANCH
+
+
+say "Generating cmake cache"
+mkdir -p $LLVM_CMAKE_DIR
+cd $LLVM_CMAKE_DIR
+
+set +e
+
+cmake \
+	-DLLVM_TARGETS_TO_BUILD:STRING="X86" \
+	-DLLVM_BUILD_32_BITS:BOOL=OFF \
+	-DLLVM_BUILD_TOOLS:BOOL=ON \
+	-DLLVM_INCLUDE_TOOLS:BOOL=ON \
+	-DLLVM_BUILD_EXAMPLES:BOOL=OFF \
+	-DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
+	-DLLVM_ENABLE_RTTI:BOOL=ON \
+	-DLLVM_ENABLE_EH:BOOL=ON \
+	-DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
+	-DCMAKE_INSTALL_PREFIX:PATH=$LLVM_INSTALL_DIR \
+	-DLLVM_BUILD_LLVM_DYLIB:BOOL=ON \
+	$LLVM_SRC_DIR
+
+EC=$?
+if [ $EC -ne 0 ]; then
+	say "cmake reported an error.  Exit code was" $EC
+	read -p "Review the output of cmake above and press enter if you want try to build LLVM anyway."
+fi
+
+set -e
+say "Building LLVM"
+
+cmake --build $LLVM_CMAKE_DIR -- -j $NUM_CORES
+
+say "Installing LLVM at" $LLVM_INSTALL_DIR
+rm -rf $LLVM_INSTALL_DIR
+cmake --build $LLVM_CMAKE_DIR --target install
+
+say "LLVM Built and Installed successfully at" $LLVM_INSTALL_DIR
+

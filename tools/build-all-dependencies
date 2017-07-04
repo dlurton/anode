@@ -1,0 +1,11 @@
+#!/bin/bash -e
+
+SCRIPT_DIR=$(dirname $(readlink -f ${0}))
+source $SCRIPT_DIR/util.sh
+
+say "Building ANTLR4"
+$SCRIPT_DIR/build-antlr4-linux
+say "Building LLVM"
+$SCRIPT_DIR/build-llvm-linux
+
+
