@@ -11,9 +11,6 @@ set(ANTLR_JAR_LOCATION ${EXTERNS_DIR}/antlr4/antlr4-complete.jar)
 set(GENERATED_SOURCE_FILES
 		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.h
 		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseVisitor.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnVisitor.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnVisitor.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.h
 		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.h
@@ -30,7 +27,7 @@ foreach( src_file ${GENERATED_SOURCE_FILES} )
 endforeach(src_file ${GENERATED_SOURCE_FILES})
 
 add_custom_command(
-		COMMAND	"java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -visitor -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnGeneratedParser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
+		COMMAND	"java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnGeneratedParser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
 		OUTPUT ${GENERATED_SOURCE_FILES}
@@ -59,10 +56,17 @@ endif()
 # Build lwnn
 ##############################################################
 set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
+		AST.hpp
+		AST.cpp
+        Exception.hpp
 		main.cpp
-		antlr4_demo.cpp
+        parse.cpp
         llvm_demo.cpp
-        llvm_demo.cpp)
+        llvm_demo.cpp
+        ExpressionTreeWalker.hpp
+        ExpressionTreeVisitor.hpp
+        PrettyPrinter.hpp
+        lwnn.h)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 

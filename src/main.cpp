@@ -3,28 +3,25 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
+#include "lwnn.h"
 
-extern void do_antlr4_demo(const char *lineOfCode);
-extern void do_llvm_demo();
-
-static const char* examples[] = {
-        "db", "hello", "hallo", "hans", "hansekogge", "seamann", "quetzalcoatl", "quit", "power", NULL
-};
-
-void completionHook (char const* prefix, linenoiseCompletions* lc) {
-    size_t i;
-
-    for (i = 0;  examples[i] != NULL; ++i) {
-        if (strncmp(prefix, examples[i], strlen(prefix)) == 0) {
-            linenoiseAddCompletion(lc, examples[i]);
-        }
-    }
-}
-
+//
+//static const char* examples[] = {
+//        "db", "hello", "hallo", "hans", "hansekogge", "seamann", "quetzalcoatl", "quit", "power", NULL
+//};
+//
+//void completionHook (char const* prefix, linenoiseCompletions* lc) {
+//    size_t i;
+//
+//    for (i = 0;  examples[i] != NULL; ++i) {
+//        if (strncmp(prefix, examples[i], strlen(prefix)) == 0) {
+//            linenoiseAddCompletion(lc, examples[i]);
+//        }
+//    }
+//}
 
 int main(int argc, char **argv) {
-    do_llvm_demo();
-
+    lwnn::do_llvm_demo();
 
     linenoiseInstallWindowChangeHandler();
 
@@ -40,7 +37,7 @@ int main(int argc, char **argv) {
     const char* file = "~/.lwnn_history";
 
     linenoiseHistoryLoad(file);
-    linenoiseSetCompletionCallback(completionHook);
+    //linenoiseSetCompletionCallback(completionHook);
 
     printf("starting...\n");
 
@@ -64,7 +61,7 @@ int main(int argc, char **argv) {
         if (*lineOfCode == '\0') {
             keepGoing = false;
         } else {
-            do_antlr4_demo(lineOfCode);
+            lwnn::parse(lineOfCode);
             linenoiseHistoryAdd(lineOfCode);
         }
 
