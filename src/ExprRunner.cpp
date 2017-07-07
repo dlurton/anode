@@ -89,7 +89,7 @@ namespace lwnn {
             ancestryStack_.pop();
 
             //If the parent node of expr is a BlockExpr, the value left behind on valueStack_ is extraneous and
-            //should be removed.  (This is a consequence of "everything is an expression.")
+            //sh7ould be removed.  (This is a consequence of "everything is an expression.")
             if(ancestryStack_.size() >= 1
                && expr->nodeKind() == NodeKind::Block
                && valueStack_.size() > 0) {
@@ -330,6 +330,8 @@ namespace lwnn {
     };
 
     namespace ExprRunner {
+        typedef float (*FloatFuncPtr)(void);
+        typedef int (*IntFuncPtr)(void);
 
         void init() {
             llvm::InitializeNativeTarget();
@@ -360,15 +362,18 @@ namespace lwnn {
         }
 
         std::string compile(std::unique_ptr<const Expr> expr) {
+            const char *FUNC_NAME = "someFunc";
+            DataType exprDataType = expr->dataType();
 
             std::unique_ptr<const Return> retExpr = std::make_unique<Return>(SourceSpan::Any, std::move(expr));
-            FunctionBuilder fb{SourceSpan::Any, "someFunc", retExpr->dataType() };
+            FunctionBuilder fb{ SourceSpan::Any, FUNC_NAME, retExpr->dataType() };
 
             BlockExprBuilder &bb = fb.blockBuilder();
 
             bb.addExpression(std::move(retExpr));
 
             ModuleBuilder mb{"someModule"};
+
             mb.addFunction(fb.build());
 
             std::unique_ptr<const Module> m{mb.build()};
@@ -378,21 +383,36 @@ namespace lwnn {
             prettyPrinterWalker.walkModule(m.get());
             std::cout << "\n";
 
-            llvm::LLVMContext ctx;
-            auto tm = std::unique_ptr<llvm::TargetMachine>(llvm::EngineBuilder().selectTarget());
+//            llvm::LLVMContext ctx;
+//            auto tm = std::unique_ptr<llvm::TargetMachine>(llvm::EngineBuilder().selectTarget());
+//            lwnn::CodeGenVisitor codeGenVisitor{ctx, *tm.get()};
+//            AstWalker codeGenWalker{&codeGenVisitor};
+//            codeGenWalker.walkModule(m.get());
 
-            lwnn::CodeGenVisitor codeGenVisitor{ctx, *tm.get()};
-            AstWalker codeGenWalker{&codeGenVisitor};
+            //codeGenVisitor.dumpIR();
 
-            codeGenWalker.walkModule(m.get());
+            ExecutionContext ec;
+            //const std::unique_ptr<llvm::Module> &module = codeGenVisitor.surrenderLlvmModule();
+            ec.addModule(m.get());
+            
+            uint64_t funcPtr = ec.getSymbolAddress(FUNC_NAME);
 
-            codeGenVisitor.dumpIR();
+            std::string resultAsString;
+            switch(exprDataType) {
+                case DataType::Int32: {
+                    IntFuncPtr intFuncPtr = reinterpret_cast<IntFuncPtr>(funcPtr);
+                    int result = intFuncPtr();
+                    resultAsString = std::to_string(result);
+                    break;
+                }
+                default:
+                    throw UnhandledSwitchCase();
+            }
 
-            return "no value yet";
+            return resultAsString;
         }
 
         float runFloatExpr(std::unique_ptr<const Expr> expr) {
-            typedef float (*FloatFuncPtr)(void);
 
             if(expr->dataType() != DataType::Float) {
                 throw FatalException("expr->dataType() != DataType::Float");
@@ -405,7 +425,6 @@ namespace lwnn {
         }
 
         int runInt32Expr(std::unique_ptr<const Expr> expr) {
-            typedef int (*IntFuncPtr)(void);
 
             if(expr->dataType() != DataType::Int32) {
                 throw FatalException("expr->dataType() != DataType::Int32");
@@ -420,4 +439,3 @@ namespace lwnn {
         std::string execute(std::unique_ptr<const Expr> expr);
     } //namespace ExprRunner
 } //namespace float
-

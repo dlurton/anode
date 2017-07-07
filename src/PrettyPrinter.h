@@ -97,6 +97,5 @@ namespace lwnn {
         virtual void visitingModule(const Module *module) override {
             out_ << "Module: " << module->name();
         }
-
     };
 }

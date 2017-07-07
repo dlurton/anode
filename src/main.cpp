@@ -95,7 +95,7 @@ namespace lwnn {
     void executeLine(std::string lineOfCode) {
         auto expr = lwnn::parse(lineOfCode);
 
-
         std::string result = ExprRunner::compile(std::move(expr));
+        std::cout << "Result: " << result << "\n";
     }
 }
