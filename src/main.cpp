@@ -1,9 +1,16 @@
+#include "parse.h"
+#include "ExprRunner.h"
+#include "PrettyPrinter.h"
+#include "AstWalker.h"
+
 #include <linenoise.h>
+
+#include <string>
 
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include "lwnn.h"
+
 
 //
 //static const char* examples[] = {
@@ -20,9 +27,17 @@
 //    }
 //}
 
-int main(int argc, char **argv) {
-    lwnn::do_llvm_demo();
 
+
+namespace lwnn {
+    extern void do_llvm_demo();
+    void executeLine(std::string lineOfCode);
+
+}
+
+int main(int argc, char **argv) {
+
+    lwnn::ExprRunner::init();
     linenoiseInstallWindowChangeHandler();
 
     while(argc > 1) {
@@ -61,8 +76,9 @@ int main(int argc, char **argv) {
         if (*lineOfCode == '\0') {
             keepGoing = false;
         } else {
-            lwnn::parse(lineOfCode);
             linenoiseHistoryAdd(lineOfCode);
+
+            lwnn::executeLine(lineOfCode);
         }
 
         free(lineOfCode);
@@ -75,3 +91,11 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+namespace lwnn {
+    void executeLine(std::string lineOfCode) {
+        auto expr = lwnn::parse(lineOfCode);
+
+
+        std::string result = ExprRunner::compile(std::move(expr));
+    }
+}

@@ -1,7 +1,10 @@
 
-#include "AST.hpp"
+#include "ast.h"
 
 namespace lwnn {
+
+    SourceSpan SourceSpan::Any("?", SourceLocation(-1, -1), SourceLocation(-1, -1));
+
 
     std::string to_string(NodeKind nodeKind) {
         switch (nodeKind) {

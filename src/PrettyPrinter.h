@@ -1,21 +1,21 @@
 
 #pragma once
 
-#include "ExpressionTreeVisitor.hpp"
+#include "AstVisitor.h"
 
 #include <iostream>
 #include <algorithm>
 
 namespace lwnn {
 
-    class PrettyPrinterVisitor : public ExpressionTreeVisitor {
+    class PrettyPrinterVisitor : public AstVisitor {
     private:
         int indent_ = -1;
         std::ostream &out_;
 
         void writeTabs() {
             for(int i = 0; i < indent_; ++i)
-                out_ << "\t";
+                out_ << "  ";
         }
 
     public:
@@ -27,31 +27,31 @@ namespace lwnn {
             out_ << "\n";
         }
 
-        void visitingNode(const Node *) override {
+        void visitingNode(const AstNode *) override {
             indent_++;
             out_ << "\n";
             writeTabs();
         }
 
-        void visitedNode(const Node *) override {
+        void visitedNode(const AstNode *) override {
             indent_--;
         }
 
-        void visitingBlock(const Block *expr) override {
+        void visitingBlock(const BlockExpr *expr) override {
             out_ << "Block:";
             writeScopeVariables(expr->scope());
         }
 
         void writeScopeVariables(const Scope *scope) {
             out_ << "(";
-            std::vector<const Variable*> variables = scope->variables();
+            std::vector<const VariableDef*> variables = scope->variables();
             if(variables.size() == 0) {
                 out_ << ")";
             } else if(variables.size() == 1) {
                 out_ << variables.front()->toString() << ")";
             } else {
                 std::sort(variables.begin(), variables.end(),
-                          [](const Variable* a, const Variable *b) {
+                          [](const VariableDef* a, const VariableDef *b) {
                               return a->name() < b->name();
                           });
 
@@ -63,14 +63,14 @@ namespace lwnn {
             }
         }
 
-        void visitingBinary(const Binary *expr) override {
+        void visitingBinary(const BinaryExpr *expr) override {
             out_ << "Binary: " << to_string(expr->operation());
         }
 
-        void visitLiteralInt32(const LiteralInt32 *expr) override {
+        void visitLiteralInt32(const LiteralInt32Expr *expr) override {
             out_ << "LiteralInt32: " << std::to_string(expr->value());
         }
-        void visitLiteralFloat(const LiteralFloat *expr) override {
+        void visitLiteralFloat(const LiteralFloatExpr *expr) override {
             out_ << "LiteralFloat: " << std::to_string(expr->value());
         }
 
@@ -78,7 +78,7 @@ namespace lwnn {
             out_ << "VariableRef: " << expr->name();
         }
 
-        void visitingConditional(const Conditional *) override {
+        void visitingConditional(const ConditionalExpr *) override {
             out_ << "Conditional: ";
         }
 

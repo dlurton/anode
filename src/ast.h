@@ -6,7 +6,7 @@
 #include <functional>
 #include <memory>
 
-#include "Exception.hpp"
+#include "Exception.h"
 
 /** Rules for AST nodes:
  *      - Every node shall "own" its child nodes so that when a node is deleted, all of its children are also deleted.
@@ -31,7 +31,6 @@ namespace lwnn {
         LiteralFloat,
         AssignVariable,
         Return,
-        Module,
         Function
     };
     std::string to_string(NodeKind nodeKind);
@@ -66,39 +65,49 @@ namespace lwnn {
     /** Represents a range within a source defined by a starting SourceLocation and and ending SourceLocation.*/
     struct SourceSpan {
         /** The name of the input i.e. a filename, "stdin" or "REPL". */
-        const std::string name;
+        const std::string name;  //TODO:  I feel like it's horribly inefficient to be copying this around everywhere...
         const SourceLocation start;
         const SourceLocation end;
 
-        SourceSpan(std::string filename, SourceLocation start, SourceLocation end)
-            : name(filename), start(start), end(end) {  }
+        SourceSpan(std::string sourceName, SourceLocation start, SourceLocation end)
+            : name(sourceName), start(start), end(end) {  }
+
+        static SourceSpan Any;
     };
 
+//    /** Specifies a string from the source code and its location. */
+//    struct Identifier {
+//        const std::string name;
+//        const SourceSpan sourceSpan;
+//        Identifier(std::string name, SourceSpan sourceSpan)
+//            : name(name), sourceSpan{span) {  }
+//    };
+
     /** Base class for all nodes */
-    class Node {
+    class AstNode {
     private:
-        SourceSpan sourceRange_;
+        SourceSpan sourceSpan_;
     public:
-        Node(SourceSpan sourceRange) : sourceRange_(sourceRange) { }
-        virtual ~Node() { }
+        AstNode(SourceSpan sourceSpan) : sourceSpan_(sourceSpan) { }
+        virtual ~AstNode() { }
         virtual NodeKind nodeKind() const = 0;
     };
 
     /** Base class for all expressions. */
-    class Expr : public Node {
+    class Expr : public AstNode {
     public:
-        Expr(SourceSpan sourceRange) : Node(sourceRange) { }
+        Expr(SourceSpan sourceSpan) : AstNode(sourceSpan) { }
         virtual ~Expr() { }
         virtual DataType dataType() const { return DataType::Void; }
     };
 
     /** Represents an expression that is a literal 32 bit integer. */
-    class LiteralInt32 : public Expr {
+    class LiteralInt32Expr : public Expr {
         int const value_;
     public:
-        LiteralInt32(SourceSpan sourceRange, const int value) : Expr(sourceRange), value_(value) { }
+        LiteralInt32Expr(SourceSpan sourceSpan, const int value) : Expr(sourceSpan), value_(value) { }
 
-        virtual ~LiteralInt32() { }
+        virtual ~LiteralInt32Expr() { }
 
         NodeKind nodeKind() const override { return NodeKind::LiteralInt32; }
 
@@ -113,12 +122,12 @@ namespace lwnn {
 
 
     /** Represents an expression that is a literal float. */
-    class LiteralFloat : public Expr {
+    class LiteralFloatExpr : public Expr {
         float const value_;
     public:
-        LiteralFloat(SourceSpan sourceRange, const float value) : Expr(sourceRange), value_(value) { }
+        LiteralFloatExpr(SourceSpan sourceSpan, const float value) : Expr(sourceSpan), value_(value) { }
 
-        virtual ~LiteralFloat() { }
+        virtual ~LiteralFloatExpr() { }
 
         NodeKind nodeKind() const override {
             return NodeKind::LiteralFloat;
@@ -134,18 +143,20 @@ namespace lwnn {
     };
 
     /** Represents a binary expression, i.e. 1 + 2 or foo + bar */
-    class Binary : public Expr {
+    class BinaryExpr : public Expr {
         const std::unique_ptr<const Expr> lValue_;
         const OperationKind operation_;
         const std::unique_ptr<const Expr> rValue_;
     public:
 
         /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
-        Binary(SourceSpan sourceRange, std::unique_ptr<const Expr> lValue, OperationKind operation, std::unique_ptr<const Expr> rValue)
-                : Expr(sourceRange), lValue_(move(lValue)), operation_(operation), rValue_(move(rValue)) {
+        BinaryExpr(SourceSpan sourceSpan, std::unique_ptr<const Expr> lValue, OperationKind operation, std::unique_ptr<const Expr> rValue)
+                : Expr(sourceSpan), lValue_(std::move(lValue)), operation_(operation), rValue_(std::move(rValue)) {
+            ASSERT_NOT_NULL(lValue_);
+            ASSERT_NOT_NULL(rValue_);
         }
 
-        virtual ~Binary() { }
+        virtual ~BinaryExpr() { }
 
         NodeKind nodeKind() const override {
             return NodeKind::Binary;
@@ -171,12 +182,15 @@ namespace lwnn {
 
 
     /** Defines a variable or a variable reference. */
-    class Variable {
+    class VariableDef : AstNode {
         const std::string name_;
         const DataType dataType_;
 
     public:
-        Variable(SourceSpan sourceRange, const std::string &name_, const DataType dataType) : name_(name_), dataType_(dataType) { }
+        VariableDef(SourceSpan sourceSpan, const std::string &name_, const DataType dataType)
+                : AstNode(sourceSpan), name_(name_), dataType_(dataType) {
+            DEBUG_ASSERT(name.size() > 0);
+        }
 
         DataType dataType() const { return dataType_; }
 
@@ -190,7 +204,7 @@ namespace lwnn {
     class VariableRef : public Expr {
         std::string name_;
     public:
-        VariableRef(SourceSpan sourceRange, std::string name) : Expr(sourceRange), name_{name} {
+        VariableRef(SourceSpan sourceSpan, std::string name) : Expr(sourceSpan), name_{name} {
 
         }
 
@@ -209,13 +223,13 @@ namespace lwnn {
     };
 
     class AssignVariable : public Expr {
-        shared_ptr<const Variable> variable_;  //Note:  variables are owned by LWNN::Scope.
+        shared_ptr<const VariableDef> variable_;  //Note:  variables are owned by LWNN::Scope.
         const std::unique_ptr<const Expr> valueExpr_;
     public:
-        AssignVariable(SourceSpan sourceRange,
-                       std::shared_ptr<const Variable> variable,
+        AssignVariable(SourceSpan sourceSpan,
+                       std::shared_ptr<const VariableDef> variable,
                        std::unique_ptr<const Expr> valueExpr)
-                : Expr(sourceRange), variable_(variable), valueExpr_(move(valueExpr)) { }
+                : Expr(sourceSpan), variable_(variable), valueExpr_(move(valueExpr)) { }
 
         NodeKind nodeKind() const override { return NodeKind::AssignVariable; }
         DataType dataType() const override { return variable_->dataType(); }
@@ -228,8 +242,8 @@ namespace lwnn {
     class Return : public Expr {
         const std::unique_ptr<const Expr> valueExpr_;
     public:
-        Return(SourceSpan sourceRange, std::unique_ptr<const Expr> valueExpr)
-                : Expr(sourceRange), valueExpr_(move(valueExpr)) { }
+        Return(SourceSpan sourceSpan, std::unique_ptr<const Expr> valueExpr)
+                : Expr(sourceSpan), valueExpr_(move(valueExpr)) { }
 
         NodeKind nodeKind() const override { return NodeKind::Return; }
         DataType dataType() const override { return valueExpr_->dataType(); }
@@ -238,14 +252,14 @@ namespace lwnn {
     };
 
     class Scope {
-        const std::unordered_map<std::string, shared_ptr<const Variable>> variables_;
+        const std::unordered_map<std::string, shared_ptr<const VariableDef>> variables_;
     public:
-        Scope(std::unordered_map<std::string, shared_ptr<const Variable>> variables)
+        Scope(std::unordered_map<std::string, shared_ptr<const VariableDef>> variables)
                 : variables_{move(variables)} { }
 
         virtual ~Scope() {}
 
-        const Variable *findVariable(std::string &name) const {
+        const VariableDef *findVariable(std::string &name) const {
             auto found = variables_.find(name);
             if(found == variables_.end()) {
                 return nullptr;
@@ -253,8 +267,8 @@ namespace lwnn {
             return (*found).second.get();
         }
 
-        std::vector<const Variable*> variables() const {
-            std::vector<const Variable*> vars;
+        std::vector<const VariableDef*> variables() const {
+            std::vector<const VariableDef*> vars;
 
             for(auto &v : variables_) {
                 vars.push_back(v.second.get());
@@ -265,10 +279,11 @@ namespace lwnn {
     };
 
     class ScopeBuilder {
-        std::unordered_map<std::string, shared_ptr<const Variable>> variables_;
+        std::unordered_map<std::string, shared_ptr<const VariableDef>> variables_;
     public:
 
-        ScopeBuilder &addVariable(shared_ptr<const Variable> varDecl) {
+        ScopeBuilder &addVariable(shared_ptr<const VariableDef> varDecl) {
+            ASSERT_NOT_NULL(varDecl);
             variables_.emplace(varDecl->name(), varDecl);
             return *this;
         }
@@ -279,17 +294,17 @@ namespace lwnn {
     };
 
     /** Contains a series of expressions. */
-    class Block : public Expr {
+    class BlockExpr : public Expr {
         const std::vector<std::unique_ptr<const Expr>> expressions_;
         std::unique_ptr<const Scope> scope_;
     public:
-        virtual ~Block() {}
+        virtual ~BlockExpr() {}
 
         /** Note:  assumes ownership of the contents of the vector arguments. */
-        Block(SourceSpan sourceRange,
+        BlockExpr(SourceSpan sourceSpan,
               std::unique_ptr<const Scope> scope,
               std::vector<std::unique_ptr<const Expr>> expressions)
-                : Expr(sourceRange), expressions_{move(expressions)}, scope_{move(scope)} { }
+                : Expr(sourceSpan), expressions_{move(expressions)}, scope_{move(scope)} { }
 
         NodeKind nodeKind() const override { return NodeKind::Block; }
 
@@ -306,49 +321,56 @@ namespace lwnn {
             }
         }
     };
-//
-//    /** Helper class which makes creating Block expression instances much easier. */
-//    class BlockBuilder {
-//        std::vector<std::unique_ptr<const Expr>> expressions_;
-//        ScopeBuilder scopeBuilder_;
-//    public:
-//        virtual ~BlockBuilder() {
-//        }
-//
-//        BlockBuilder &addVariable(shared_ptr<const Variable> variable) {
-//            scopeBuilder_.addVariable(variable);
-//            return *this;
-//        }
-//
-//        BlockBuilder &addExpression(std::unique_ptr<const Expr> newExpr) {
-//            expressions_.emplace_back(move(newExpr));
-//            return *this;
-//        }
-//
-//        std::unique_ptr<const Block> build(SourceSpan sourceSpan) {
-//            return std::make_unique<const Block>(sourceSpan, scopeBuilder_.build(), move(expressions_));
-//        }
-//    };
+
+    /** Helper class which makes creating Block expression instances much easier. */
+    class BlockExprBuilder {
+        std::vector<std::unique_ptr<const Expr>> expressions_;
+        ScopeBuilder scopeBuilder_;
+        SourceSpan sourceSpan_;
+    public:
+
+        BlockExprBuilder(const SourceSpan &sourceSpan_) : sourceSpan_(sourceSpan_) { }
+
+        virtual ~BlockExprBuilder() {
+        }
+
+        BlockExprBuilder &addVariableDef(shared_ptr<const VariableDef> variable) {
+            ASSERT_NOT_NULL(variable);
+            scopeBuilder_.addVariable(variable);
+            return *this;
+        }
+
+        BlockExprBuilder &addExpression(std::unique_ptr<const Expr> newExpr) {
+            ASSERT_NOT_NULL(newExpr);
+
+            expressions_.emplace_back(move(newExpr));
+            return *this;
+        }
+
+        std::unique_ptr<const BlockExpr> build() {
+            return std::make_unique<const BlockExpr>(sourceSpan_, scopeBuilder_.build(), move(expressions_));
+        }
+    };
 
 
     /** Can be the basis of an if-then-else or ternary operator. */
-    class Conditional : public Expr {
+    class ConditionalExpr : public Expr {
         std::unique_ptr<const Expr> condition_;
         std::unique_ptr<const Expr> truePart_;
         std::unique_ptr<const Expr> falsePart_;
     public:
 
         /** Note:  assumes ownership of condition, truePart and falsePart.  */
-        Conditional(SourceSpan sourceRange,
+        ConditionalExpr(SourceSpan sourceSpan,
                     std::unique_ptr<const Expr> condition,
                     std::unique_ptr<const Expr> truePart,
                     std::unique_ptr<const Expr> falsePart)
-                : Expr(sourceRange),
+                : Expr(sourceSpan),
                   condition_{move(condition)},
                   truePart_{move(truePart)},
                   falsePart_{move(falsePart)}
         {
-            ARG_NOT_NULL(condition_);
+            ASSERT_NOT_NULL(condition_);
         }
 
         NodeKind nodeKind() const override {
@@ -380,19 +402,19 @@ namespace lwnn {
         }
     };
 
-    class Function : public Node {
+    class Function : public AstNode {
         const std::string name_;
         const DataType returnType_;
         std::unique_ptr<const Scope> parameterScope_;
         std::unique_ptr<const Expr> body_;
 
     public:
-        Function(SourceSpan sourceRange,
+        Function(SourceSpan sourceSpan,
                  std::string name,
                  DataType returnType,
                  std::unique_ptr<const Scope> parameterScope,
                  std::unique_ptr<const Expr> body)
-                : Node(sourceRange),
+                : AstNode(sourceSpan),
                   name_{name},
                   returnType_{returnType},
                   parameterScope_{move(parameterScope)},
@@ -407,45 +429,46 @@ namespace lwnn {
         const Scope *parameterScope() const { return parameterScope_.get(); };
 
         const Expr *body() const { return body_.get(); }
-
     };
 
-//    class FunctionBuilder {
-//        const std::string name_;
-//        const DataType returnType_;
-//
-//        BlockBuilder blockBuilder_;
-//        ScopeBuilder parameterScopeBuilder_;
-//    public:
-//        FunctionBuilder(SourceSpan sourceRange, std::string name, DataType returnType)
-//            : name_{name}, returnType_{returnType} { }
-//
-//        BlockBuilder &blockBuilder() {
-//            return blockBuilder_;
-//        }
-//
-//        /** Assumes ownership of the variable. */
-//        FunctionBuilder &addParameter(std::unique_ptr<const Variable> variable) {
-//            parameterScopeBuilder_.addVariable(move(variable));
-//            return *this;
-//        };
-//
-//        std::unique_ptr<const Function> build(SourceSpan sourceSpan) {
-//            return std::make_unique<Function>(name_,
-//                                         returnType_,
-//                                         parameterScopeBuilder_.build(),
-//                                         blockBuilder_.build(sourceSpan));
-//        }
-//    };
+    class FunctionBuilder {
+        const std::string name_;
+        const DataType returnType_;
 
-    class Module : public Node {
+        SourceSpan sourceSpan_;
+        BlockExprBuilder blockBuilder_;
+        ScopeBuilder parameterScopeBuilder_;
+    public:
+        FunctionBuilder(SourceSpan sourceSpan, std::string name, DataType returnType)
+            : sourceSpan_(sourceSpan), name_{name}, returnType_{returnType}, blockBuilder_(sourceSpan) { }
+
+        BlockExprBuilder &blockBuilder() {
+            return blockBuilder_;
+        }
+
+        /** Assumes ownership of the variable. */
+        FunctionBuilder &addParameter(std::unique_ptr<const VariableDef> variable) {
+            ASSERT_NOT_NULL(variable);
+            parameterScopeBuilder_.addVariable(move(variable));
+            return *this;
+        };
+
+        std::unique_ptr<const Function> build() {
+            return std::make_unique<Function>(
+                sourceSpan_,
+                name_,
+                returnType_,
+                parameterScopeBuilder_.build(),
+                blockBuilder_.build());
+        }
+    };
+
+    class Module {
         const std::string name_;
         const std::vector<std::unique_ptr<const Function>> functions_;
     public:
-        Module(SourceSpan range, std::string name, std::vector<std::unique_ptr<const Function>> functions)
-             : Node(range), name_{name}, functions_{move(functions)}  { }
-
-        NodeKind nodeKind() const override { return NodeKind::Module; }
+        Module(std::string name, std::vector<std::unique_ptr<const Function>> functions)
+             : name_{name}, functions_{move(functions)}  { }
 
         std::string name() const { return name_; }
 
@@ -456,26 +479,28 @@ namespace lwnn {
         }
     };
 
-//    class ModuleBuilder {
-//        const std::string name_;
-//        std::vector<std::unique_ptr<const Function>> functions_;
-//    public:
-//        ModuleBuilder(std::string name)
-//            : name_{name}
-//        { }
-//
-//        ModuleBuilder &addFunction(std::unique_ptr<const Function> function) {
-//            functions_.emplace_back(move(function));
-//            return *this;
-//        }
-//
-//        ModuleBuilder &addFunction(Function *function) {
-//            functions_.emplace_back(function);
-//            return *this;
-//        }
-//
-//        std::unique_ptr<const Module> build() {
-//            return std::make_unique<const Module>(name_, move(functions_));
-//        }
-//    };
+    class ModuleBuilder {
+        const std::string name_;
+        std::vector<std::unique_ptr<const Function>> functions_;
+    public:
+        ModuleBuilder(std::string name)
+            : name_{name}
+        { }
+
+        ModuleBuilder &addFunction(std::unique_ptr<const Function> function) {
+            functions_.emplace_back(move(function));
+            return *this;
+        }
+
+        ModuleBuilder &addFunction(Function *function) {
+            ASSERT_NOT_NULL(function);
+            functions_.emplace_back(function);
+            return *this;
+        }
+
+        std::unique_ptr<const Module> build() {
+            return std::make_unique<const Module>(name_, move(functions_));
+        }
+    };
+
 }

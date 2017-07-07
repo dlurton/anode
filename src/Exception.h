@@ -3,17 +3,17 @@
 #include <string>
 #include <iostream>
 
-#define ARG_NOT_NULL(arg) if((arg) == nullptr) throw lwnn::InvalidArgumentException(#arg);
+#define ASSERT_NOT_NULL(arg) if((arg) == nullptr) throw lwnn::AssertionException("Expression cannot be null.", #arg);
+#define ASSERT(arg) if((arg)) throw lwnn::InvalidArgumentException(#arg);
 
 #ifdef LWNN_DEBUG
-#define DEBUG_ASSERT(arg, reason) if(!(arg)) { throw lwnn::DebugAssertionFailedException( \
+#define DEBUG_ASSERT(arg,) if(!(arg)) { throw lwnn::DebugAssertionFailedException( \
     std::string("Debug assertion failed!") + \
     std::string("\nFile       : ") + std::string(__FILE__) + \
     std::string("\nLine       : ") + std::to_string(__LINE__) + \
-    std::string("\nExpression : ") + std::string(#arg) + \
-    std::string("\nReason     : ") + std::string(reason)); }
+    std::string("\nExpression : ") + std::string(#arg)); }
 #else
-#define DEBUG_ASSERT(arg, reason) //no op
+#define DEBUG_ASSERT(arg) //no op
 #endif
 #define UNUSED(x) ((void)(x))
 namespace lwnn {
@@ -51,11 +51,13 @@ namespace lwnn {
     };
 #endif
 
-    class InvalidArgumentException : public Exception {
+    class AssertionException : public Exception {
     public:
-        InvalidArgumentException(const std::string &argumentName)
-                : Exception("Invalid value for argument " + argumentName) {
-
+        AssertionException(const std::string &argumentName)
+                : Exception("Invalid value: " + argumentName) {
+        }
+        AssertionException(const std::string &message, const std::string &argumentName)
+                : Exception(message + " Expression:" +  argumentName) {
         }
     };
 

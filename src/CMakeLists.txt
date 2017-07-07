@@ -3,34 +3,36 @@ set(CMAKE_CXX_STANDARD 14)
 set(EXTERNS_DIR "${CMAKE_SOURCE_DIR}/externs")
 set(LINK_LLVM_DYLIB yes)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ -ggdb")
+
 ##############################################################
 # ANTLR4 Parser Generation
 ##############################################################
 set(ANTLR_JAR_LOCATION ${EXTERNS_DIR}/antlr4/antlr4-complete.jar)
 
 set(GENERATED_SOURCE_FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnParser.h
-		${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnParser.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnBaseListener.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnLexer.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnListener.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnParser.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated/LwnnParser.cpp
 )
 
 foreach( src_file ${GENERATED_SOURCE_FILES} )
-	set_source_files_properties(${src_file} PROPERTIES GENERATED TRUE)
-	set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS -Wno-overloaded-virtual)
-	set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS -Wno-attributes)
+    set_source_files_properties(${src_file} PROPERTIES GENERATED TRUE)
+    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS -Wno-overloaded-virtual)
+    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS -Wno-attributes)
 
 endforeach(src_file ${GENERATED_SOURCE_FILES})
 
 add_custom_command(
-		COMMAND	"java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnGeneratedParser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
-		OUTPUT ${GENERATED_SOURCE_FILES}
+        COMMAND    "java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnGeneratedParser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
+        OUTPUT ${GENERATED_SOURCE_FILES}
 )
 
 ##############################################################
@@ -51,22 +53,23 @@ else()
     llvm_map_components_to_libnames(LLVM_LIBS all)
 endif()
 
+#add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 
 ##############################################################
 # Build lwnn
 ##############################################################
 set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
-		AST.hpp
-		AST.cpp
-        Exception.hpp
-		main.cpp
+        ast.h
+        ast.cpp
+        Exception.h
+        main.cpp
         parse.cpp
-        llvm_demo.cpp
-        llvm_demo.cpp
-        ExpressionTreeWalker.hpp
-        ExpressionTreeVisitor.hpp
-        PrettyPrinter.hpp
-        lwnn.h)
+        AstWalker.h
+        AstVisitor.h
+        PrettyPrinter.h
+        ExprRunner.h
+        ExprRunner.cpp
+        parse.h)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 

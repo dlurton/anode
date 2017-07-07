@@ -1,6 +1,7 @@
-#include "AST.hpp"
-#include "PrettyPrinter.hpp"
-#include "ExpressionTreeWalker.hpp"
+#include "ast.h"
+#include "PrettyPrinter.h"
+#include "AstWalker.h"
+#include "ExprRunner.h"
 
 #include <antlr4-runtime.h>
 #include "generated/LwnnLexer.h"
@@ -44,7 +45,7 @@ namespace lwnn {
 
         virtual void enterNumberExpr(LwnnParser::NumberExprContext *ctx) override {
             int value = std::stoi(ctx->getText());
-            expr_ = std::make_unique<LiteralInt32>(getSourceRange(ctx), value);
+            expr_ = std::make_unique<const LiteralInt32Expr>(getSourceRange(ctx), value);
         }
 
         virtual void enterInfixExpr(LwnnParser::InfixExprContext *ctx) override {
@@ -65,7 +66,7 @@ namespace lwnn {
                     throw new UnhandledSwitchCase();
             }
 
-            expr_ = std::make_unique<const Binary>(getSourceRange(ctx->left, ctx->right),
+            expr_ = std::make_unique<const BinaryExpr>(getSourceRange(ctx->left, ctx->right),
                 leftListener.surrenderExpr(), opKind, rightListener.surrenderExpr());
         }
 
@@ -93,8 +94,7 @@ namespace lwnn {
         }
     };
 
-
-    void parse(const char *lineOfCode) {
+    std::unique_ptr<const Expr> parse(std::string lineOfCode) {
         ANTLRInputStream inputStream(lineOfCode);
         LwnnLexer lexer(&inputStream);
         CommonTokenStream tokens(&lexer);
@@ -106,15 +106,6 @@ namespace lwnn {
         CompiledUnitListener listener;
         listener.enterCompileUnit(compileUnitCtx);
 
-        std::unique_ptr<const Expr> expr = listener.surrenderExpr();
-
-        //Gotta make a fake module & function for now...
-        PrettyPrinterVisitor visitor(std::cout);
-        ExpressionTreeWalker walker(&visitor);
-
-        walker.walk(expr.get());
-
-        std::cout << "\n\nEnd of ANTLR4 demo\n\n";
-        std::cout.flush();
+        return listener.surrenderExpr();
     }
 }

@@ -1,18 +1,18 @@
 #pragma once
 
-#include "ExpressionTreeVisitor.hpp"
+#include "AstVisitor.h"
 
 namespace lwnn {
     /** Default tree walker, suitable for most purposes */
-    class ExpressionTreeWalker {
-        ExpressionTreeVisitor *visitor_;
+    class AstWalker {
+        AstVisitor *visitor_;
 
     public:
-        ExpressionTreeWalker(ExpressionTreeVisitor *visitor) : visitor_{visitor} {
+        AstWalker(AstVisitor *visitor) : visitor_{visitor} {
 
         }
 
-        virtual ~ExpressionTreeWalker() {
+        virtual ~AstWalker() {
 
         }
 
@@ -24,25 +24,33 @@ namespace lwnn {
             visitor_->cleanUp();
         }
 
+        void walkModule(const Module *module) const {
+            ASSERT_NOT_NULL(module);
+            visitor_->visitingModule(module);
 
-        virtual void walk(const Node *node) const  {
+            module->forEachFunction([this](const Function *func) { walkFunction(func); });
 
-            ARG_NOT_NULL(node);
+            visitor_->visitedModule(module);
+        }
+
+        virtual void walk(const AstNode *node) const  {
+
+            ASSERT_NOT_NULL(node);
             switch (node->nodeKind()) {
                 case NodeKind::LiteralInt32:
-                    walkLiteralInt32(static_cast<const LiteralInt32*>(node));
+                    walkLiteralInt32(static_cast<const LiteralInt32Expr*>(node));
                     break;
                 case NodeKind::LiteralFloat:
-                    walkLiteralFloat(static_cast<const LiteralFloat*>(node));
+                    walkLiteralFloat(static_cast<const LiteralFloatExpr*>(node));
                     break;
                 case NodeKind::Binary:
-                    walkBinary(static_cast<const Binary*>(node));
+                    walkBinary(static_cast<const BinaryExpr*>(node));
                     break;
                 case NodeKind::Block:
-                    walkBlock(static_cast<const Block*>(node));
+                    walkBlock(static_cast<const BlockExpr*>(node));
                     break;
                 case NodeKind::Conditional:
-                    walkConditional(static_cast<const Conditional*>(node));
+                    walkConditional(static_cast<const ConditionalExpr*>(node));
                     break;
                 case NodeKind::VariableRef:
                     walkVariableRef(static_cast<const VariableRef*>(node));
@@ -57,16 +65,13 @@ namespace lwnn {
                 case NodeKind::Function:
                     walkFunction(static_cast<const Function*>(node));
                     break;
-                case NodeKind::Module:
-                    walkModule(static_cast<const Module*>(node));
-                    break;
                 default:
                     throw UnhandledSwitchCase();
             }
         }
 
-        void walkBlock(const Block *blockExpr) const {
-            ARG_NOT_NULL(blockExpr);
+        void walkBlock(const BlockExpr *blockExpr) const {
+            ASSERT_NOT_NULL(blockExpr);
             visitor_->visitingNode(blockExpr);
             visitor_->visitingBlock(blockExpr);
 
@@ -77,7 +82,7 @@ namespace lwnn {
         }
 
         void walkVariableRef(const VariableRef *variableRefExpr) const {
-            ARG_NOT_NULL(variableRefExpr);
+            ASSERT_NOT_NULL(variableRefExpr);
             visitor_->visitingNode(variableRefExpr);
             visitor_->visitVariableRef(variableRefExpr);
             visitor_->visitedNode(variableRefExpr);
@@ -85,7 +90,7 @@ namespace lwnn {
 
         void walkAssignVariable(const AssignVariable *assignVariableExpr) const {
 
-            ARG_NOT_NULL(assignVariableExpr);
+            ASSERT_NOT_NULL(assignVariableExpr);
             visitor_->visitingNode(assignVariableExpr);
             visitor_->visitingAssignVariable(assignVariableExpr);
 
@@ -97,7 +102,7 @@ namespace lwnn {
 
         void walkReturn(const Return *returnExpr) const {
 
-            ARG_NOT_NULL(returnExpr);
+            ASSERT_NOT_NULL(returnExpr);
             visitor_->visitingNode(returnExpr);
             visitor_->visitingReturn(returnExpr);
 
@@ -107,8 +112,8 @@ namespace lwnn {
             visitor_->visitedNode(returnExpr);
         }
 
-        void walkBinary(const Binary *binaryExpr) const {
-            ARG_NOT_NULL(binaryExpr);
+        void walkBinary(const BinaryExpr *binaryExpr) const {
+            ASSERT_NOT_NULL(binaryExpr);
             visitor_->visitingNode(binaryExpr);
             visitor_->visitingBinary(binaryExpr);
 
@@ -119,8 +124,8 @@ namespace lwnn {
             visitor_->visitedNode(binaryExpr);
         }
 
-        void walkConditional(const Conditional *conditionalExpr) const {
-            ARG_NOT_NULL(conditionalExpr);
+        void walkConditional(const ConditionalExpr *conditionalExpr) const {
+            ASSERT_NOT_NULL(conditionalExpr);
             visitor_->visitingNode(conditionalExpr);
             visitor_->visitingConditional(conditionalExpr);
 
@@ -137,22 +142,22 @@ namespace lwnn {
             visitor_->visitedNode(conditionalExpr);
         }
 
-        void walkLiteralInt32(const LiteralInt32 *expr) const {
-            ARG_NOT_NULL(expr);
+        void walkLiteralInt32(const LiteralInt32Expr *expr) const {
+            ASSERT_NOT_NULL(expr);
             visitor_->visitingNode(expr);
             visitor_->visitLiteralInt32(expr);
             visitor_->visitedNode(expr);
         }
 
-        void walkLiteralFloat(const LiteralFloat *expr) const {
-            ARG_NOT_NULL(expr);
+        void walkLiteralFloat(const LiteralFloatExpr *expr) const {
+            ASSERT_NOT_NULL(expr);
             visitor_->visitingNode(expr);
             visitor_->visitLiteralFloat(expr);
             visitor_->visitedNode(expr);
         }
 
         void walkFunction(const Function *func) const {
-            ARG_NOT_NULL(func);
+            ASSERT_NOT_NULL(func);
             visitor_->visitingNode(func);
             visitor_->visitingFunction(func);
 
@@ -162,16 +167,6 @@ namespace lwnn {
             visitor_->visitedNode(func);
         }
 
-        void walkModule(const Module *module) const {
-            ARG_NOT_NULL(module);
-            visitor_->visitingNode(module);
-            visitor_->visitingModule(module);
-
-            module->forEachFunction([this](const Function *func) { walkFunction(func); });
-
-            visitor_->visitedModule(module);
-            visitor_->visitedNode(module);
-        }
 
     };
 
