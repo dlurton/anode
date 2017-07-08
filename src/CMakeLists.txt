@@ -67,9 +67,9 @@ set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
         AstWalker.h
         AstVisitor.h
         PrettyPrinter.h
-        ExprRunner.h
-        ExprRunner.cpp
-        parse.h)
+        ExecutionContext.h
+        ExecutionContext.cpp
+        parse.h CodeGenVisitor.cpp CodeGenVisitor.h PrettyPrinter.cpp)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 

@@ -1,7 +1,4 @@
 #include "ast.h"
-#include "PrettyPrinter.h"
-#include "AstWalker.h"
-#include "ExprRunner.h"
 
 #include <antlr4-runtime.h>
 #include "generated/LwnnLexer.h"

@@ -166,8 +166,5 @@ namespace lwnn {
             visitor_->visitedFunction(func);
             visitor_->visitedNode(func);
         }
-
-
     };
-
 }

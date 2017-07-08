@@ -1,5 +1,5 @@
 #include "parse.h"
-#include "ExprRunner.h"
+#include "ExecutionContext.h"
 #include "PrettyPrinter.h"
 #include "AstWalker.h"
 
@@ -37,7 +37,8 @@ namespace lwnn {
 
 int main(int argc, char **argv) {
 
-    lwnn::ExprRunner::init();
+    lwnn::initializeJitCompiler();
+
     linenoiseInstallWindowChangeHandler();
 
     while(argc > 1) {
@@ -92,10 +93,51 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
+
+    std::string compile(std::unique_ptr<const Expr> expr) {
+        const char *FUNC_NAME = "someFunc";
+        DataType exprDataType = expr->dataType();
+
+        std::unique_ptr<const Return> retExpr = std::make_unique<const Return>(SourceSpan::Any, std::move(expr));
+        FunctionBuilder fb{ SourceSpan::Any, FUNC_NAME, retExpr->dataType() };
+
+        BlockExprBuilder &bb = fb.blockBuilder();
+
+        bb.addExpression(std::move(retExpr));
+
+        ModuleBuilder mb{"someModule"};
+
+        mb.addFunction(fb.build());
+
+        std::unique_ptr<const Module> lwnnModule{mb.build()};
+
+        prettyPrint(lwnnModule.get());
+
+
+        std::unique_ptr<ExecutionContext> ec = createExecutionContext();
+        ec->addModule(lwnnModule.get());
+
+        uint64_t funcPtr = ec->getSymbolAddress(FUNC_NAME);
+
+        std::string resultAsString;
+        switch(exprDataType) {
+            case DataType::Int32: {
+                IntFuncPtr intFuncPtr = reinterpret_cast<IntFuncPtr>(funcPtr);
+                int result = intFuncPtr();
+                resultAsString = std::to_string(result);
+                break;
+            }
+            default:
+                throw UnhandledSwitchCase();
+        }
+
+        return resultAsString;
+    }
+
     void executeLine(std::string lineOfCode) {
         auto expr = lwnn::parse(lineOfCode);
 
-        std::string result = ExprRunner::compile(std::move(expr));
+        std::string result = compile(std::move(expr));
         std::cout << "Result: " << result << "\n";
     }
 }
