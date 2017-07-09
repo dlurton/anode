@@ -1,7 +1,6 @@
 #include "execute.h"
 #include "compile.h"
 
-#include <map>
 #include <stack>
 
 #pragma GCC diagnostic push

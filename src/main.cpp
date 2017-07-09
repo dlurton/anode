@@ -26,8 +26,7 @@
 
 
 namespace lwnn {
-    extern void do_llvm_demo();
-    void executeLine(std::string lineOfCode);
+    void executeLine(std::string lineOfCode, bool shouldCompile);
 
 }
 
@@ -46,9 +45,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    const char* file = "~/.lwnn_history";
+    const char* historyFilename = "~/.lwnn_history";
 
-    linenoiseHistoryLoad(file);
+    linenoiseHistoryLoad(historyFilename);
     //linenoiseSetCompletionCallback(completionHook);
 
     printf("starting...\n");
@@ -56,11 +55,16 @@ int main(int argc, char **argv) {
     char const* prompt = "\x1b[1;32mlwnn\x1b[0m> ";
 
     bool keepGoing = true;
+    bool shouldCompile = true;
+
     while (keepGoing) {
         char* lineOfCode = linenoise(prompt);
 
         if (lineOfCode == NULL) {
             break;
+        } else if (!strncmp(lineOfCode, "/c", 8)) {
+            shouldCompile = !shouldCompile;
+            std::cout << "Compilation " << (shouldCompile ? "enabled" : "disabled") << "\n";
         } else if (!strncmp(lineOfCode, "/history", 8)) {
             /* Display the current history. */
             for (int index = 0; ; ++index) {
@@ -69,17 +73,16 @@ int main(int argc, char **argv) {
                 printf("%4d: %s\n", index, hist);
                 free(hist);
             }
-        }
-        if (*lineOfCode == '\0') {
+        } else if (*lineOfCode == '\0') {
             keepGoing = false;
         } else {
             linenoiseHistoryAdd(lineOfCode);
 
-            lwnn::executeLine(lineOfCode);
+            lwnn::executeLine(lineOfCode, shouldCompile);
         }
 
         free(lineOfCode);
-        linenoiseHistorySave(file);
+        linenoiseHistorySave(historyFilename);
     }
 
     printf("Saving history...");
@@ -89,7 +92,7 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
-    std::string compile(std::unique_ptr<const ast::Expr> expr) {
+    std::string run(std::unique_ptr<const ast::Expr> expr, bool enableCompilation) {
         const char *FUNC_NAME = "someFunc";
         ast::DataType exprDataType = expr->dataType();
 
@@ -108,6 +111,9 @@ namespace lwnn {
 
         visualize::prettyPrint(lwnnModule.get());
 
+        if(!enableCompilation) {
+            return "";
+        }
 
         auto ec = execute::createExecutionContext();
         ec->addModule(lwnnModule.get());
@@ -129,10 +135,12 @@ namespace lwnn {
         return resultAsString;
     }
 
-    void executeLine(std::string lineOfCode) {
+    void executeLine(std::string lineOfCode, bool enableCompilation) {
         auto expr = lwnn::parse::parseString(lineOfCode);
 
-        std::string result = compile(std::move(expr));
-        std::cout << "Result: " << result << "\n";
+        std::string result = run(std::move(expr), enableCompilation);
+        if(enableCompilation) {
+            std::cout << "Result: " << result << "\n";
+        }
     }
 }
