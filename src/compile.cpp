@@ -1,7 +1,7 @@
 
-#include "CodeGenVisitor.h"
+#include "compile.h"
 
-#include "AstWalker.h"
+#include "ast.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -23,6 +23,8 @@
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
 
 #pragma GCC diagnostic pop
+
+using namespace lwnn::ast;
 
 namespace lwnn {
     namespace compile {
@@ -103,7 +105,7 @@ namespace lwnn {
                     }
                 }
 
-                throw InvalidStateException(std::string("Variable '") + name + std::string("' was not defined."));
+                throw exception::InvalidStateException(std::string("Variable '") + name + std::string("' was not defined."));
             }
 
             virtual void visitingBlock(const BlockExpr *expr) override {
@@ -112,7 +114,7 @@ namespace lwnn {
 
                 for (auto var : expr->scope()->variables()) {
                     if (topScope.find(var->name()) != topScope.end()) {
-                        throw InvalidStateException("More than one variable named '" + var->name() +
+                        throw exception::InvalidStateException("More than one variable named '" + var->name() +
                                                     "' was defined in the current scope.");
                     }
 
@@ -135,7 +137,7 @@ namespace lwnn {
                     case DataType::Double:
                         return llvm::Type::getDoubleTy(context_);
                     default:
-                        throw UnhandledSwitchCase();
+                        throw exception::UnhandledSwitchCase();
                 }
             }
 
@@ -180,7 +182,7 @@ namespace lwnn {
                             case OperationKind::Div:
                                 return irBuilder_.CreateSDiv(lValue, rValue);
                             default:
-                                throw UnhandledSwitchCase();
+                                throw exception::UnhandledSwitchCase();
                         }
                     case DataType::Float:
                         switch (op) {
@@ -193,10 +195,10 @@ namespace lwnn {
                             case OperationKind::Div:
                                 return irBuilder_.CreateFDiv(lValue, rValue);
                             default:
-                                throw UnhandledSwitchCase();
+                                throw exception::UnhandledSwitchCase();
                         }
                     default:
-                        throw UnhandledSwitchCase();
+                        throw exception::UnhandledSwitchCase();
                 }
             }
 

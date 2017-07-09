@@ -61,15 +61,16 @@ endif()
 set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
         ast.h
         ast.cpp
-        Exception.h
+        exception.h
         main.cpp
         parse.cpp
-        AstWalker.h
-        AstVisitor.h
-        PrettyPrinter.h
-        ExecutionContext.h
-        ExecutionContext.cpp
-        parse.h CodeGenVisitor.cpp CodeGenVisitor.h PrettyPrinter.cpp)
+        visualize.h
+        visualize.cpp
+        execute.h
+        execute.cpp
+        parse.h
+        compile.cpp
+        compile.h)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 

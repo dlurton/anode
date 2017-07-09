@@ -3,11 +3,11 @@
 #include <string>
 #include <iostream>
 
-#define ASSERT_NOT_NULL(arg) if((arg) == nullptr) throw lwnn::AssertionException("Expression cannot be null.", #arg);
-#define ASSERT(arg) if((arg)) throw lwnn::InvalidArgumentException(#arg);
+#define ASSERT_NOT_NULL(arg) if((arg) == nullptr) throw lwnn::exception::AssertionException("Expression cannot be null.", #arg);
+#define ASSERT(arg) if((arg)) throw lwnn::exception::InvalidArgumentException(#arg);
 
 #ifdef LWNN_DEBUG
-#define DEBUG_ASSERT(arg,) if(!(arg)) { throw lwnn::DebugAssertionFailedException( \
+#define DEBUG_ASSERT(arg,) if(!(arg)) { throw lwnn::exception::DebugAssertionFailedException( \
     std::string("Debug assertion failed!") + \
     std::string("\nFile       : ") + std::string(__FILE__) + \
     std::string("\nLine       : ") + std::to_string(__LINE__) + \
@@ -16,8 +16,9 @@
 #define DEBUG_ASSERT(arg) //no op
 #endif
 #define UNUSED(x) ((void)(x))
-namespace lwnn {
 
+namespace lwnn {
+    namespace exception {
     class Exception : public std::runtime_error {
     public:
         Exception(const std::string &message) : runtime_error(message) {
@@ -81,4 +82,5 @@ namespace lwnn {
         }
 
     };
-}
+    } //namespace exception
+}//namespace lwnn

@@ -1,15 +1,11 @@
 #include "parse.h"
-#include "ExecutionContext.h"
-#include "PrettyPrinter.h"
-#include "AstWalker.h"
+#include "execute.h"
+#include "visualize.h"
 
 #include <linenoise.h>
 
-#include <string>
-
 #include <cstring>
-#include <cstdlib>
-#include <cstdio>
+
 
 
 //
@@ -37,7 +33,7 @@ namespace lwnn {
 
 int main(int argc, char **argv) {
 
-    lwnn::initializeJitCompiler();
+    lwnn::execute::initializeJitCompiler();
 
     linenoiseInstallWindowChangeHandler();
 
@@ -93,49 +89,48 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
-
-    std::string compile(std::unique_ptr<const Expr> expr) {
+    std::string compile(std::unique_ptr<const ast::Expr> expr) {
         const char *FUNC_NAME = "someFunc";
-        DataType exprDataType = expr->dataType();
+        ast::DataType exprDataType = expr->dataType();
 
-        std::unique_ptr<const Return> retExpr = std::make_unique<const Return>(SourceSpan::Any, std::move(expr));
-        FunctionBuilder fb{ SourceSpan::Any, FUNC_NAME, retExpr->dataType() };
+        std::unique_ptr<const ast::Return> retExpr = std::make_unique<const ast::Return>(ast::SourceSpan::Any, std::move(expr));
+        ast::FunctionBuilder fb{ ast::SourceSpan::Any, FUNC_NAME, retExpr->dataType() };
 
-        BlockExprBuilder &bb = fb.blockBuilder();
+        ast::BlockExprBuilder &bb = fb.blockBuilder();
 
         bb.addExpression(std::move(retExpr));
 
-        ModuleBuilder mb{"someModule"};
+        ast::ModuleBuilder mb{"someModule"};
 
         mb.addFunction(fb.build());
 
-        std::unique_ptr<const Module> lwnnModule{mb.build()};
+        std::unique_ptr<const ast::Module> lwnnModule{mb.build()};
 
-        prettyPrint(lwnnModule.get());
+        visualize::prettyPrint(lwnnModule.get());
 
 
-        std::unique_ptr<ExecutionContext> ec = createExecutionContext();
+        auto ec = execute::createExecutionContext();
         ec->addModule(lwnnModule.get());
 
         uint64_t funcPtr = ec->getSymbolAddress(FUNC_NAME);
 
         std::string resultAsString;
         switch(exprDataType) {
-            case DataType::Int32: {
-                IntFuncPtr intFuncPtr = reinterpret_cast<IntFuncPtr>(funcPtr);
+            case ast::DataType::Int32: {
+                execute::IntFuncPtr intFuncPtr = reinterpret_cast<execute::IntFuncPtr>(funcPtr);
                 int result = intFuncPtr();
                 resultAsString = std::to_string(result);
                 break;
             }
             default:
-                throw UnhandledSwitchCase();
+                throw exception::UnhandledSwitchCase();
         }
 
         return resultAsString;
     }
 
     void executeLine(std::string lineOfCode) {
-        auto expr = lwnn::parse(lineOfCode);
+        auto expr = lwnn::parse::parseString(lineOfCode);
 
         std::string result = compile(std::move(expr));
         std::cout << "Result: " << result << "\n";
