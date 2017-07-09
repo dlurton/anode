@@ -77,7 +77,7 @@ namespace lwnn {
 
             // Add the set to the JIT with the resolver we created above and a newly
             // created SectionMemoryManager.
-            return CompileLayer.addModule(M, std::move(Resolver));
+            return cantFail(CompileLayer.addModule(M, std::move(Resolver)));
         }
 
         llvm::JITSymbol findSymbol(const std::string Name) {
@@ -106,7 +106,7 @@ namespace lwnn {
             if(!symbol)
                 return 0;
 
-            uint64_t retval = symbol.getAddress();
+            uint64_t retval = cantFail(symbol.getAddress());
             return retval;
         }
 
