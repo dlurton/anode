@@ -16,6 +16,16 @@ expr
     |   var=ID                              # varRefExpr
     ;
 
+varDecl
+    : name=ID ':' type=ID;
+
+TYPE_REF
+    : KW_FLOAT
+    | KW_INT;
+
+KW_INT: 'int';
+KW_FLOAT: 'float';
+
 OP_ADD: '+';
 OP_SUB: '-';
 OP_MUL: '*';
