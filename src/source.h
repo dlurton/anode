@@ -7,14 +7,14 @@ namespace lwnn {
     namespace source {
         /** Represents a location within a source file. */
         class SourceLocation {
-            size_t line_;
-            size_t position_;
+            std::size_t line_;
+            std::size_t position_;
         public:
-            SourceLocation(size_t line, size_t position)
+            SourceLocation(std::size_t line, std::size_t position)
                 : line_(line), position_(position) { }
 
-            size_t line() { return line_; }
-            size_t position() { return line_; }
+            std::size_t line() { return line_; }
+            std::size_t position() { return line_; }
 
             std::string toString() {
                 return string::format("(%d, %d)", line_, position_);

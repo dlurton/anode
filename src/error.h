@@ -18,7 +18,7 @@ namespace lwnn {
             int errorCount() { return errorCount_; }
             template<typename ... Args>
             void error(source::SourceSpan sourceSpan, const std::string& format, Args ... args) {
-                output_ << sourceSpan.toString() << ":" << string::format(format, args ...) << std::endl;
+                output_ << sourceSpan.toString() << ": " << string::format(format, args ...) << std::endl;
                 ++errorCount_;
             }
         };

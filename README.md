@@ -1,4 +1,4 @@
-# LWNN - The Language With No Name*
+# LWNN - The Language With No Name
 
 The Language With No Name is yet another embryonic programming language using LLVM as a back-end.
   
@@ -66,7 +66,7 @@ There's only a very limited set of functionality that works right now:
         20
 
 The above expression:  `imaglobalyo:int = 5 * 20 / (2 + 3);` declares a variable named "imaglobalyo" of type "int" and
-assigns a default value.  In LWNN, variable delcarations such as this have the value assigned to the variable.
+assigns a default value.  
 
 ## Building
 

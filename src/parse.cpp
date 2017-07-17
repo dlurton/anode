@@ -1,7 +1,8 @@
 #include "ast.h"
-#include "source.h"
+#include "error.h"
 
 #include <antlr4-runtime.h>
+
 #include "generated/LwnnLexer.h"
 #include "generated/LwnnParser.h"
 #include "generated/LwnnBaseListener.h"
@@ -175,19 +176,47 @@ namespace lwnn {
             }
         };
 
-        std::unique_ptr<const Module> parseModule(std::string lineOfCode) {
-            ANTLRInputStream inputStream(lineOfCode);
-            LwnnLexer lexer(&inputStream);
-            CommonTokenStream tokens(&lexer);
+        class LwnnErrorListener : public DiagnosticErrorListener {
+            error::ErrorStream &errorStream_;
+        public:
+            LwnnErrorListener(error::ErrorStream &errorStream_)
+                : DiagnosticErrorListener(true),
+                  errorStream_(errorStream_) {}
+
+            virtual void syntaxError(Recognizer *recognizer, Token *offendingSymbol, size_t line,
+                                     size_t charPositionInLine, const std::string &msg, std::exception_ptr e) {
+
+                source::SourceSpan span = getSourceSpan(offendingSymbol);
+                errorStream_.error(span, msg);
+            };
+
+        };
+
+        std::unique_ptr<Module> parseModule(const std::string &lineOfCode, const std::string &inputName) {
+            error::ErrorStream errorStream{std::cerr};
+            LwnnErrorListener errorListener{errorStream};
+
+            ANTLRInputStream inputStream{lineOfCode};
+            LwnnLexer lexer{&inputStream};
+            lexer.removeErrorListeners();
+            lexer.addErrorListener(&errorListener);
+            inputStream.name = inputName;
+
+            CommonTokenStream tokens{&lexer};
             tokens.fill();
 
             LwnnParser parser(&tokens);
+            parser.removeErrorListeners();
+            parser.addErrorListener(&errorListener);
+
             auto *moduleCtx = parser.module();
 
             CompiledUnitListener listener;
             moduleCtx->enterRule(&listener);
 
-            //listener.enterModule(moduleCtx);
+            if(errorStream.errorCount() > 0) {
+                return nullptr;
+            }
 
             return listener.surrenderResult();
         }

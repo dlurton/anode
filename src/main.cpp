@@ -111,8 +111,11 @@ namespace lwnn {
     }
 
     void evaluateLine(std::string lineOfCode, bool shouldExecute) {
-        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode);
-        ASSERT(module);
+        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, "<input string>");
+        //If no Module returned, parsing failed.
+        if(!module) {
+            return;
+        }
         visualize::prettyPrint(module.get());
 
         error::ErrorStream es{std::cerr};
