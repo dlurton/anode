@@ -5,6 +5,6 @@
 
 namespace lwnn {
     namespace visualize {
-        void prettyPrint(const ast::Module *module);
+        void prettyPrint(ast::Module *module);
     }
 }

@@ -3,19 +3,16 @@
 #include <string>
 #include <iostream>
 
-#define ASSERT_NOT_NULL(arg) if((arg) == nullptr) throw lwnn::exception::AssertionException("Expression cannot be null.", #arg);
-#define ASSERT(arg) if((arg)) throw lwnn::exception::InvalidArgumentException(#arg);
+#define ASSERT_FAIL(message) throw lwnn::exception::DebugAssertionFailedException( \
+    std::string(message) + \
+    std::string("\nFile       : ") + std::string(__FILE__) + \
+    std::string("\nLine       : ") + std::to_string(__LINE__));
 
-#ifdef LWNN_DEBUG
-#define DEBUG_ASSERT(arg,) if(!(arg)) { throw lwnn::exception::DebugAssertionFailedException( \
+#define ASSERT(arg) if(!(arg)) { throw lwnn::exception::DebugAssertionFailedException( \
     std::string("Debug assertion failed!") + \
     std::string("\nFile       : ") + std::string(__FILE__) + \
     std::string("\nLine       : ") + std::to_string(__LINE__) + \
     std::string("\nExpression : ") + std::string(#arg)); }
-#else
-#define DEBUG_ASSERT(arg) //no op
-#endif
-#define UNUSED(x) ((void)(x))
 
 namespace lwnn {
     namespace exception {
@@ -43,14 +40,12 @@ namespace lwnn {
         }
     };
 
-#ifdef LWNN_DEBUG
     class DebugAssertionFailedException : public FatalException {
     public:
         DebugAssertionFailedException(const std::string &message) : FatalException(message) {
 
         }
     };
-#endif
 
     class AssertionException : public Exception {
     public:

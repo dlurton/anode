@@ -1,726 +1,607 @@
 #pragma once
 
+#include "type.h"
+#include "scope.h"
+#include "source.h"
+
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <functional>
 #include <memory>
+#include <deque>
 
-#include "exception.h"
-
-/** Rules for AST nodes:
- *      - Every node shall "own" its child nodes so that when a node is deleted, all of its children are also deleted.
- *      - Thou shalt not modify any AST node after it has been created.
- */
 
 namespace lwnn {
     namespace ast {
-        using std::make_unique;
-        using std::make_shared;
-        using std::move;
-
-        enum class NodeKind {
-            Binary,
-            Invoke,
-            VariableRef,
-            Conditional,
-            Switch,
-            Block,
-            LiteralInt32,
-            LiteralFloat,
-            AssignVariable,
-            Return,
-            Function
+        enum class StmtKind {
+            CompoundStmt,
+            FunctionDeclStmt,
+            ReturnStmt,
+            ExprStmt
         };
+        std::string to_string(StmtKind kind);
 
-        std::string to_string(NodeKind nodeKind);
+        enum class ExprKind {
+            VariableDeclExpr,
+            LiteralInt32Expr,
+            LiteralFloatExpr,
+            VariableRefExpr,
+            AssignVariableExpr,
+            BinaryExpr,
+            ConditionalExpr,
+        };
+        std::string to_string(ExprKind kind);
 
-        enum class OperationKind {
+        enum class BinaryOperationKind {
             Add,
             Sub,
             Mul,
             Div
         };
+        std::string to_string(BinaryOperationKind type);
 
-        std::string to_string(OperationKind type);
 
-        enum class DataType {
-            Void,
-            Bool,
-            Int32,
-            Pointer,
-            Float,
-            Double
+        class AstNode;
+        class Stmt;
+        class ReturnStmt;
+        class ExprStmt;
+        class CompoundStmt;
+        class FuncDeclStmt;
+        class ReturnStmt;
+        class ConditionalExpr;
+        class LiteralInt32Expr;
+        class LiteralFloatExpr;
+        class BinaryExpr;
+        class VariableDeclExpr;
+        class VariableRefExpr;
+        class AssignExpr;
+        class TypeRef;
+        class Module;
+
+
+        /** Visitor part of visitor pattern, with some enhancements.
+         *
+         *  AstNodes with no children follow a simple convention:
+         *      void visit[AstNodeType](AstNodeType *)
+         *  i.e.
+         *      void visitLiteralInt32Expr(LiteralInt32Expr *expr)
+         *
+         *  AstNodes with children have have two methods each:
+         *      bool visiting[AstNodeType](AstNodeType *)
+         *      void visited[AstNodeType](AstNOdeType *)
+         * i.e.
+         *      virtual bool visitingBinaryExpr(BinaryExpr *) {}
+         *      virtual void visitedBinaryExpr(BinaryExpr *) {}
+         *
+         * Functions prefixed with "visiting" are executed before their descendants are visited.  This type of method
+         * also returns a bool--implementers of this method should return false to prevent visitation of their
+         * descendants.
+         *
+         * Functions prefixed with "visited" are executed after their descendants are visited.
+         */
+        class AstVisitor {
+        public:
+            /** Executes before every Stmt is visited. Return false to prevent visitation of the node's descendants. */
+            virtual bool visitingStmt(Stmt *) { return true; }
+            /** Executes after every Stmt is visited. */
+            virtual void visitedStmt(Stmt *) {}
+
+            /** Executes before every ExprStmt is visited. */
+            virtual bool visitingExprStmt(ExprStmt *) { return true; }
+            /** Executes after every ExprStmt is visited. */
+            virtual void visitedExprStmt(ExprStmt *) {}
+
+
+            virtual bool visitingModule(Module *) { return true; }
+            virtual void visitedModule(Module *) {}
+
+            virtual void visitTypeRef(TypeRef *typeRef) {  }
+
+            //////////// Statements
+            virtual bool visitingFuncDeclStmt(FuncDeclStmt *) { return true; }
+            virtual void visitedFuncDeclStmt(FuncDeclStmt *) {}
+
+            virtual bool visitingCompoundStmt(CompoundStmt *) { return true; }
+            virtual void visitedCompoundStmt(CompoundStmt *) {}
+
+            virtual bool visitingReturnStmt(ReturnStmt *) { return true; }
+            virtual void visitedReturnStmt(ReturnStmt *) {}
+
+            //////////// Expressions
+            virtual bool visitingVariableDeclExpr(VariableDeclExpr *) { return true; }
+            virtual void visitedVariableDeclExpr(VariableDeclExpr *) {}
+
+            virtual bool visitingConditionalExpr(ConditionalExpr *) { return true; }
+            virtual void visitedConditionalExpr(ConditionalExpr *) {}
+
+            virtual bool visitingBinaryExpr(BinaryExpr *) { return true; }
+            virtual void visitedBinaryExpr(BinaryExpr *) {}
+
+            virtual void visitLiteralInt32Expr(LiteralInt32Expr *) { }
+
+            virtual void visitLiteralFloatExpr(LiteralFloatExpr *) {}
+
+            virtual void visitVariableRefExpr(VariableRefExpr *) {}
+
+            virtual bool visitingAssignExpr(AssignExpr *) { return true; }
+            virtual void visitedAssignExpr(AssignExpr *) {}
         };
 
-        std::string to_string(DataType dataType);
 
-        /** Represents a location within a source file. */
-        struct SourceLocation {
-            const size_t line;
-            const size_t position;
-
-            SourceLocation(size_t position, size_t column)
-                : line(position), position(column) {}
+        /** Base class for annotation groups.  Doesn't do much at the moment. */
+        class AnnotationGroup {
+        public:
+            virtual ~AnnotationGroup() { }
         };
 
-        /** Represents a range within a source defined by a starting SourceLocation and and ending SourceLocation.*/
-        struct SourceSpan {
-            /** The name of the input i.e. a filename, "stdin" or "REPL". */
-            const std::string name;  //TODO:  I feel like it's horribly inefficient to be copying this around everywhere...
-            const SourceLocation start;
-            const SourceLocation end;
+        class AnnotationContainer {
+            //See: http://en.cppreference.com/w/cpp/types/type_info/hash_code
+            using TypeInfoRef = std::reference_wrapper<const std::type_info>;
+            struct Hasher {  std::size_t operator()(TypeInfoRef code) const { return code.get().hash_code(); } };
+            struct EqualTo { bool operator()(TypeInfoRef lhs, TypeInfoRef rhs) const { return lhs.get() == rhs.get(); } };
 
-            SourceSpan(std::string sourceName, SourceLocation start, SourceLocation end)
-                : name(sourceName), start(start), end(end) {}
+            typedef std::unordered_map<TypeInfoRef, std::unique_ptr<AnnotationGroup>, Hasher, EqualTo> annotation_map;
+            annotation_map annotations_;
 
-            static SourceSpan Any;
+        public:
+            template<typename TAnnotation>
+            bool hasAnnotation() {
+                return annotations_.find(typeid(TAnnotation)) == annotations_.end();
+            }
+
+            template<typename TArgs, typename TAnnotation>
+            TAnnotation *newAnnotation(TArgs&& args) {
+                //Remove existing annotation, if any
+                auto itr = annotations_.find(typeid(TAnnotation));
+                if(itr == annotations_.end()) {
+                    annotations_.erase(itr);
+                }
+
+                std::unique_ptr<TAnnotation> annotation = std::make_unique<TAnnotation>(std::forward(args));
+                TAnnotation *annotationPtr = annotation.get();
+                annotations_.emplace(typeid(TAnnotation), std::move(annotation));
+                return annotationPtr;
+           }
+
+            template<typename TAnnotation>
+            TAnnotation* getAnnotation() {
+                auto itr = annotations_.find(typeid(TAnnotation));
+                if(itr == annotations_.end())
+                    return nullptr;
+
+                return (*itr).second;
+            }
         };
-
-//    /** Specifies a string from the source code and its location. */
-//    struct Identifier {
-//        const std::string name;
-//        const SourceSpan sourceSpan;
-//        Identifier(std::string name, SourceSpan sourceSpan)
-//            : name(name), sourceSpan{span) {  }
-//    };
 
         /** Base class for all nodes */
         class AstNode {
-        private:
-            SourceSpan sourceSpan_;
         public:
-            AstNode(SourceSpan sourceSpan) : sourceSpan_(sourceSpan) {}
-
             virtual ~AstNode() {}
+            virtual void accept(AstVisitor *visitor) = 0;
+        };
 
-            virtual NodeKind nodeKind() const = 0;
+        /** A statement any kind of non-terminal that may appear within a CompountStatement (i.e. between { and }), or
+         * at the global scope, i.e. global variables, assignments, class definitions,
+         */
+        class Stmt : public AstNode {
+        protected:
+            source::SourceSpan sourceSpan_;
+            Stmt(source::SourceSpan sourceSpan) : sourceSpan_(sourceSpan) { }
+        public:
+            virtual StmtKind stmtKind() const = 0;
+
+            source::SourceSpan sourceSpan() {
+                return sourceSpan_;
+            }
+        };
+
+        /** Contains a series of Statments, i.e. those contained within { and }. */
+        class CompoundStmt : public Stmt {
+            std::vector<std::unique_ptr<Stmt>> statements_;
+            scope::SymbolTable scope_;
+        public:
+            CompoundStmt(source::SourceSpan sourceSpan) : Stmt(sourceSpan) { }
+            virtual ~CompoundStmt() {}
+            virtual StmtKind stmtKind() const override { return StmtKind::CompoundStmt; }
+            scope::SymbolTable *scope() { return &scope_; }
+
+            void addStatement(std::unique_ptr<Stmt> stmt) {
+                statements_.push_back(std::move(stmt));
+            }
+
+            typedef std::vector<Stmt*> child_iterator;
+
+            std::vector<Stmt*> statements() const {
+                std::vector<Stmt*> retval;
+                for(auto &stmt : statements_) {
+                    retval.push_back(stmt.get());
+                }
+                return retval;
+            }
+
+            virtual void accept(AstVisitor *visitor) override {
+                if(!visitor->visitingStmt(this) && visitor->visitingCompoundStmt(this)) {
+                    return;
+                }
+                for(auto &stmt : statements_) {
+                    stmt->accept(visitor);
+                }
+                visitor->visitedCompoundStmt(this);
+                visitor->visitedStmt(this);
+            }
+        };
+
+
+        /* Refers to a data type, i.e. "int", or "WidgetFactory."
+         * Initially, type references will be unresolved (i.e. referencedType_ is null) but this is resolved
+         * during an AST pass. */
+        class TypeRef : AstNode {
+            source::SourceSpan sourceSpan_;
+            const std::string name_;
+            type::Type *referencedType_;
+        public:
+            /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
+            TypeRef(source::SourceSpan sourceSpan, std::string name)
+                : sourceSpan_(sourceSpan), name_(name) { }
+
+            /** Constructor to be used when the data type is known and doesn't need to be resolved. */
+            TypeRef(source::SourceSpan sourceSpan, type::Type *dataType)
+                : sourceSpan_(sourceSpan), name_(dataType->name()), referencedType_(dataType) { }
+
+            source::SourceSpan sourceSpan() {
+                return sourceSpan_;
+            }
+
+            std::string name() const { return name_; }
+
+            type::Type *type() const {
+                ASSERT(referencedType_ && "Data type hasn't been resolved yet");
+                return referencedType_;
+            }
+
+            void setType(type::Type *referencedType) {
+                referencedType_ = referencedType;
+            }
+
+            virtual void accept(AstVisitor *visitor) override {
+                visitor->visitTypeRef(this);
+            }
         };
 
         /** Base class for all expressions. */
-        class Expr : public AstNode {
+        class ExprStmt : public Stmt {
+        protected:
+            ExprStmt(source::SourceSpan sourceSpan) : Stmt(sourceSpan) { }
         public:
-            Expr(SourceSpan sourceSpan) : AstNode(sourceSpan) {}
-
-            virtual ~Expr() {}
-
-            virtual DataType dataType() const { return DataType::Void; }
+            virtual ~ExprStmt() { }
+            virtual StmtKind stmtKind() const override { return StmtKind::ExprStmt; }
+            virtual ExprKind exprKind() const = 0;
+            virtual type::Type *type() const  = 0;
         };
 
         /** Represents an expression that is a literal 32 bit integer. */
-        class LiteralInt32Expr : public Expr {
+        class LiteralInt32Expr : public ExprStmt {
             int const value_;
         public:
-            LiteralInt32Expr(SourceSpan sourceSpan, const int value) : Expr(sourceSpan), value_(value) {}
-
+            LiteralInt32Expr(source::SourceSpan sourceSpan, const int value) : ExprStmt(sourceSpan), value_(value) {}
             virtual ~LiteralInt32Expr() {}
-
-            NodeKind nodeKind() const override { return NodeKind::LiteralInt32; }
-
-            DataType dataType() const override {
-                return DataType::Int32;
-            }
-
-            int value() const {
-                return value_;
+            virtual ExprKind exprKind() const override { return ExprKind::LiteralInt32Expr; }
+            type::Type *type() const override { return &type::Primitives::Int32; }
+            int value() const { return value_; }
+            virtual void accept(AstVisitor *visitor) override {
+                if(!visitor->visitingExprStmt(this)) {
+                    return;
+                }
+                visitor->visitLiteralInt32Expr(this);
+                visitor->visitedExprStmt(this);
             }
         };
 
-
         /** Represents an expression that is a literal float. */
-        class LiteralFloatExpr : public Expr {
+        class LiteralFloatExpr : public ExprStmt {
             float const value_;
         public:
-            LiteralFloatExpr(SourceSpan sourceSpan, const float value) : Expr(sourceSpan), value_(value) {}
-
+            LiteralFloatExpr(source::SourceSpan sourceSpan, const float value) : ExprStmt(sourceSpan), value_(value) {}
             virtual ~LiteralFloatExpr() {}
+            ExprKind exprKind() const override { return ExprKind::LiteralFloatExpr; }
+            type::Type *type() const override {  return &type::Primitives::Float; }
+            float value() const { return value_; }
 
-            NodeKind nodeKind() const override {
-                return NodeKind::LiteralFloat;
+            virtual void accept(AstVisitor *visitor) override {
+                if(!visitor->visitingExprStmt(this)) {
+                    return;
+                }
+                visitor->visitLiteralFloatExpr(this);
+                visitor->visitedExprStmt(this);
+            }
+        };
+
+        /** Defines a variable. */
+        class VariableDeclExpr :
+                public ExprStmt,
+                public scope::Symbol {
+
+            const std::string name_;
+            const std::unique_ptr<TypeRef> typeRef_;
+            const std::unique_ptr<ExprStmt> initializerExpr_;
+
+        public:
+            VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name,
+                             std::unique_ptr<TypeRef> typeRef, std::unique_ptr<ExprStmt> initializerExpr)
+                : ExprStmt(sourceSpan),
+                  name_(name),
+                  typeRef_(std::move(typeRef)),
+                  initializerExpr_(std::move(initializerExpr))
+            {
+                ASSERT(name.size() > 0);
             }
 
-            DataType dataType() const override {
-                return DataType::Float;
-            }
+            ExprKind exprKind() const override { return ExprKind::VariableDeclExpr; }
+            TypeRef *typeRef() { return typeRef_.get(); }
+            virtual type::Type *type() const override { return typeRef_->type(); }
+            ExprStmt *initializerExpr() { return initializerExpr_.get(); }
 
-            float value() const {
-                return value_;
+            virtual std::string name() const override { return name_; }
+            virtual std::string toString() const override {  return name_ + ":" + typeRef_->name(); }
+
+            virtual void accept(AstVisitor *visitor) override {
+                if(!(visitor->visitingExprStmt(this) &&  visitor->visitingVariableDeclExpr(this))) {
+                    return;
+                }
+                typeRef_->accept(visitor);
+                if(initializerExpr_) {
+                    initializerExpr_->accept(visitor);
+                }
+                visitor->visitedVariableDeclExpr(this);
+                visitor->visitedExprStmt(this);
             }
         };
 
         /** Represents a binary expression, i.e. 1 + 2 or foo + bar */
-        class BinaryExpr : public Expr {
-            const std::unique_ptr<const Expr> lValue_;
-            const OperationKind operation_;
-            const std::unique_ptr<const Expr> rValue_;
+        class BinaryExpr : public ExprStmt {
+            const std::unique_ptr<ExprStmt> lValue_;
+            const BinaryOperationKind operation_;
+            const std::unique_ptr<ExprStmt> rValue_;
         public:
-
             /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
-            BinaryExpr(SourceSpan sourceSpan, std::unique_ptr<const Expr> lValue, OperationKind operation,
-                       std::unique_ptr<const Expr> rValue)
-                : Expr(sourceSpan), lValue_(std::move(lValue)), operation_(operation), rValue_(std::move(rValue)) {
-                ASSERT_NOT_NULL(lValue_);
-                ASSERT_NOT_NULL(rValue_);
+            BinaryExpr(source::SourceSpan sourceSpan, std::unique_ptr<ExprStmt> lValue, BinaryOperationKind operation,
+                       std::unique_ptr<ExprStmt> rValue)
+                : ExprStmt(sourceSpan), lValue_(std::move(lValue)), operation_(operation), rValue_(move(rValue)) {
+                ASSERT(lValue_);
+                ASSERT(rValue_);
             }
-
-            virtual ~BinaryExpr() {}
-
-            NodeKind nodeKind() const override {
-                return NodeKind::Binary;
-            }
-
+            virtual ~BinaryExpr() { }
+            ExprKind exprKind() const override { return ExprKind::BinaryExpr; }
             /** The data type of an rValue expression is always the same as the rValue's data type. */
-            DataType dataType() const override {
-                return rValue_->dataType();
-            }
+            type::Type *type() const override { return rValue_->type(); }
+            ExprStmt *lValue() const { return lValue_.get(); }
+            ExprStmt *rValue() const { return rValue_.get(); }
+            BinaryOperationKind operation() const { return operation_; }
 
-            const Expr *lValue() const {
-                return lValue_.get();
-            }
-
-            const Expr *rValue() const {
-                return rValue_.get();
-            }
-
-            OperationKind operation() const {
-                return operation_;
-            }
-        };
-
-
-        /** Defines a variable or a variable reference. */
-        class VariableDef : AstNode {
-            const std::string name_;
-            const DataType dataType_;
-
-        public:
-            VariableDef(SourceSpan sourceSpan, const std::string &name_, const DataType dataType)
-                : AstNode(sourceSpan), name_(name_), dataType_(dataType) {
-                DEBUG_ASSERT(name.size() > 0);
-            }
-
-            DataType dataType() const { return dataType_; }
-
-            std::string name() const { return name_; }
-
-            std::string toString() const {
-                return name_ + ":" + to_string(dataType_);
+            virtual void accept(AstVisitor *visitor) override {
+                if(!(visitor->visitingExprStmt(this) && visitor->visitingBinaryExpr(this))) {
+                    return;
+                }
+                lValue_->accept(visitor);
+                rValue_->accept(visitor);
+                visitor->visitedBinaryExpr(this);
+                visitor->visitedExprStmt(this);
             }
         };
 
-        class VariableRef : public Expr {
+        /** Represents a reference to a previously declared variable. */
+        class VariableRefExpr : public ExprStmt {
             std::string name_;
+            std::shared_ptr<scope::Symbol> symbol_;
         public:
-            VariableRef(SourceSpan sourceSpan, std::string name) : Expr(sourceSpan), name_{ name } {
+            VariableRefExpr(source::SourceSpan sourceSpan, std::string name) : ExprStmt(sourceSpan), name_{ name } { }
+            ExprKind exprKind() const override { return ExprKind::VariableRefExpr; }
 
-            }
-
-            NodeKind nodeKind() const override { return NodeKind::VariableRef; }
-
-            DataType dataType() const override {
-                //TODO:  after symbol table resolution, return data type from VariableDef
-                return DataType::Int32;
+            virtual type::Type *type() const override {
+                ASSERT(symbol_);
+                return symbol_->type();
             }
 
             std::string name() const { return name_; }
+            std::string toString() const { return name_ + ":" + this->type()->name(); }
 
-            std::string toString() const {
-                return name_ + ":" + to_string(this->dataType());
-            }
-        };
-
-        class AssignVariable : public Expr {
-            std::shared_ptr<const VariableDef> variable_;  //Note:  variables are owned by LWNN::Scope.
-            const std::unique_ptr<const Expr> valueExpr_;
-        public:
-            AssignVariable(SourceSpan sourceSpan,
-                           std::shared_ptr<const VariableDef> variable,
-                           std::unique_ptr<const Expr> valueExpr)
-                : Expr(sourceSpan), variable_(variable), valueExpr_(move(valueExpr)) {}
-
-            NodeKind nodeKind() const override { return NodeKind::AssignVariable; }
-
-            DataType dataType() const override { return variable_->dataType(); }
-
-            std::string name() const { return variable_->name(); }
-
-            const Expr *valueExpr() const { return valueExpr_.get(); }
-        };
-
-        /** Should this really inherit from Expr?  Maybe Statement. */
-        class Return : public Expr {
-            const std::unique_ptr<const Expr> valueExpr_;
-        public:
-            Return(SourceSpan sourceSpan, std::unique_ptr<const Expr> valueExpr)
-                : Expr(sourceSpan), valueExpr_(move(valueExpr)) {}
-
-            NodeKind nodeKind() const override { return NodeKind::Return; }
-
-            DataType dataType() const override { return valueExpr_->dataType(); }
-
-            const Expr *valueExpr() const { return valueExpr_.get(); }
-        };
-
-        class Scope {
-            const std::unordered_map<std::string, std::shared_ptr<const VariableDef>> variables_;
-        public:
-            Scope(std::unordered_map<std::string, std::shared_ptr<const VariableDef>> variables)
-                : variables_{ move(variables) } {}
-
-            virtual ~Scope() {}
-
-            const VariableDef *findVariable(std::string &name) const {
-                auto found = variables_.find(name);
-                if (found == variables_.end()) {
-                    return nullptr;
+            virtual void accept(AstVisitor *visitor) override {
+                if(!visitor->visitingStmt(this)) {
+                    return;
                 }
-                return (*found).second.get();
+                visitor->visitVariableRefExpr(this);
+                visitor->visitedExprStmt(this);
             }
+        };
 
-            std::vector<const VariableDef *> variables() const {
-                std::vector<const VariableDef *> vars;
+        /** Represents an assignment expression. */
+        class AssignExpr : public ExprStmt, public AnnotationContainer {
+            std::unique_ptr<VariableRefExpr> assignee_;
+            const std::unique_ptr<ExprStmt> valueExpr_;
+        public:
+            AssignExpr(source::SourceSpan sourceSpan,
+                       std::unique_ptr<VariableRefExpr> variable,
+                       std::unique_ptr<ExprStmt> valueExpr)
+                : ExprStmt(sourceSpan), assignee_(std::move(variable)), valueExpr_(std::move(valueExpr)) { }
 
-                for (auto &v : variables_) {
-                    vars.push_back(v.second.get());
+            ExprKind exprKind() const override { return ExprKind::AssignVariableExpr; }
+            ExprStmt *valueExpr() const { return valueExpr_.get(); }
+            VariableRefExpr *assignee() { return assignee_.get(); }
+
+            virtual void accept(AstVisitor *visitor) override {
+                if(!(visitor->visitingExprStmt(this) && visitor->visitingAssignExpr(this))) {
+                    return;
                 }
-
-                return vars;
+                assignee_->accept(visitor);
+                valueExpr_->accept(visitor);
+                visitor->visitedAssignExpr(this);
+                visitor->visitingExprStmt(this);
             }
         };
 
-        class ScopeBuilder {
-            std::unordered_map<std::string, std::shared_ptr<const VariableDef>> variables_;
+        /** Represents a return statement.  */
+        class ReturnStmt : public Stmt {
+            const std::unique_ptr<ExprStmt> valueExpr_;
         public:
+            ReturnStmt(source::SourceSpan sourceSpan, std::unique_ptr<ExprStmt> valueExpr)
+                : Stmt(sourceSpan), valueExpr_(std::move(valueExpr)) {}
 
-            ScopeBuilder &addVariable(std::shared_ptr<const VariableDef> varDecl) {
-                ASSERT_NOT_NULL(varDecl);
-                variables_.emplace(varDecl->name(), varDecl);
-                return *this;
-            }
+            StmtKind stmtKind() const override { return StmtKind::ReturnStmt; }
+            const ExprStmt *valueExpr() const { return valueExpr_.get(); }
 
-            std::unique_ptr<const Scope> build() {
-                return std::make_unique<Scope>(move(variables_));
-            }
-        };
-
-        /** Contains a series of expressions. */
-        class BlockExpr : public Expr {
-            const std::vector<std::unique_ptr<const Expr>> expressions_;
-            std::unique_ptr<const Scope> scope_;
-        public:
-            virtual ~BlockExpr() {}
-
-            /** Note:  assumes ownership of the contents of the vector arguments. */
-            BlockExpr(SourceSpan sourceSpan,
-                      std::unique_ptr<const Scope> scope,
-                      std::vector<std::unique_ptr<const Expr>> expressions)
-                : Expr(sourceSpan), expressions_{ move(expressions) }, scope_{ move(scope) } {}
-
-            NodeKind nodeKind() const override { return NodeKind::Block; }
-
-            /** The data type of a block expression is always the data type of the last expression in the block. */
-            DataType dataType() const override {
-                return expressions_.back()->dataType();
-            }
-
-            const Scope *scope() const { return scope_.get(); }
-
-            void forEach(std::function<void(const Expr *)> func) const {
-                for (auto const &expr : expressions_) {
-                    func(expr.get());
+            virtual void accept(AstVisitor *visitor) override {
+                if(!(visitor->visitingStmt(this) && visitor->visitingReturnStmt(this))) {
+                    return;
                 }
+                valueExpr_->accept(visitor);
+                visitor->visitedReturnStmt(this);
+                visitor->visitedStmt(this);
             }
         };
-
-        /** Helper class which makes creating Block expression instances much easier. */
-        class BlockExprBuilder {
-            std::vector<std::unique_ptr<const Expr>> expressions_;
-            ScopeBuilder scopeBuilder_;
-            SourceSpan sourceSpan_;
-        public:
-
-            BlockExprBuilder(const SourceSpan &sourceSpan_) : sourceSpan_(sourceSpan_) {}
-
-            virtual ~BlockExprBuilder() {
-            }
-
-            BlockExprBuilder &addVariableDef(std::shared_ptr<const VariableDef> variable) {
-                ASSERT_NOT_NULL(variable);
-                scopeBuilder_.addVariable(variable);
-                return *this;
-            }
-
-            BlockExprBuilder &addExpression(std::unique_ptr<const Expr> newExpr) {
-                ASSERT_NOT_NULL(newExpr);
-
-                expressions_.emplace_back(move(newExpr));
-                return *this;
-            }
-
-            std::unique_ptr<const BlockExpr> build() {
-                return std::make_unique<const BlockExpr>(sourceSpan_, scopeBuilder_.build(), move(expressions_));
-            }
-        };
-
 
         /** Can be the basis of an if-then-else or ternary operator. */
-        class ConditionalExpr : public Expr {
-            std::unique_ptr<const Expr> condition_;
-            std::unique_ptr<const Expr> truePart_;
-            std::unique_ptr<const Expr> falsePart_;
+        class ConditionalExpr : public ExprStmt {
+            std::unique_ptr<ExprStmt> condition_;
+            std::unique_ptr<ExprStmt> truePart_;
+            std::unique_ptr<ExprStmt> falsePart_;
         public:
 
             /** Note:  assumes ownership of condition, truePart and falsePart.  */
-            ConditionalExpr(SourceSpan sourceSpan,
-                            std::unique_ptr<const Expr> condition,
-                            std::unique_ptr<const Expr> truePart,
-                            std::unique_ptr<const Expr> falsePart)
-                : Expr(sourceSpan),
-                  condition_{ move(condition) },
-                  truePart_{ move(truePart) },
-                  falsePart_{ move(falsePart) } {
-                ASSERT_NOT_NULL(condition_);
+            ConditionalExpr(source::SourceSpan sourceSpan,
+                            std::unique_ptr<ExprStmt> condition,
+                            std::unique_ptr<ExprStmt> truePart,
+                            std::unique_ptr<ExprStmt> falsePart)
+                : ExprStmt(sourceSpan),
+                  condition_{ std::move(condition) },
+                  truePart_{ std::move(truePart) },
+                  falsePart_{ std::move(falsePart) } {
+                ASSERT(condition_);
             }
 
-            NodeKind nodeKind() const override {
-                return NodeKind::Conditional;
-            }
-
-            DataType dataType() const override {
+            virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
+            type::Type *type() const override {
                 if (truePart_ != nullptr) {
-                    return truePart_->dataType();
+                    return truePart_->type();
                 } else {
                     if (falsePart_ == nullptr) {
-                        return DataType::Void;
+                        return &type::Primitives::Void;
                     } else {
-                        return falsePart_->dataType();
+                        return falsePart_->type();
                     }
                 }
             }
 
-            const Expr *condition() const {
-                return condition_.get();
-            }
+            const ExprStmt *condition() const { return condition_.get(); }
+            const ExprStmt *truePart() const { return truePart_.get(); }
+            const ExprStmt *falsePart() const { return falsePart_.get(); }
 
-            const Expr *truePart() const {
-                return truePart_.get();
-            }
-
-            const Expr *falsePart() const {
-                return falsePart_.get();
+            virtual void accept(AstVisitor *visitor) override {
+                if(!(visitor->visitingExprStmt(this) && visitor->visitingConditionalExpr(this))) {
+                    return;
+                }
+                truePart_->accept(visitor);
+                visitor->visitedConditionalExpr(this);
+                visitor->visitingExprStmt(this);
             }
         };
 
-        class Function : public AstNode {
+        class FuncDeclStmt : public Stmt {
             const std::string name_;
-            const DataType returnType_;
-            std::unique_ptr<const Scope> parameterScope_;
-            std::unique_ptr<const Expr> body_;
+            std::unique_ptr<TypeRef> returnTypeRef_;
+            std::unique_ptr<scope::SymbolTable> parameterScope_;
+            std::unique_ptr<Stmt> body_;
 
         public:
-            Function(SourceSpan sourceSpan,
+            FuncDeclStmt(source::SourceSpan sourceSpan,
                      std::string name,
-                     DataType returnType,
-                     std::unique_ptr<const Scope> parameterScope,
-                     std::unique_ptr<const Expr> body)
-                : AstNode(sourceSpan),
+                     std::unique_ptr<TypeRef> returnTypeRef,
+                     std::unique_ptr<Stmt> body)
+                : Stmt(sourceSpan),
                   name_{ name },
-                  returnType_{ returnType },
-                  parameterScope_{ move(parameterScope) },
-                  body_{ move(body) } {}
+                  returnTypeRef_{ std::move(returnTypeRef) },
+                  body_{ std::move(body) } { }
 
-            NodeKind nodeKind() const override { return NodeKind::Function; }
+            StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
+            std::string name() const { return name_; }
+            TypeRef *returnTypeRef() const { return returnTypeRef_.get(); }
+            scope::SymbolTable *parameterScope() const { return parameterScope_.get(); };
+            Stmt *body() const { return body_.get(); }
+
+            virtual void accept(AstVisitor *visitor) override {
+                if(!(visitor->visitingStmt(this) && visitor->visitingFuncDeclStmt(this))) {
+                    return;
+                }
+                body_->accept(visitor);
+                visitor->visitedFuncDeclStmt(this);
+                visitor->visitingStmt(this);
+            }
+        };
+
+        class Module : public AstNode {
+            const std::string name_;
+            std::unique_ptr<Stmt> body_;
+            scope::SymbolTable scope_;
+        public:
+            Module(std::string name, std::unique_ptr<Stmt> body)
+                : name_{name}, body_{std::move(body)} {
+                ASSERT(body_);
+            }
 
             std::string name() const { return name_; }
+            Stmt *body() const { return body_.get(); }
+            scope::SymbolTable *scope() { return &scope_; }
 
-            DataType returnType() const { return returnType_; }
-
-            const Scope *parameterScope() const { return parameterScope_.get(); };
-
-            const Expr *body() const { return body_.get(); }
-        };
-
-        class FunctionBuilder {
-            const std::string name_;
-            const DataType returnType_;
-
-            SourceSpan sourceSpan_;
-            BlockExprBuilder blockBuilder_;
-            ScopeBuilder parameterScopeBuilder_;
-        public:
-            FunctionBuilder(SourceSpan sourceSpan, std::string name, DataType returnType)
-                : sourceSpan_(sourceSpan), name_{ name }, returnType_{ returnType }, blockBuilder_(sourceSpan) {}
-
-            BlockExprBuilder &blockBuilder() {
-                return blockBuilder_;
-            }
-
-            /** Assumes ownership of the variable. */
-            FunctionBuilder &addParameter(std::unique_ptr<const VariableDef> variable) {
-                ASSERT_NOT_NULL(variable);
-                parameterScopeBuilder_.addVariable(std::move(variable));
-                return *this;
-            };
-
-            std::unique_ptr<const Function> build() {
-                return std::make_unique<Function>(
-                    sourceSpan_,
-                    name_,
-                    returnType_,
-                    parameterScopeBuilder_.build(),
-                    blockBuilder_.build());
-            }
-        };
-
-        class Module {
-            const std::string name_;
-            const std::vector<std::unique_ptr<const Function>> functions_;
-        public:
-            Module(std::string name, std::vector<std::unique_ptr<const Function>> functions)
-                : name_{ name }, functions_{ move(functions) } {}
-
-            std::string name() const { return name_; }
-
-            void forEachFunction(std::function<void( const Function*)> func) const {
-                for (const auto &f : functions_) {
-                    func(f.get());
+            void accept(AstVisitor *visitor) override {
+                if(!visitor->visitingModule(this)) {
+                    return;
                 }
+                body_->accept(visitor);
+                visitor->visitedModule(this);
             }
         };
 
-        class ModuleBuilder {
-            const std::string name_;
-            std::vector<std::unique_ptr<const Function>> functions_;
+
+        /** Most visitors will inherit from this since tracks symbol scopes through the AST. */
+        class ScopeFollowingVisitor : public ast::AstVisitor {
+            //We use this only as a stack but it has to be a deque so we can iterate over its contents.
+            std::deque<scope::SymbolTable*> symbolTableStack_;
+        protected:
+            scope::SymbolTable *topScope() {
+                ASSERT(symbolTableStack_.size());
+                return symbolTableStack_.back();
+            }
+
         public:
-            ModuleBuilder(std::string name)
-                : name_{ name } {}
-
-            ModuleBuilder &addFunction(std::unique_ptr<const Function> function) {
-                functions_.emplace_back(move(function));
-                return *this;
+            virtual bool visitingModule(ast::Module *module) override {
+                symbolTableStack_.push_back(module->scope());
+                return true;
+            }
+            virtual void visitedModule(ast::Module *module) override {
+                ASSERT(module->scope() == symbolTableStack_.back())
+                symbolTableStack_.pop_back();
             }
 
-            ModuleBuilder &addFunction(Function *function) {
-                ASSERT_NOT_NULL(function);
-                functions_.emplace_back(function);
-                return *this;
+            virtual bool visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+                funcDeclStmt->parameterScope()->setParent(topScope());
+                symbolTableStack_.push_back(funcDeclStmt->parameterScope());
+                return true;
+            }
+            virtual void visitedFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+                ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
+                symbolTableStack_.pop_back();
             }
 
-            std::unique_ptr<const Module> build() {
-                return std::make_unique<const Module>(name_, move(functions_));
+            virtual bool visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
+                compoundStmt->scope()->setParent(topScope());
+                symbolTableStack_.push_back(compoundStmt->scope());
+                return true;
             }
-        };
-
-        /** The base class providing virtual methods with empty default implementations for all visitors.
-         * Node types which do not have children will only have an overload of visit(...);  Node types that do have
-         * children will have overloads for visiting(...) and visited(...) member functions. */
-        class AstVisitor {
-        public:
-
-            virtual void initialize() {}
-
-            virtual void cleanUp() {}
-
-            /** Executes before every node is visited. */
-            virtual void visitingNode(const AstNode *) { }
-
-            /** Executes after every node is visited. */
-            virtual void visitedNode(const AstNode *) {}
-
-            virtual void visitingBlock(const BlockExpr *) {}
-
-            virtual void visitedBlock(const BlockExpr *) {}
-
-            virtual void visitingConditional(const ConditionalExpr *) {}
-
-            virtual void visitedConditional(const ConditionalExpr *) {}
-
-            virtual void visitingBinary(const BinaryExpr *) {}
-
-            virtual void visitedBinary(const BinaryExpr *) {}
-
-            virtual void visitLiteralInt32(const LiteralInt32Expr *) {}
-            virtual void visitLiteralFloat(const LiteralFloatExpr *) {}
-
-            virtual void visitingReturn(const Return *) {}
-            virtual void visitedReturn(const Return *) {}
-
-            virtual void visitVariableRef(const VariableRef *) {}
-
-            virtual void visitingAssignVariable(const AssignVariable *) {}
-
-            virtual void visitedAssignVariable(const AssignVariable *) {}
-
-            virtual void visitingFunction(const Function *) {}
-            virtual void visitedFunction(const Function *) {}
-
-            virtual void visitingModule(const Module *) {}
-            virtual void visitedModule(const Module *) {}
-        };
-
-        /** Default tree walker, suitable for most purposes */
-        class AstWalker {
-            AstVisitor *visitor_;
-
-            public:
-            AstWalker(AstVisitor *visitor) : visitor_{visitor} {
-
-            }
-
-            virtual ~AstWalker() {
-
-            }
-
-            void walkTree(const Module *expr) {
-                visitor_->initialize();
-
-                this->walkModule(expr);
-
-                visitor_->cleanUp();
-            }
-
-            void walkModule(const Module *module) const {
-                ASSERT_NOT_NULL(module);
-                visitor_->visitingModule(module);
-
-                module->forEachFunction([this](const Function *func) { walkFunction(func); });
-
-                visitor_->visitedModule(module);
-            }
-
-            virtual void walk(const AstNode *node) const  {
-
-                ASSERT_NOT_NULL(node);
-                switch (node->nodeKind()) {
-                    case NodeKind::LiteralInt32:
-                        walkLiteralInt32(static_cast<const LiteralInt32Expr*>(node));
-                        break;
-                    case NodeKind::LiteralFloat:
-                        walkLiteralFloat(static_cast<const LiteralFloatExpr*>(node));
-                        break;
-                    case NodeKind::Binary:
-                        walkBinary(static_cast<const BinaryExpr*>(node));
-                        break;
-                    case NodeKind::Block:
-                        walkBlock(static_cast<const BlockExpr*>(node));
-                        break;
-                    case NodeKind::Conditional:
-                        walkConditional(static_cast<const ConditionalExpr*>(node));
-                        break;
-                    case NodeKind::VariableRef:
-                        walkVariableRef(static_cast<const VariableRef*>(node));
-                        break;
-                    case NodeKind::AssignVariable:
-                        walkAssignVariable(static_cast<const AssignVariable*>(node));
-                        break;
-                    case NodeKind::Return:
-                        walkReturn(static_cast<const Return*>(node));
-                        break;
-                        //TODO:  flesh out visitor for these two
-                    case NodeKind::Function:
-                        walkFunction(static_cast<const Function*>(node));
-                        break;
-                    default:
-                        throw exception::UnhandledSwitchCase();
-                }
-            }
-
-            void walkBlock(const BlockExpr *blockExpr) const {
-                ASSERT_NOT_NULL(blockExpr);
-                visitor_->visitingNode(blockExpr);
-                visitor_->visitingBlock(blockExpr);
-
-                blockExpr->forEach([this](const Expr *childExpr) { walk(childExpr); });
-
-                visitor_->visitedBlock(blockExpr);
-                visitor_->visitedNode(blockExpr);
-            }
-
-            void walkVariableRef(const VariableRef *variableRefExpr) const {
-                ASSERT_NOT_NULL(variableRefExpr);
-                visitor_->visitingNode(variableRefExpr);
-                visitor_->visitVariableRef(variableRefExpr);
-                visitor_->visitedNode(variableRefExpr);
-            }
-
-            void walkAssignVariable(const AssignVariable *assignVariableExpr) const {
-
-                ASSERT_NOT_NULL(assignVariableExpr);
-                visitor_->visitingNode(assignVariableExpr);
-                visitor_->visitingAssignVariable(assignVariableExpr);
-
-                walk(assignVariableExpr->valueExpr());
-
-                visitor_->visitedAssignVariable(assignVariableExpr);
-                visitor_->visitedNode(assignVariableExpr);
-            }
-
-            void walkReturn(const Return *returnExpr) const {
-
-                ASSERT_NOT_NULL(returnExpr);
-                visitor_->visitingNode(returnExpr);
-                visitor_->visitingReturn(returnExpr);
-
-                walk(returnExpr->valueExpr());
-
-                visitor_->visitedReturn(returnExpr);
-                visitor_->visitedNode(returnExpr);
-            }
-
-            void walkBinary(const BinaryExpr *binaryExpr) const {
-                ASSERT_NOT_NULL(binaryExpr);
-                visitor_->visitingNode(binaryExpr);
-                visitor_->visitingBinary(binaryExpr);
-
-                walk(binaryExpr->lValue());
-                walk(binaryExpr->rValue());
-
-                visitor_->visitedBinary(binaryExpr);
-                visitor_->visitedNode(binaryExpr);
-            }
-
-            void walkConditional(const ConditionalExpr *conditionalExpr) const {
-                ASSERT_NOT_NULL(conditionalExpr);
-                visitor_->visitingNode(conditionalExpr);
-                visitor_->visitingConditional(conditionalExpr);
-
-                walk(conditionalExpr->condition());
-                if (conditionalExpr->truePart()) {
-                    walk(conditionalExpr->truePart());
-                }
-
-                if (conditionalExpr->falsePart()) {
-                    walk(conditionalExpr->falsePart());
-                }
-
-                visitor_->visitedConditional(conditionalExpr);
-                visitor_->visitedNode(conditionalExpr);
-            }
-
-            void walkLiteralInt32(const LiteralInt32Expr *expr) const {
-                ASSERT_NOT_NULL(expr);
-                visitor_->visitingNode(expr);
-                visitor_->visitLiteralInt32(expr);
-                visitor_->visitedNode(expr);
-            }
-
-            void walkLiteralFloat(const LiteralFloatExpr *expr) const {
-                ASSERT_NOT_NULL(expr);
-                visitor_->visitingNode(expr);
-                visitor_->visitLiteralFloat(expr);
-                visitor_->visitedNode(expr);
-            }
-
-            void walkFunction(const Function *func) const {
-                ASSERT_NOT_NULL(func);
-                visitor_->visitingNode(func);
-                visitor_->visitingFunction(func);
-
-                walk(func->body());
-
-                visitor_->visitedFunction(func);
-                visitor_->visitedNode(func);
+            virtual void visitedCompoundStmt(ast::CompoundStmt *compoundStmt) override {
+                ASSERT(compoundStmt->scope() == symbolTableStack_.back());
+                symbolTableStack_.pop_back();
             }
         };
+
     } //namespace ast
 } //namespace lwnn

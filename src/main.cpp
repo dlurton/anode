@@ -1,14 +1,14 @@
 #include "parse.h"
+#include "ast_passes.h"
 #include "execute.h"
 #include "visualize.h"
+#include "error.h"
+#include "backtrace.h"
 
 #include <linenoise.h>
-
 #include <cstring>
 
 
-
-//
 //static const char* examples[] = {
 //        "db", "hello", "hallo", "hans", "hansekogge", "seamann", "quetzalcoatl", "quit", "power", NULL
 //};
@@ -23,17 +23,12 @@
 //    }
 //}
 
-
-
 namespace lwnn {
-    void executeLine(std::string lineOfCode, bool shouldCompile);
-
+    void evaluateLine(std::string lineOfCode, bool shouldExecute);
 }
 
 int main(int argc, char **argv) {
-
-    lwnn::execute::initializeJitCompiler();
-
+    //lwnn::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();
 
     while(argc > 1) {
@@ -78,7 +73,7 @@ int main(int argc, char **argv) {
         } else {
             linenoiseHistoryAdd(lineOfCode);
 
-            lwnn::executeLine(lineOfCode, shouldCompile);
+            lwnn::evaluateLine(lineOfCode, shouldCompile);
         }
 
         free(lineOfCode);
@@ -92,55 +87,52 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
-    std::string run(std::unique_ptr<const ast::Expr> expr, bool enableCompilation) {
-        const char *FUNC_NAME = "someFunc";
-        ast::DataType exprDataType = expr->dataType();
-
-        std::unique_ptr<const ast::Return> retExpr = std::make_unique<const ast::Return>(ast::SourceSpan::Any, std::move(expr));
-        ast::FunctionBuilder fb{ ast::SourceSpan::Any, FUNC_NAME, retExpr->dataType() };
-
-        ast::BlockExprBuilder &bb = fb.blockBuilder();
-
-        bb.addExpression(std::move(retExpr));
-
-        ast::ModuleBuilder mb{"someModule"};
-
-        mb.addFunction(fb.build());
-
-        std::unique_ptr<const ast::Module> lwnnModule{mb.build()};
-
-        visualize::prettyPrint(lwnnModule.get());
-
-        if(!enableCompilation) {
-            return "";
-        }
-
+    bool runModule(std::unique_ptr<ast::Module> lwnnModule, std::string &resultAsString) {
+        ASSERT(lwnnModule);
         auto ec = execute::createExecutionContext();
-        ec->addModule(lwnnModule.get());
-
-        uint64_t funcPtr = ec->getSymbolAddress(FUNC_NAME);
-
-        std::string resultAsString;
-        switch(exprDataType) {
-            case ast::DataType::Int32: {
-                execute::IntFuncPtr intFuncPtr = reinterpret_cast<execute::IntFuncPtr>(funcPtr);
-                int result = intFuncPtr();
-                resultAsString = std::to_string(result);
-                break;
+        ec->setDumpIROnLoad(true);
+        auto bodyExpr = dynamic_cast<ast::ExprStmt*>(lwnnModule->body());
+        if(!bodyExpr) {
+            ec->executeModule(std::move(lwnnModule));
+            return false;
+        } else {
+            auto moduleInitResultType = bodyExpr->type();
+            ASSERT(moduleInitResultType->isPrimitive() && "Non-primitive types not yet supported here");
+            switch (moduleInitResultType->primitiveType()) {
+                case type::PrimitiveType::Int32: {
+                    int result = ec->executeModuleWithResult<int>(std::move(lwnnModule));
+                    resultAsString = std::to_string(result);
+                    return true;
+                }
+                default:
+                    throw exception::UnhandledSwitchCase();
             }
-            default:
-                throw exception::UnhandledSwitchCase();
-        }
-
-        return resultAsString;
-    }
-
-    void executeLine(std::string lineOfCode, bool enableCompilation) {
-        auto expr = lwnn::parse::parseString(lineOfCode);
-
-        std::string result = run(std::move(expr), enableCompilation);
-        if(enableCompilation) {
-            std::cout << "Result: " << result << "\n";
         }
     }
-}
+
+    void evaluateLine(std::string lineOfCode, bool shouldExecute) {
+        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode);
+        ASSERT(module);
+        visualize::prettyPrint(module.get());
+
+        error::ErrorStream es{std::cerr};
+
+        ast_passes::populateSymbolTables(module.get(), es);
+        if(es.errorCount() > 0)
+            return;
+
+        ast_passes::resolveTypes(module.get(), es);
+        if(es.errorCount() > 0)
+            return;
+
+        ast_passes::resolveSymbols(module.get(), es);
+        if(es.errorCount() > 0)
+            return;
+
+        if(shouldExecute) {
+            std::string resultAsString;
+            bool hasResult = runModule(std::move(module), resultAsString);
+            std::cout << (hasResult ? resultAsString : "<no result>") << "\n";
+        }
+    } // evaluateLine
+} //namespace lwnn

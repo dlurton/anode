@@ -6,6 +6,7 @@
 
 namespace lwnn {
     namespace compile {
-        std::unique_ptr<llvm::Module> generateCode(const lwnn::ast::Module *module, llvm::LLVMContext *context, llvm::TargetMachine *targetMachine);
+        const char * const MODULE_INIT_FUNC_NAME = "initModule";
+        std::unique_ptr<llvm::Module> generateCode(lwnn::ast::Module *module, llvm::LLVMContext &context, llvm::TargetMachine *targetMachine);
     }
 }

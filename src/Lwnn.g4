@@ -2,8 +2,13 @@
 
 grammar Lwnn;
 
-compileUnit
-    :   expr EOF
+module
+    : (statements_=statement ';')* EOF
+    ;
+
+statement
+    : varDecl
+    | expr
     ;
 
 expr
@@ -17,14 +22,9 @@ expr
     ;
 
 varDecl
-    : name=ID ':' type=ID;
-
-TYPE_REF
-    : KW_FLOAT
-    | KW_INT;
-
-KW_INT: 'int';
-KW_FLOAT: 'float';
+    : name=ID ':' type=ID
+    | name=ID ':' type=ID '=' initializer=expr
+    ;
 
 OP_ADD: '+';
 OP_SUB: '-';

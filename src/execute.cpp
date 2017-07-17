@@ -42,7 +42,7 @@ namespace lwnn {
             return std::make_unique<LR>(DylibLookupFtor, ExternalLookupFtor);
         }
 
-        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::Function &FnAST, const std::string &Suffix);
+        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDeclStmt &FnAST, const std::string &Suffix);
 
         /** This class originally taken from:
          * https://github.com/llvm-mirror/llvm/tree/master/examples/Kaleidoscope/BuildingAJIT/Chapter4
@@ -55,8 +55,7 @@ namespace lwnn {
             llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
             llvm::orc::IRCompileLayer<decltype(ObjectLayer), llvm::orc::SimpleCompiler> CompileLayer;
 
-            using OptimizeFunction =
-            std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
+            using OptimizeFunction = std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
 
             llvm::orc::IRTransformLayer<decltype(CompileLayer), OptimizeFunction> OptimizeLayer;
 
@@ -85,7 +84,7 @@ namespace lwnn {
 
             llvm::TargetMachine *getTargetMachine() { return TM.get(); }
 
-            ModuleHandle addModule(std::unique_ptr<llvm::Module> M) {
+            ModuleHandle addModule(std::shared_ptr<llvm::Module> M) {
                 // Build our symbol resolver:
                 // Lambda 1: Look back into the JIT itself to find symbols that are part of
                 //           the same "logical dylib".
@@ -111,7 +110,7 @@ namespace lwnn {
                                                         std::move(Resolver)));
             }
 
-            llvm::Error addFunctionAST(std::unique_ptr<ast::Function> FnAST) {
+            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDeclStmt> FnAST) {
                 // Create a CompileCallback - this is the re-entry point into the compiler
                 // for functions that haven't been compiled yet.
                 auto CCInfo = CompileCallbackMgr->getCompileCallback();
@@ -130,7 +129,7 @@ namespace lwnn {
 
                 // Move ownership of FnAST to a shared pointer - C++11 lambdas don't support
                 // capture-by-move, which is be required for unique_ptr.
-                auto SharedFnAST = std::shared_ptr<ast::Function>(std::move(FnAST));
+                auto SharedFnAST = std::shared_ptr<ast::FuncDeclStmt>(std::move(FnAST));
 
                 // Set the action to compile our AST. This lambda will be run if/when
                 // execution hits the compile callback (via the stub).
@@ -206,11 +205,9 @@ namespace lwnn {
         }; //SimpleJIT
 
         class ExecutionContextImpl : public ExecutionContext {
-            //TODO:  determine if definition order (destruction order) is still significant, and if so
-            //update this note to say so.
             llvm::LLVMContext context_;
             std::unique_ptr<SimpleJIT> jit_ = std::make_unique<SimpleJIT>();
-
+            bool dumpIROnModuleLoad_ = false;
         public:
 
             uint64_t getSymbolAddress(const std::string &name) override {
@@ -219,32 +216,40 @@ namespace lwnn {
                 if (!symbol)
                     return 0;
 
-                uint64_t retval = cantFail(symbol.getAddress());
+                uint64_t retval = llvm::cantFail(symbol.getAddress());
                 return retval;
             }
 
-            void addModule(const ast::Module *module) override {
-                std::unique_ptr<llvm::Module> llvmModule = lwnn::compile::generateCode(module, &context_,
-                                                                                       jit_->getTargetMachine());
+            virtual void setDumpIROnLoad(bool value) override {
+                dumpIROnModuleLoad_ = value;
+            }
+        protected:
+            virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) override {
+                ASSERT(module);
+                std::unique_ptr<llvm::Module> llvmModule = compile::generateCode(module.get(), context_,
+                    jit_->getTargetMachine());
 
-                llvmModule->print(llvm::outs(), nullptr);
+                if(dumpIROnModuleLoad_) {
+                    llvm::outs() << "LLVM IR:\n";
+                    llvmModule->print(llvm::outs(), nullptr);
+                }
 
                 jit_->addModule(move(llvmModule));
-            }
 
-            //TODO:  addFunction(std::unique_ptr<ast::Function> func);
-            //TODO:  executeExpr(ast::Expr *expr);
-            //TODO:  addGlobalVariable(std::string name, int size); (or somesuch)
+                if(auto moduleInitSymbol = jit_->findSymbol(compile::MODULE_INIT_FUNC_NAME))
+                    return llvm::cantFail(moduleInitSymbol.getAddress());
+
+                return 0;
+            }
         }; //ExecutionContextImpl
 
         std::unique_ptr<ExecutionContext> createExecutionContext() {
-            return std::make_unique<ExecutionContextImpl>();
-        }
 
-        void initializeJitCompiler() {
             llvm::InitializeNativeTarget();
             llvm::InitializeNativeTargetAsmPrinter();
             llvm::InitializeNativeTargetAsmParser();
+
+            return std::make_unique<ExecutionContextImpl>();
         }
     } //namespace execute
 } //namespace float

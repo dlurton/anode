@@ -29,134 +29,95 @@ using namespace lwnn::ast;
 namespace lwnn {
     namespace compile {
 
-        class CodeGenVisitor : public AstVisitor {
-            llvm::LLVMContext &context_;
-            llvm::TargetMachine &targetMachine_;
-            llvm::IRBuilder<> irBuilder_;
-            std::unique_ptr<llvm::Module> module_;
-            llvm::Function *function_;
-            llvm::BasicBlock *block_;
+        llvm::Type *to_llvmType(type::Type *type, llvm::LLVMContext &llvmContext) {
+            ASSERT(type);
+            ASSERT(type->isPrimitive() && "Expected a primitive data type here");
 
-            typedef std::unordered_map<std::string, llvm::AllocaInst *> AllocaScope;
+            switch (type->primitiveType()) {
+                case type::PrimitiveType::Void:
+                    return llvm::Type::getVoidTy(llvmContext);
+                case type::PrimitiveType::Bool:
+                    return llvm::Type::getInt8Ty(llvmContext);
+                case type::PrimitiveType::Int32:
+                    return llvm::Type::getInt32Ty(llvmContext);
+                case type::PrimitiveType::Float:
+                    return llvm::Type::getFloatTy(llvmContext);
+                case type::PrimitiveType::Double:
+                    return llvm::Type::getDoubleTy(llvmContext);
+                default:
+                    throw exception::UnhandledSwitchCase();
+            }
+        }
 
-            //this is a deque and not an actual std::stack because we need the ability to iterate over its contents
-            std::deque<AllocaScope> allocaScopeStack_;
+
+        class ExprAstVisitor : public ScopeFollowingVisitor {
+            llvm::LLVMContext &llvmContext_;
+            llvm::Module &llvmModule_;
+            llvm::IRBuilder<> &irBuilder_;
+
             std::stack<llvm::Value *> valueStack_;
-            std::stack<const AstNode *> ancestryStack_;
 
         public:
-            CodeGenVisitor(llvm::LLVMContext &context, llvm::TargetMachine &targetMachine)
-                : context_{ context }, targetMachine_{ targetMachine }, irBuilder_{ context } {}
+            ExprAstVisitor(llvm::LLVMContext &llvmContext_, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder)
+                : llvmContext_(llvmContext_), llvmModule_(llvmModule), irBuilder_(irBuilder) { }
 
-            virtual void visitingModule(const Module *module) override {
-                module_ = llvm::make_unique<llvm::Module>(module->name(), context_);
-                module_->setDataLayout(targetMachine_.createDataLayout());
+            bool hasValue() {
+                return valueStack_.size() > 0;
             }
 
-            virtual void visitedModule(const Module *) override {
-                DEBUG_ASSERT(valueStack_.size() == 0 && "When compilation complete, no values should remain.");
+            llvm::Value *getValue() {
+                ASSERT(valueStack_.size() == 1);
+                return valueStack_.top();
             }
 
-            virtual void visitingFunction(const Function *func) override {
-                std::vector<llvm::Type *> argTypes;
-
-                function_ = llvm::cast<llvm::Function>(
-                    module_->getOrInsertFunction(func->name(),
-                                                 getType(func->returnType())));
-
-                block_ = llvm::BasicBlock::Create(context_, "functionBody", function_);
-                irBuilder_.SetInsertPoint(block_);
+            virtual bool visitingVariableDeclExpr(VariableDeclExpr *var) override {
+                return true;
             }
 
-            void dumpIR() {
-                ASSERT_NOT_NULL(module_);
-                std::cout << "LLVM IL:\n";
-                module_->print(llvm::outs(), nullptr);
-            }
+            virtual void visitedVariableDeclExpr(VariableDeclExpr *expr) override {
+                llvm::Type *type = to_llvmType(expr->type(), llvmContext_);
 
-        public:
+                //For now assume global variables.
+                //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
+                llvmModule_.getOrInsertGlobal(expr->name(), type);
 
-            std::unique_ptr<llvm::Module> surrenderLlvmModule() {
-                return std::move(module_);
-            }
-
-            virtual void visitingNode(const AstNode *expr) override {
-                ancestryStack_.push(expr);
-            }
-
-            virtual void visitedNode(const AstNode *expr) override {
-                DEBUG_ASSERT(ancestryStack_.top() == expr && "Top node of ancestryStack_ should be the current node.");
-                ancestryStack_.pop();
-
-                //If the parent node of expr is a BlockExpr, the value left behind on valueStack_ is extraneous and
-                //sh7ould be removed.  (This is a consequence of "everything is an expression.")
-                if (ancestryStack_.size() >= 1
-                    && expr->nodeKind() == NodeKind::Block
-                    && valueStack_.size() > 0) {
+                llvm::Value *initializer = nullptr;
+                if(expr->initializerExpr()) {
+                    initializer = valueStack_.top();
                     valueStack_.pop();
                 }
-            }
 
-            llvm::Value *lookupVariable(const std::string &name) {
-                for (auto scope = allocaScopeStack_.rbegin(); scope != allocaScopeStack_.rend(); ++scope) {
-                    auto foundValue = scope->find(name);
-                    if (foundValue != scope->end()) {
-                        return foundValue->second;
-                    }
+                llvm::GlobalVariable *globalVariable = llvmModule_.getNamedGlobal(expr->name());
+                globalVariable->setLinkage(llvm::GlobalValue::CommonLinkage);
+                globalVariable->setAlignment(4);
+                globalVariable->setInitializer(getDefaultValueForPrimitiveType(expr->type()->primitiveType()));
+
+
+                if(initializer) {
+                    irBuilder_.CreateStore(initializer, globalVariable);
                 }
-
-                throw exception::InvalidStateException(std::string("Variable '") + name + std::string("' was not defined."));
+                valueStack_.push(irBuilder_.CreateLoad(globalVariable));
             }
 
-            virtual void visitingBlock(const BlockExpr *expr) override {
-                allocaScopeStack_.emplace_back();
-                AllocaScope &topScope = allocaScopeStack_.back();
-
-                for (auto var : expr->scope()->variables()) {
-                    if (topScope.find(var->name()) != topScope.end()) {
-                        throw exception::InvalidStateException("More than one variable named '" + var->name() +
-                                                    "' was defined in the current scope.");
-                    }
-
-                    llvm::Type *type{ getType(var->dataType()) };
-                    llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
-                    topScope[var->name()] = allocaInst;
-                }
+            virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
+                valueStack_.push(getConstantInt32(expr->value()));
             }
 
-            llvm::Type *getType(DataType type) {
-                switch (type) {
-                    case DataType::Void:
-                        return llvm::Type::getVoidTy(context_);
-                    case DataType::Bool:
-                        return llvm::Type::getInt8Ty(context_);
-                    case DataType::Int32:
-                        return llvm::Type::getInt32Ty(context_);
-                    case DataType::Float:
-                        return llvm::Type::getFloatTy(context_);
-                    case DataType::Double:
-                        return llvm::Type::getDoubleTy(context_);
-                    default:
-                        throw exception::UnhandledSwitchCase();
-                }
+            virtual void visitLiteralFloatExpr(LiteralFloatExpr *expr) override {
+                valueStack_.push(getConstantFloat(expr->value()));
             }
 
-            virtual void visitedBlock(const BlockExpr *) override {
-                allocaScopeStack_.pop_back();
+            virtual void visitVariableRefExpr(VariableRefExpr *expr) override {
+                //We are assuming global variables for now
+                //llvm::Value *allocaInst = lookupVariable(expr->name());
+
+                llvm::Type *type = to_llvmType(expr->type(), llvmContext_);
+                llvm::GlobalVariable *globalVar = llvmModule_.getNamedGlobal(expr->name());
+                valueStack_.push(irBuilder_.CreateLoad(globalVar));
             }
 
-            virtual void visitedAssignVariable(const AssignVariable *expr) override {
-                llvm::Value *inst = lookupVariable(expr->name());
-
-                llvm::Value *value = valueStack_.top();
-                valueStack_.pop();
-
-                value = irBuilder_.CreateStore(value, inst);
-                valueStack_.push(value);
-            }
-
-            virtual void visitedBinary(const BinaryExpr *expr) override {
-                DEBUG_ASSERT(expr->lValue()->dataType() != expr->rValue()->dataType() && "data types must match");
+            virtual void visitedBinaryExpr(BinaryExpr *expr) override {
+                ASSERT(expr->lValue()->type() == expr->rValue()->type() && "data types must match");
 
                 llvm::Value *rValue = valueStack_.top();
                 valueStack_.pop();
@@ -164,35 +125,63 @@ namespace lwnn {
                 llvm::Value *lValue = valueStack_.top();
                 valueStack_.pop();
 
-                llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->dataType());
+                llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->type());
                 valueStack_.push(result);
             }
 
+        private:
+            llvm::Value *getConstantInt32(int value) {
+                llvm::ConstantInt *constantInt = llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, value, true));
+                return constantInt;
+            }
+
+            llvm::Value *getConstantFloat(float value) {
+                return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(value));
+            }
+
+            llvm::Constant *getDefaultValueForPrimitiveType(type::PrimitiveType primitiveType) {
+                ASSERT(primitiveType != type::PrimitiveType::NotAPrimitive);
+                ASSERT(primitiveType != type::PrimitiveType::Void);
+
+                switch (primitiveType) {
+                    case type::PrimitiveType::Bool:
+                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(8, 1, true));
+                    case type::PrimitiveType::Int32:
+                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
+                    case type::PrimitiveType::Float:
+                    case type::PrimitiveType::Double:
+                        return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(0.0));
+                    default:
+                        throw exception::UnhandledSwitchCase();
+                }
+            }
+
             llvm::Value *
-            createOperation(llvm::Value *lValue, llvm::Value *rValue, OperationKind op, DataType dataType) {
-                switch (dataType) {
-                    case DataType::Int32:
+            createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op, const type::Type *type) {
+                ASSERT(type->isPrimitive() && "Only primitive types currently supported here");
+                switch (type->primitiveType()) {
+                    case type::PrimitiveType::Int32:
                         switch (op) {
-                            case OperationKind::Add:
+                            case BinaryOperationKind::Add:
                                 return irBuilder_.CreateAdd(lValue, rValue);
-                            case OperationKind::Sub:
+                            case BinaryOperationKind::Sub:
                                 return irBuilder_.CreateSub(lValue, rValue);
-                            case OperationKind::Mul:
+                            case BinaryOperationKind::Mul:
                                 return irBuilder_.CreateMul(lValue, rValue);
-                            case OperationKind::Div:
+                            case BinaryOperationKind::Div:
                                 return irBuilder_.CreateSDiv(lValue, rValue);
                             default:
                                 throw exception::UnhandledSwitchCase();
                         }
-                    case DataType::Float:
+                    case type::PrimitiveType::Float:
                         switch (op) {
-                            case OperationKind::Add:
+                            case BinaryOperationKind::Add:
                                 return irBuilder_.CreateFAdd(lValue, rValue);
-                            case OperationKind::Sub:
+                            case BinaryOperationKind::Sub:
                                 return irBuilder_.CreateFSub(lValue, rValue);
-                            case OperationKind::Mul:
+                            case BinaryOperationKind::Mul:
                                 return irBuilder_.CreateFMul(lValue, rValue);
-                            case OperationKind::Div:
+                            case BinaryOperationKind::Div:
                                 return irBuilder_.CreateFDiv(lValue, rValue);
                             default:
                                 throw exception::UnhandledSwitchCase();
@@ -201,43 +190,67 @@ namespace lwnn {
                         throw exception::UnhandledSwitchCase();
                 }
             }
+        };
 
-            virtual void visitLiteralInt32(const LiteralInt32Expr *expr) override {
-                valueStack_.push(getConstantInt32(expr->value()));
+        class ModuleAstVisitor : public ScopeFollowingVisitor {
+            llvm::LLVMContext &llvmContext_;
+            llvm::TargetMachine &targetMachine_;
+            llvm::IRBuilder<> irBuilder_;
+
+            std::unique_ptr<llvm::Module> llvmModule_;
+            llvm::Function *initFunc_;
+        public:
+            ModuleAstVisitor(llvm::LLVMContext &llvmContext, llvm::TargetMachine &targetMachine)
+                : llvmContext_(llvmContext),
+                  targetMachine_(targetMachine),
+                  irBuilder_(llvmContext) { }
+
+            std::unique_ptr<llvm::Module> surrenderModule() {
+                return std::move(llvmModule_);
             }
 
-            virtual void visitLiteralFloat(const LiteralFloatExpr *expr) override {
-                valueStack_.push(getConstantFloat(expr->value()));
+            virtual bool visitingExprStmt(ExprStmt *expr) override {
+                ExprAstVisitor visitor{llvmContext_, *llvmModule_, irBuilder_ };
+                expr->accept(&visitor);
+
+                if(visitor.hasValue()) {
+                    //This is temporary - can't be returning in the middle of module init!
+                    irBuilder_.CreateRet(visitor.getValue());
+                }
+
+                return false;
             }
 
-            llvm::Value *getConstantInt32(int value) {
-                llvm::ConstantInt *constantInt = llvm::ConstantInt::get(context_, llvm::APInt(32, value, true));
-                return constantInt;
+            virtual bool visitingModule(Module *module) override {
+                llvmModule_ = llvm::make_unique<llvm::Module>(module->name(), llvmContext_);
+                llvmModule_->setDataLayout(targetMachine_.createDataLayout());
+
+                //The module init func has a return type of void if module->body() is not an ExprStmt.
+                auto initFuncRetType = llvm::Type::getVoidTy(llvmContext_);
+                if(module->body()->stmtKind() == StmtKind::ExprStmt) {
+                    auto bodyExpr = static_cast<ExprStmt*>(module->body());
+                    initFuncRetType = to_llvmType(bodyExpr->type(), llvmContext_);
+                }
+                initFunc_ = llvm::cast<llvm::Function>(
+                    llvmModule_->getOrInsertFunction(MODULE_INIT_FUNC_NAME, initFuncRetType));
+
+                auto initFuncBlock = llvm::BasicBlock::Create(llvmContext_, "EntryBlock", initFunc_);
+
+                irBuilder_.SetInsertPoint(initFuncBlock);
+
+                return true;
             }
 
-            llvm::Value *getConstantFloat(float value) {
-                return llvm::ConstantFP::get(context_, llvm::APFloat(value));
+            virtual void visitedModule(Module *module) override {
+
             }
+        };
 
-            virtual void visitVariableRef(const VariableRef *expr) override {
-                llvm::Value *allocaInst = lookupVariable(expr->name());
-                valueStack_.push(irBuilder_.CreateLoad(allocaInst));
-            }
-
-            void visitedReturn(const Return *) override {
-                DEBUG_ASSERT(valueStack_.size() > 0)
-                llvm::Value *retValue = valueStack_.top();
-                valueStack_.pop();
-                irBuilder_.CreateRet(retValue);
-            }
-
-        }; // class CodeGenVisitor
-
-        std::unique_ptr<llvm::Module> generateCode(const Module *lwnnModule, llvm::LLVMContext *context, llvm::TargetMachine *targetMachine) {
-            CodeGenVisitor visitor{ *context, *targetMachine };
-            AstWalker walker{ &visitor };
-            walker.walkTree(lwnnModule);
-            return visitor.surrenderLlvmModule();
+        std::unique_ptr<llvm::Module> generateCode(Module *module, llvm::LLVMContext &context, llvm::TargetMachine *targetMachine) {
+            ModuleAstVisitor visitor{context, *targetMachine};
+            module->accept(&visitor);
+            return visitor.surrenderModule();
         }
+
     } //namespace compile
-} //namespace lwnn
+} //namespace lwnn`

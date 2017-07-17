@@ -38,34 +38,40 @@ say "Switching to LLVM branch $LLVM_BRANCH"
 cd $LLVM_SRC_DIR
 git checkout $LLVM_BRANCH
 
+# NOTE:
+# If the -D options below change then it will become necessary to delete $LLVM_CMAKE_DIR to completely rebuild LLVM
+if [ -d $LLVM_CMAKE_DIR ]; then
+    say "LLVM cmake cache already exists."
+else
+    say "Generating cmake cache"
+    mkdir -p $LLVM_CMAKE_DIR
+    cd $LLVM_CMAKE_DIR
 
-say "Generating cmake cache"
-mkdir -p $LLVM_CMAKE_DIR
-cd $LLVM_CMAKE_DIR
+    set +e
 
-set +e
+    cmake \
+	    -DLLVM_TARGETS_TO_BUILD:STRING="X86" \
+	    -DLLVM_BUILD_32_BITS:BOOL=OFF \
+	    -DLLVM_BUILD_TOOLS:BOOL=ON \
+	    -DLLVM_INCLUDE_TOOLS:BOOL=ON \
+	    -DLLVM_BUILD_EXAMPLES:BOOL=OFF \
+	    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
+	    -DLLVM_ENABLE_RTTI:BOOL=ON \
+	    -DLLVM_ENABLE_EH:BOOL=ON \
+	    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
+	    -DCMAKE_INSTALL_PREFIX:PATH=$LLVM_INSTALL_DIR \
+	    -DLLVM_BUILD_LLVM_DYLIB:BOOL=ON \
+	    $LLVM_SRC_DIR
 
-cmake \
-	-DLLVM_TARGETS_TO_BUILD:STRING="X86" \
-	-DLLVM_BUILD_32_BITS:BOOL=OFF \
-	-DLLVM_BUILD_TOOLS:BOOL=ON \
-	-DLLVM_INCLUDE_TOOLS:BOOL=ON \
-	-DLLVM_BUILD_EXAMPLES:BOOL=OFF \
-	-DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
-	-DLLVM_ENABLE_RTTI:BOOL=ON \
-	-DLLVM_ENABLE_EH:BOOL=ON \
-	-DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
-	-DCMAKE_INSTALL_PREFIX:PATH=$LLVM_INSTALL_DIR \
-	-DLLVM_BUILD_LLVM_DYLIB:BOOL=ON \
-	$LLVM_SRC_DIR
+    EC=$?
+    if [ $EC -ne 0 ]; then
+	    say "cmake reported an error.  Exit code was" $EC
+	    read -p "Review the output of cmake above and press enter if you want try to build LLVM anyway."
+    fi
 
-EC=$?
-if [ $EC -ne 0 ]; then
-	say "cmake reported an error.  Exit code was" $EC
-	read -p "Review the output of cmake above and press enter if you want try to build LLVM anyway."
+    set -e
 fi
 
-set -e
 say "Building LLVM"
 
 cmake --build $LLVM_CMAKE_DIR -- -j $NUM_CORES

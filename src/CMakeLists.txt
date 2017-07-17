@@ -29,7 +29,7 @@ foreach( src_file ${GENERATED_SOURCE_FILES} )
 endforeach(src_file ${GENERATED_SOURCE_FILES})
 
 add_custom_command(
-        COMMAND    "java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package LwnnGeneratedParser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
+        COMMAND    "java" -jar ${ANTLR_JAR_LOCATION} -Werror -Dlanguage=Cpp -listener -o ${CMAKE_CURRENT_SOURCE_DIR}/generated/ -package lwnn_parser ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Lwnn.g4
         OUTPUT ${GENERATED_SOURCE_FILES}
@@ -70,7 +70,7 @@ set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
         execute.cpp
         parse.h
         compile.cpp
-        compile.h)
+        compile.h type.cpp type.h scope.h ast_passes.cpp ast_passes.h error.cpp error.h source.h source.cpp string.h backtrace.cpp backtrace.h)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 

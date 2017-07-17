@@ -59,6 +59,12 @@ say "Building ANTLR4 C++ Runtime Parts"
 mkdir -p $ANTLR_CPP_RUNTIME_BUILD_DIR
 cd $ANTLR_CPP_RUNTIME_BUILD_DIR
 pwd
-cmake $ANTLR_CPP_RUNTIME_SRC_DIR -DANTLR_JAR_LOCATION=$FINAL_ANTLR_JAR -DWITH_DEMO=True
+
+if [ -d $LLVM_CMAKE_DIR ]; then
+    say "ANTLR4 CPP Runtime cmake cache already exists."
+else
+    cmake $ANTLR_CPP_RUNTIME_SRC_DIR -DANTLR_JAR_LOCATION=$FINAL_ANTLR_JAR -DWITH_DEMO=True
+fi
+
 DESTDIR=$ANTLR_INSTALL_DIR make install -j $NUM_CORES
 

@@ -5,6 +5,6 @@
 
 namespace lwnn {
     namespace parse {
-        extern std::unique_ptr<const ast::Expr> parseString(std::string lineOfCode);
+        extern std::unique_ptr<ast::Module> parseModule(std::string lineOfCode);
     }
 }
