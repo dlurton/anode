@@ -14,11 +14,12 @@ statement
 expr
     :   '(' expr ')'                        # parensExpr
 //  |   op=('+'|'-') expr                   # unaryExpr
-    |   left=expr op=('*'|'/') right=expr   # infixExpr
-    |   left=expr op=('+'|'-') right=expr   # infixExpr
+    |   left=expr op=('*'|'/') right=expr   # binaryExpr
+    |   left=expr op=('+'|'-') right=expr   # binaryExpr
 //  |   func=ID '(' expr ')'                # funcExpr
-    |   value=NUM                           # numberExpr
-    |   var=ID                              # varRefExpr
+    |   value=LIT_INT                       # literalInt32Expr
+    |   value=LIT_FLOAT                     # literalFloatExpr
+    |   var=ID                              # variableRefExpr
     ;
 
 varDecl
@@ -32,6 +33,7 @@ OP_MUL: '*';
 OP_DIV: '/';
 
 //NUM :   [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)?;
-NUM :   [0-9]+;
-ID  :   [a-zA-Z]+;
-WS  :   [ \t\r\n] -> channel(HIDDEN);
+LIT_INT:    [0-9]+;
+LIT_FLOAT:  [0-9]+'.'[0-9]+;
+ID:         [a-zA-Z]+;
+WS:         [ \t\r\n] -> channel(HIDDEN);

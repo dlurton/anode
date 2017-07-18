@@ -104,8 +104,13 @@ namespace lwnn {
                     resultAsString = std::to_string(result);
                     return true;
                 }
+                case type::PrimitiveType::Float: {
+                    float result = ec->executeModuleWithResult<float>(std::move(lwnnModule));
+                    resultAsString = std::to_string(result);
+                    return true;
+                }
                 default:
-                    throw exception::UnhandledSwitchCase();
+                    ASSERT_FAIL("Unhandled PrimitiveType");
             }
         }
     }

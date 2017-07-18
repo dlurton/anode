@@ -16,7 +16,7 @@ namespace lwnn {
                 case StmtKind::ExprStmt:
                     return "ExprStmt";
                 default:
-                    throw exception::UnhandledSwitchCase();
+                    ASSERT_FAIL("Unhandled StmtKind");
             }
         }
 
@@ -37,7 +37,7 @@ namespace lwnn {
                 case ExprKind::ConditionalExpr:
                     return "ConditionalExpr";
                 default:
-                    throw exception::UnhandledSwitchCase();
+                    ASSERT_FAIL("Unhandled ExprKind");
             }
         }
 
@@ -52,7 +52,7 @@ namespace lwnn {
                 case BinaryOperationKind::Div:
                     return "Div";
                 default:
-                    throw exception::UnhandledSwitchCase();
+                    ASSERT_FAIL("Unhandled BinaryOperationKind");
             }
         }
 

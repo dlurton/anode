@@ -10,7 +10,7 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  
 There's only a very limited set of functionality that works right now:
 
- - Calculate any expression containing only integers +, -, * or / operators:
+ - Calculate any expression containing only integers and floats +, -, * or / operators:
         
         lwnn> 10 + 20 * 3 / (5 - 2);
         LWNN AST:
@@ -67,6 +67,8 @@ There's only a very limited set of functionality that works right now:
 
 The above expression:  `imaglobalyo:int = 5 * 20 / (2 + 3);` declares a variable named "imaglobalyo" of type "int" and
 assigns a default value.  
+
+Literal floats expressed normally: i.e. `1.0` is a literal float while `1` is a literal integer;
 
 ## Building
 

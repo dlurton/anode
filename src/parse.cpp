@@ -73,12 +73,17 @@ namespace lwnn {
                 setResult(listener.surrenderResult());
             }
 
-            virtual void enterNumberExpr(LwnnParser::NumberExprContext *ctx) override {
+            virtual void enterLiteralInt32Expr(LwnnParser::LiteralInt32ExprContext *ctx) override {
                 int value = std::stoi(ctx->getText());
                 setResult(std::make_unique<LiteralInt32Expr>(getSourceSpan(ctx), value));
             }
 
-            virtual void enterInfixExpr(LwnnParser::InfixExprContext *ctx) override {
+            virtual void enterLiteralFloatExpr(LwnnParser::LiteralFloatExprContext *ctx) override {
+                double value = std::stof(ctx->getText());
+                setResult(std::make_unique<LiteralFloatExpr>(getSourceSpan(ctx), value));
+            }
+
+            virtual void enterBinaryExpr(LwnnParser::BinaryExprContext *ctx) override {
                 ExprListener leftListener;
                 ctx->left->enterRule(&leftListener);
 
@@ -93,14 +98,14 @@ namespace lwnn {
                     case LwnnParser::OP_MUL: opKind = BinaryOperationKind::Mul; break;
                     case LwnnParser::OP_DIV: opKind = BinaryOperationKind::Div; break;
                     default:
-                        throw new exception::UnhandledSwitchCase();
+                        ASSERT_FAIL("Unhandled Token Type (Operators)");
                 }
 
                 setResult(std::make_unique<BinaryExpr>(getSourceSpan(ctx->left, ctx->right),
                     leftListener.surrenderResult(), opKind, rightListener.surrenderResult()));
             }
 
-            virtual void enterVarRefExpr(LwnnParser::VarRefExprContext * ctx) override {
+            virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext * ctx) override {
                 setResult(std::make_unique<VariableRefExpr>(getSourceSpan(ctx), ctx->getText()));
             }
         };

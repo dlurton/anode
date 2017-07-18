@@ -57,15 +57,6 @@ namespace lwnn {
         }
     };
 
-    class UnhandledSwitchCase : public FatalException {
-    public:
-        UnhandledSwitchCase() : FatalException("Ruh roh.  There was an unhandled switch case.") {}
-
-        virtual ~UnhandledSwitchCase() {
-
-        }
-    };
-
     class InvalidStateException : public FatalException {
     public:
         InvalidStateException(const std::string &message) : FatalException(message) {

@@ -45,7 +45,7 @@ namespace lwnn {
                 case type::PrimitiveType::Double:
                     return llvm::Type::getDoubleTy(llvmContext);
                 default:
-                    throw exception::UnhandledSwitchCase();
+                    ASSERT_FAIL("Unhandled PrimitiveType");
             }
         }
 
@@ -149,10 +149,12 @@ namespace lwnn {
                     case type::PrimitiveType::Int32:
                         return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
                     case type::PrimitiveType::Float:
+                        //APFloat has different constructors depending on if you want a float or a double...
+                        return llvm::ConstantFP::get(llvmContext_, llvm::APFloat((float)0.0));
                     case type::PrimitiveType::Double:
                         return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(0.0));
                     default:
-                        throw exception::UnhandledSwitchCase();
+                        ASSERT_FAIL("Unhandled PrimitiveType");
                 }
             }
 
@@ -171,7 +173,7 @@ namespace lwnn {
                             case BinaryOperationKind::Div:
                                 return irBuilder_.CreateSDiv(lValue, rValue);
                             default:
-                                throw exception::UnhandledSwitchCase();
+                                ASSERT_FAIL("Unhandled BinaryOperationKind");
                         }
                     case type::PrimitiveType::Float:
                         switch (op) {
@@ -184,10 +186,10 @@ namespace lwnn {
                             case BinaryOperationKind::Div:
                                 return irBuilder_.CreateFDiv(lValue, rValue);
                             default:
-                                throw exception::UnhandledSwitchCase();
+                                ASSERT_FAIL("Unhandled BinaryOperationKind");
                         }
                     default:
-                        throw exception::UnhandledSwitchCase();
+                        ASSERT_FAIL("Unhandled PrimitiveType");
                 }
             }
         };

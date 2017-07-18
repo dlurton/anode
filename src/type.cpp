@@ -40,7 +40,7 @@ namespace lwnn {
                 case PrimitiveType::Double:
                     return "double";
                 default:
-                    throw exception::UnhandledSwitchCase();
+                    ASSERT_FAIL("Unhandled PrimitiveType");
             }
         }
    }
