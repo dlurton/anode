@@ -3,8 +3,7 @@ Really should be using this:
     https://github.com/toomuchatonce/cmake-examples/blob/master/superbuild-importedtargets/CMakeLists.txt
     https://cmake.org/cmake/help/v3.2/module/ExternalProject.html
 
-Building dependencies by script just doesn't *feel* right and I suspect using this super-build pattern will
-allow for 
+Building dependencies by script just doesn't *feel* right and I suspect using this super-build pattern will.
 
 After implementing the cmake super build pattern (in link above), implement travis CI.
 
@@ -16,10 +15,12 @@ Ubuntu packages needed:
  - g++-7 
  - (set CC & CXX)
  - uuid-dev
-   
 
 In order to support a REPL thingy, will need to support executing any statement in the global scope like any 
 interpreted language.  These types of statements can generate errors while compiling to object code if desired.
+
+Idea for compiler warning:
+    when cast<>() is used but the result is then implicitly cast again...
 
 
 ### Principals of the language:

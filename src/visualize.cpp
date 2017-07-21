@@ -68,12 +68,11 @@ namespace lwnn {
         public:
             PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-            virtual bool visitingCompoundStmt(CompoundStmt *expr) override {
+            virtual void visitingCompoundStmt(CompoundStmt *expr) override {
                 writer_.write("Block: ");
                 writeScopeVariables(expr->scope());
                 writer_.writeln();
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedCompoundStmt(CompoundStmt *expr) override {
@@ -104,10 +103,9 @@ namespace lwnn {
                 }
             }
 
-            virtual bool visitingBinaryExpr(BinaryExpr *expr) override {
+            virtual void visitingBinaryExpr(BinaryExpr *expr) override {
                 writer_.writeln("BinaryExpr: " + to_string(expr->operation()));
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedBinaryExpr(BinaryExpr *expr) override {
@@ -122,11 +120,10 @@ namespace lwnn {
                 writer_.writeln("LiteralFloat: " + std::to_string(expr->value()));
             }
 
-            virtual bool visitingVariableDeclExpr(VariableDeclExpr *expr) override {
+            virtual void visitingVariableDeclExpr(VariableDeclExpr *expr) override {
                 writer_.writeln("VariableDeclExpr: (%s:%s)", expr->name().c_str(),
                                 expr->typeRef()->name().c_str());
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedVariableDeclExpr(VariableDeclExpr *) override {
@@ -137,49 +134,56 @@ namespace lwnn {
                 writer_.writeln("VariableRefExpr: " + expr->name());
             }
 
-            virtual bool visitingConditionalExpr(ConditionalExpr *) override {
+            virtual void visitingConditionalExpr(ConditionalExpr *) override {
                 writer_.writeln("Conditional:");
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedConditionalExpr(ConditionalExpr *) override {
                 writer_.decIndent();
             }
 
-            virtual bool visitingAssignExpr(AssignExpr *expr) override {
+            virtual void visitingAssignExpr(AssignExpr *expr) override {
                 writer_.writeln("AssignExpr:");
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedAssignExpr(AssignExpr *) override {
                 writer_.decIndent();
             }
 
-            virtual bool visitingReturnStmt(ReturnStmt *) override {
+
+            virtual void visitingCastExpr(CastExpr *expr) override {
+                writer_.writeln("CastExpr (%s, to %s):",
+                                expr->castKind() == CastKind::Implicit ? "implicit" : "explicit",
+                                expr->type()->name().c_str());
+
+                writer_.incIndent();
+            }
+            virtual void visitedCastExpr(CastExpr *pExpr) override {
+                writer_.decIndent();
+            }
+
+            virtual void visitingReturnStmt(ReturnStmt *) override {
                 writer_.writeln("Return:");
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedReturnStmt(ReturnStmt *) override {
                 writer_.decIndent();
             }
 
-            virtual bool visitingFuncDeclStmt(FuncDeclStmt *func) override {
+            virtual void visitingFuncDeclStmt(FuncDeclStmt *func) override {
                 writer_.writeln("FunctionStmt: " + func->name());
                 writer_.incIndent();
-                return true;
             }
 
             virtual void visitedFuncDeclStmt(FuncDeclStmt *func) override {
                 writer_.decIndent();
             }
 
-            virtual bool visitingModule(Module *module) override {
+            virtual void visitingModule(Module *module) override {
                 writer_.writeln("Module: " + module->name());
-                return true;
             }
         };
 

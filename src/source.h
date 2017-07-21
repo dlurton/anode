@@ -1,5 +1,5 @@
 
-#import "string.h"
+#include "string.h"
 
 #pragma once
 

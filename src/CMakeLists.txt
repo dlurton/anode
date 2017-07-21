@@ -62,7 +62,6 @@ set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
         ast.h
         ast.cpp
         exception.h
-        main.cpp
         parse.cpp
         visualize.h
         visualize.cpp
@@ -77,7 +76,10 @@ include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXT
 find_library(LIB_ANTLR4_RUNTIME antlr4-runtime PATHS ${EXTERNS_DIR}/antlr4/usr/local/lib)
 find_library(LIB_LINENOISE linenoise PATHS ${EXTERNS_DIR}/linenoise-ng/lib)
 
-add_executable(lwnn ${SOURCE_FILES})
+add_executable(lwnn ${SOURCE_FILES} main.cpp)
 target_link_libraries(lwnn ${LIB_LINENOISE} ${LIB_ANTLR4_RUNTIME} ${LLVM_LIBS})
 
+add_executable(tests ${SOURCE_FILES} tests.cpp catch.hpp)
+target_link_libraries(tests ${LIB_ANTLR4_RUNTIME} ${LLVM_LIBS})
 
+add_test(tests tests)

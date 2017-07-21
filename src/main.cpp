@@ -121,21 +121,11 @@ namespace lwnn {
         if(!module) {
             return;
         }
-        visualize::prettyPrint(module.get());
-
         error::ErrorStream es{std::cerr};
 
-        ast_passes::populateSymbolTables(module.get(), es);
-        if(es.errorCount() > 0)
-            return;
+        ast_passes::runAllPasses(module.get(), es);
 
-        ast_passes::resolveTypes(module.get(), es);
-        if(es.errorCount() > 0)
-            return;
-
-        ast_passes::resolveSymbols(module.get(), es);
-        if(es.errorCount() > 0)
-            return;
+        visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
             std::string resultAsString;

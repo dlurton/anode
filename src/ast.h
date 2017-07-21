@@ -30,6 +30,7 @@ namespace lwnn {
             AssignVariableExpr,
             BinaryExpr,
             ConditionalExpr,
+            CastExpr
         };
         std::string to_string(ExprKind kind);
 
@@ -56,76 +57,59 @@ namespace lwnn {
         class VariableDeclExpr;
         class VariableRefExpr;
         class AssignExpr;
+        class CastExpr;
         class TypeRef;
         class Module;
 
-
-        /** Visitor part of visitor pattern, with some enhancements.
-         *
-         *  AstNodes with no children follow a simple convention:
-         *      void visit[AstNodeType](AstNodeType *)
-         *  i.e.
-         *      void visitLiteralInt32Expr(LiteralInt32Expr *expr)
-         *
-         *  AstNodes with children have have two methods each:
-         *      bool visiting[AstNodeType](AstNodeType *)
-         *      void visited[AstNodeType](AstNOdeType *)
-         * i.e.
-         *      virtual bool visitingBinaryExpr(BinaryExpr *) {}
-         *      virtual void visitedBinaryExpr(BinaryExpr *) {}
-         *
-         * Functions prefixed with "visiting" are executed before their descendants are visited.  This type of method
-         * also returns a bool--implementers of this method should return false to prevent visitation of their
-         * descendants.
-         *
-         * Functions prefixed with "visited" are executed after their descendants are visited.
-         */
         class AstVisitor {
         public:
-            /** Executes before every Stmt is visited. Return false to prevent visitation of the node's descendants. */
-            virtual bool visitingStmt(Stmt *) { return true; }
-            /** Executes after every Stmt is visited. */
-            virtual void visitedStmt(Stmt *) {}
-
-            /** Executes before every ExprStmt is visited. */
-            virtual bool visitingExprStmt(ExprStmt *) { return true; }
-            /** Executes after every ExprStmt is visited. */
-            virtual void visitedExprStmt(ExprStmt *) {}
-
-
-            virtual bool visitingModule(Module *) { return true; }
-            virtual void visitedModule(Module *) {}
-
-            virtual void visitTypeRef(TypeRef *typeRef) {  }
-
             //////////// Statements
-            virtual bool visitingFuncDeclStmt(FuncDeclStmt *) { return true; }
-            virtual void visitedFuncDeclStmt(FuncDeclStmt *) {}
+            /** Executes before every Stmt is visited. */
+            virtual bool visitingStmt(Stmt *) { }
+            /** Executes after every Stmt is visited. */
+            virtual void visitedStmt(Stmt *) { }
 
-            virtual bool visitingCompoundStmt(CompoundStmt *) { return true; }
-            virtual void visitedCompoundStmt(CompoundStmt *) {}
+            virtual void visitingFuncDeclStmt(FuncDeclStmt *) { }
+            virtual void visitedFuncDeclStmt(FuncDeclStmt *) { }
 
-            virtual bool visitingReturnStmt(ReturnStmt *) { return true; }
-            virtual void visitedReturnStmt(ReturnStmt *) {}
+            virtual void visitingCompoundStmt(CompoundStmt *) { }
+            virtual void visitedCompoundStmt(CompoundStmt *) { }
+
+            virtual void visitingReturnStmt(ReturnStmt *) { }
+            virtual void visitedReturnStmt(ReturnStmt *) { }
 
             //////////// Expressions
-            virtual bool visitingVariableDeclExpr(VariableDeclExpr *) { return true; }
-            virtual void visitedVariableDeclExpr(VariableDeclExpr *) {}
+            /** Executes before every ExprStmt is visited. Return false to prevent visitation of the node's descendants. */
+            virtual bool visitingExprStmt(ExprStmt *) { }
+            /** Executes after every ExprStmt is visited. */
+            virtual void visitedExprStmt(ExprStmt *) { }
 
-            virtual bool visitingConditionalExpr(ConditionalExpr *) { return true; }
-            virtual void visitedConditionalExpr(ConditionalExpr *) {}
+            virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
+            virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-            virtual bool visitingBinaryExpr(BinaryExpr *) { return true; }
-            virtual void visitedBinaryExpr(BinaryExpr *) {}
+            virtual void visitingConditionalExpr(ConditionalExpr *) { }
+            virtual void visitedConditionalExpr(ConditionalExpr *) { }
+
+            virtual void visitingBinaryExpr(BinaryExpr *) { }
+            virtual void visitedBinaryExpr(BinaryExpr *) { }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *) { }
 
-            virtual void visitLiteralFloatExpr(LiteralFloatExpr *) {}
+            virtual void visitLiteralFloatExpr(LiteralFloatExpr *) { }
 
-            virtual void visitVariableRefExpr(VariableRefExpr *) {}
+            virtual void visitVariableRefExpr(VariableRefExpr *) { }
 
-            virtual bool visitingAssignExpr(AssignExpr *) { return true; }
-            virtual void visitedAssignExpr(AssignExpr *) {}
+            virtual void visitingAssignExpr(AssignExpr *) { }
+            virtual void visitedAssignExpr(AssignExpr *) { }
+
+            virtual void visitingCastExpr(CastExpr *) { }
+            virtual void visitedCastExpr(CastExpr *) { }
+
+            //////////// Misc
+            virtual void visitTypeRef(TypeRef *typeRef) { }
+
+            virtual void visitingModule(Module *) { }
+            virtual void visitedModule(Module *) { }
         };
 
 
@@ -174,6 +158,8 @@ namespace lwnn {
             }
         };
 
+        typedef std::function<std::unique_ptr<ExprStmt>(std::unique_ptr<ExprStmt>)> ExprGraftFunctor;
+
         /** Base class for all nodes */
         class AstNode {
         public:
@@ -210,8 +196,6 @@ namespace lwnn {
                 statements_.push_back(std::move(stmt));
             }
 
-            typedef std::vector<Stmt*> child_iterator;
-
             std::vector<Stmt*> statements() const {
                 std::vector<Stmt*> retval;
                 for(auto &stmt : statements_) {
@@ -221,11 +205,12 @@ namespace lwnn {
             }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!visitor->visitingStmt(this) && visitor->visitingCompoundStmt(this)) {
-                    return;
-                }
-                for(auto &stmt : statements_) {
-                    stmt->accept(visitor);
+                bool visitChildren = visitor->visitingStmt(this);
+                visitor->visitingCompoundStmt(this);
+                if(visitChildren) {
+                    for (auto &stmt : statements_) {
+                        stmt->accept(visitor);
+                    }
                 }
                 visitor->visitedCompoundStmt(this);
                 visitor->visitedStmt(this);
@@ -290,9 +275,7 @@ namespace lwnn {
             type::Type *type() const override { return &type::Primitives::Int32; }
             int value() const { return value_; }
             virtual void accept(AstVisitor *visitor) override {
-                if(!visitor->visitingExprStmt(this)) {
-                    return;
-                }
+                visitor->visitingExprStmt(this);
                 visitor->visitLiteralInt32Expr(this);
                 visitor->visitedExprStmt(this);
             }
@@ -309,9 +292,7 @@ namespace lwnn {
             float value() const { return value_; }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!visitor->visitingExprStmt(this)) {
-                    return;
-                }
+                visitor->visitingExprStmt(this);
                 visitor->visitLiteralFloatExpr(this);
                 visitor->visitedExprStmt(this);
             }
@@ -324,7 +305,7 @@ namespace lwnn {
 
             const std::string name_;
             const std::unique_ptr<TypeRef> typeRef_;
-            const std::unique_ptr<ExprStmt> initializerExpr_;
+            std::unique_ptr<ExprStmt> initializerExpr_;
 
         public:
             VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name,
@@ -345,14 +326,21 @@ namespace lwnn {
             virtual std::string name() const override { return name_; }
             virtual std::string toString() const override {  return name_ + ":" + typeRef_->name(); }
 
+            void graftInitializerExpr(ExprGraftFunctor graftFunctor) {
+                initializerExpr_ = std::move(graftFunctor(std::move(initializerExpr_)));
+            }
+
             virtual void accept(AstVisitor *visitor) override {
-                if(!(visitor->visitingExprStmt(this) &&  visitor->visitingVariableDeclExpr(this))) {
-                    return;
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitor->visitingVariableDeclExpr(this);
+
+                if(visitChildren) {
+                    typeRef_->accept(visitor);
+                    if (initializerExpr_) {
+                        initializerExpr_->accept(visitor);
+                    }
                 }
-                typeRef_->accept(visitor);
-                if(initializerExpr_) {
-                    initializerExpr_->accept(visitor);
-                }
+
                 visitor->visitedVariableDeclExpr(this);
                 visitor->visitedExprStmt(this);
             }
@@ -360,14 +348,19 @@ namespace lwnn {
 
         /** Represents a binary expression, i.e. 1 + 2 or foo + bar */
         class BinaryExpr : public ExprStmt {
-            const std::unique_ptr<ExprStmt> lValue_;
+            std::unique_ptr<ExprStmt> lValue_;
             const BinaryOperationKind operation_;
-            const std::unique_ptr<ExprStmt> rValue_;
+            std::unique_ptr<ExprStmt> rValue_;
         public:
             /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
-            BinaryExpr(source::SourceSpan sourceSpan, std::unique_ptr<ExprStmt> lValue, BinaryOperationKind operation,
+            BinaryExpr(source::SourceSpan sourceSpan,
+                       std::unique_ptr<ExprStmt> lValue,
+                       BinaryOperationKind operation,
                        std::unique_ptr<ExprStmt> rValue)
-                : ExprStmt(sourceSpan), lValue_(std::move(lValue)), operation_(operation), rValue_(move(rValue)) {
+                : ExprStmt(sourceSpan),
+                  lValue_(std::move(lValue)),
+                  operation_(operation),
+                  rValue_(move(rValue)) {
                 ASSERT(lValue_);
                 ASSERT(rValue_);
             }
@@ -377,14 +370,25 @@ namespace lwnn {
             type::Type *type() const override { return rValue_->type(); }
             ExprStmt *lValue() const { return lValue_.get(); }
             ExprStmt *rValue() const { return rValue_.get(); }
+
+            void graftLValue(ExprGraftFunctor graftFunctor) {
+                lValue_ = std::move(graftFunctor(std::move(lValue_)));
+            }
+
+            void graftRValue(ExprGraftFunctor graftFunctor) {
+                rValue_ = std::move(graftFunctor(std::move(rValue_)));
+            }
+
             BinaryOperationKind operation() const { return operation_; }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!(visitor->visitingExprStmt(this) && visitor->visitingBinaryExpr(this))) {
-                    return;
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitor->visitingBinaryExpr(this);
+
+                if(visitChildren) {
+                    lValue_->accept(visitor);
+                    rValue_->accept(visitor);
                 }
-                lValue_->accept(visitor);
-                rValue_->accept(visitor);
                 visitor->visitedBinaryExpr(this);
                 visitor->visitedExprStmt(this);
             }
@@ -407,9 +411,7 @@ namespace lwnn {
             std::string toString() const { return name_ + ":" + this->type()->name(); }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!visitor->visitingStmt(this)) {
-                    return;
-                }
+                visitor->visitingStmt(this);
                 visitor->visitVariableRefExpr(this);
                 visitor->visitedExprStmt(this);
             }
@@ -430,13 +432,69 @@ namespace lwnn {
             VariableRefExpr *assignee() { return assignee_.get(); }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!(visitor->visitingExprStmt(this) && visitor->visitingAssignExpr(this))) {
-                    return;
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitor->visitingAssignExpr(this);
+
+                if(visitChildren) {
+                    assignee_->accept(visitor);
+                    valueExpr_->accept(visitor);
                 }
-                assignee_->accept(visitor);
-                valueExpr_->accept(visitor);
+
                 visitor->visitedAssignExpr(this);
-                visitor->visitingExprStmt(this);
+                visitor->visitedExprStmt(this);
+            }
+        };
+
+        enum class CastKind {
+            Explicit,
+            Implicit
+        };
+
+        /** Represents a cast expression... i.e. foo:int= cast<int>(someDouble); */
+        class CastExpr : public ExprStmt {
+            std::unique_ptr<TypeRef> toType_;
+            const std::unique_ptr<ExprStmt> valueExpr_;
+            const CastKind castKind_;
+        public:
+            /** Use this constructor when the type::Type of the cast *is* known in advance. */
+            CastExpr(
+                source::SourceSpan sourceSpan,
+                type::Type *toType,
+                std::unique_ptr<ExprStmt> valueExpr,
+                CastKind castKind)
+                : ExprStmt(sourceSpan),
+                  toType_(std::make_unique<TypeRef>(sourceSpan, toType)),
+                  valueExpr_(std::move(valueExpr)),
+                  castKind_(castKind) { }
+
+            /** Use this constructor when the type::Type of the cast is *not* known in advance. */
+            CastExpr(
+                source::SourceSpan sourceSpan,
+                std::unique_ptr<TypeRef> toType,
+                std::unique_ptr<ExprStmt> valueExpr,
+                CastKind castKind)
+            : ExprStmt(sourceSpan),
+              toType_(std::move(toType)),
+              valueExpr_(std::move(valueExpr)),
+              castKind_(castKind) { }
+
+            ExprKind exprKind() const override { return ExprKind::CastExpr; }
+            type::Type *type() const  override{ return toType_->type(); }
+            CastKind castKind() const { return castKind_; }
+
+            ExprStmt *valueExpr() const { return valueExpr_.get(); }
+
+            virtual void accept(AstVisitor *visitor) override {
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitor->visitingCastExpr(this);
+
+                if(visitChildren) {
+                    toType_->accept(visitor);
+                    valueExpr_->accept(visitor);
+                }
+
+                visitor->visitedCastExpr(this);
+                visitor->visitedExprStmt(this);
             }
         };
 
@@ -451,10 +509,11 @@ namespace lwnn {
             const ExprStmt *valueExpr() const { return valueExpr_.get(); }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!(visitor->visitingStmt(this) && visitor->visitingReturnStmt(this))) {
-                    return;
+                bool visitChildren = visitor->visitingStmt(this);
+                visitor->visitingReturnStmt(this);
+                if(visitChildren) {
+                    valueExpr_->accept(visitor);
                 }
-                valueExpr_->accept(visitor);
                 visitor->visitedReturnStmt(this);
                 visitor->visitedStmt(this);
             }
@@ -497,12 +556,15 @@ namespace lwnn {
             const ExprStmt *falsePart() const { return falsePart_.get(); }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!(visitor->visitingExprStmt(this) && visitor->visitingConditionalExpr(this))) {
-                    return;
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitor->visitingConditionalExpr(this);
+
+                if(visitor) {
+                    truePart_->accept(visitor);
                 }
-                truePart_->accept(visitor);
+
                 visitor->visitedConditionalExpr(this);
-                visitor->visitingExprStmt(this);
+                visitor->visitedExprStmt(this);
             }
         };
 
@@ -529,12 +591,13 @@ namespace lwnn {
             Stmt *body() const { return body_.get(); }
 
             virtual void accept(AstVisitor *visitor) override {
-                if(!(visitor->visitingStmt(this) && visitor->visitingFuncDeclStmt(this))) {
-                    return;
+                bool visitChildren = visitor->visitingStmt(this);
+                visitor->visitingFuncDeclStmt(this);
+                if(visitChildren) {
+                    body_->accept(visitor);
                 }
-                body_->accept(visitor);
                 visitor->visitedFuncDeclStmt(this);
-                visitor->visitingStmt(this);
+                visitor->visitedStmt(this);
             }
         };
 
@@ -553,16 +616,15 @@ namespace lwnn {
             scope::SymbolTable *scope() { return &scope_; }
 
             void accept(AstVisitor *visitor) override {
-                if(!visitor->visitingModule(this)) {
-                    return;
-                }
+                visitor->visitingModule(this);
                 body_->accept(visitor);
                 visitor->visitedModule(this);
             }
         };
 
 
-        /** Most visitors will inherit from this since tracks symbol scopes through the AST. */
+        /** Most visitors will inherit from this because it tracks symbol scopes through the AST.
+         * Note that all overrides in inheritors should the member functions they are overriding so that the scope is properly tracked. */
         class ScopeFollowingVisitor : public ast::AstVisitor {
             //We use this only as a stack but it has to be a deque so we can iterate over its contents.
             std::deque<scope::SymbolTable*> symbolTableStack_;
@@ -573,29 +635,26 @@ namespace lwnn {
             }
 
         public:
-            virtual bool visitingModule(ast::Module *module) override {
+            virtual void visitingModule(ast::Module *module) override {
                 symbolTableStack_.push_back(module->scope());
-                return true;
             }
             virtual void visitedModule(ast::Module *module) override {
                 ASSERT(module->scope() == symbolTableStack_.back())
                 symbolTableStack_.pop_back();
             }
-
-            virtual bool visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+            virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
                 funcDeclStmt->parameterScope()->setParent(topScope());
                 symbolTableStack_.push_back(funcDeclStmt->parameterScope());
-                return true;
             }
+
             virtual void visitedFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
                 ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
                 symbolTableStack_.pop_back();
             }
 
-            virtual bool visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
+            virtual void visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
                 compoundStmt->scope()->setParent(topScope());
                 symbolTableStack_.push_back(compoundStmt->scope());
-                return true;
             }
             virtual void visitedCompoundStmt(ast::CompoundStmt *compoundStmt) override {
                 ASSERT(compoundStmt->scope() == symbolTableStack_.back());

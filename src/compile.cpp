@@ -29,37 +29,152 @@ using namespace lwnn::ast;
 namespace lwnn {
     namespace compile {
 
-        llvm::Type *to_llvmType(type::Type *type, llvm::LLVMContext &llvmContext) {
-            ASSERT(type);
-            ASSERT(type->isPrimitive() && "Expected a primitive data type here");
+        /** Base class to generate IR for specific types. */
+        class CodeGenHelper {
+        public:
+            /** Returns equivalent of 0 or null.*/
+            virtual llvm::Constant *getDefaultValue() = 0;
 
-            switch (type->primitiveType()) {
-                case type::PrimitiveType::Void:
-                    return llvm::Type::getVoidTy(llvmContext);
-                case type::PrimitiveType::Bool:
-                    return llvm::Type::getInt8Ty(llvmContext);
-                case type::PrimitiveType::Int32:
-                    return llvm::Type::getInt32Ty(llvmContext);
-                case type::PrimitiveType::Float:
-                    return llvm::Type::getFloatTy(llvmContext);
-                case type::PrimitiveType::Double:
-                    return llvm::Type::getDoubleTy(llvmContext);
-                default:
-                    ASSERT_FAIL("Unhandled PrimitiveType");
+            /** Creates arithmatic operation. */
+            virtual llvm::Value *createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op) = 0;
+
+            /** Returns the LLVMM type. */
+            virtual llvm::Type *getLlvmType() = 0;
+
+            /** Creates a cast to a different type. */
+            virtual llvm::Value *createCastTo(llvm::Value *, llvm::Type *) = 0;
+
+        };
+
+        class Int32CodeGenHelper : public CodeGenHelper {
+            llvm::LLVMContext &llvmContext_;
+            llvm::IRBuilder<> &irBuilder_;
+        public:
+            Int32CodeGenHelper(llvm::LLVMContext &llvmContext, llvm::IRBuilder<> &irBuilder)
+                : llvmContext_{llvmContext}, irBuilder_{irBuilder} { }
+
+            virtual llvm::Constant *getDefaultValue() {
+                return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
             }
-        }
 
+            /** Creates arithmetic operation. */
+            virtual llvm::Value *createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op) {
+                switch (op) {
+                    case BinaryOperationKind::Add:
+                        return irBuilder_.CreateAdd(lValue, rValue);
+                    case BinaryOperationKind::Sub:
+                        return irBuilder_.CreateSub(lValue, rValue);
+                    case BinaryOperationKind::Mul:
+                        return irBuilder_.CreateMul(lValue, rValue);
+                    case BinaryOperationKind::Div:
+                        return irBuilder_.CreateSDiv(lValue, rValue);
+                    default:
+                        ASSERT_FAIL("Unhandled BinaryOperationKind");
+                }
+            };
+
+            /** Returns the LLVM type. */
+            virtual llvm::Type *getLlvmType() {
+                return llvm::Type::getInt32Ty(llvmContext_);
+            };
+
+            /** Creates a cast to a different type. */
+            virtual llvm::Value *createCastTo(llvm::Value *value, llvm::Type *type) {
+                if(type->isFloatTy()) {
+                    return irBuilder_.CreateSIToFP(value, type);
+                }
+
+                ASSERT_FAIL("Can't cast to requested type");
+            }
+        }; //class Int32CodeGenHelper
+
+        class FloatCodeGenHelper : public CodeGenHelper {
+            llvm::LLVMContext &llvmContext_;
+            llvm::IRBuilder<> &irBuilder_;
+        public:
+            FloatCodeGenHelper(llvm::LLVMContext &llvmContext, llvm::IRBuilder<> &irBuilder)
+                : llvmContext_{llvmContext}, irBuilder_{irBuilder} { }
+
+            virtual llvm::Constant *getDefaultValue() {
+                return llvm::ConstantFP::get(llvmContext_, llvm::APFloat((float)0));
+            }
+
+            /** Creates arithmetic operation. */
+            virtual llvm::Value *createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op) {
+                switch (op) {
+                    case BinaryOperationKind::Add:
+                        return irBuilder_.CreateFAdd(lValue, rValue);
+                    case BinaryOperationKind::Sub:
+                        return irBuilder_.CreateFSub(lValue, rValue);
+                    case BinaryOperationKind::Mul:
+                        return irBuilder_.CreateFMul(lValue, rValue);
+                    case BinaryOperationKind::Div:
+                        return irBuilder_.CreateFDiv(lValue, rValue);
+                    default:
+                        ASSERT_FAIL("Unhandled BinaryOperationKind");
+                }
+            };
+
+            /** Returns the LLVMM type. */
+            virtual llvm::Type *getLlvmType() {
+                return llvm::Type::getFloatTy(llvmContext_);
+            };
+
+            /** Creates a cast to a different type. */
+            virtual llvm::Value *createCastTo(llvm::Value *value, llvm::Type *type) {
+                if(type->isIntegerTy()) {
+                    return irBuilder_.CreateFPToSI(value, type);
+                }
+
+                ASSERT_FAIL("Can't cast to requested type");
+            }
+        }; //class FloatCodeGenHelper
+
+        class CodeGenerationContext {
+        private:
+            Int32CodeGenHelper int32CodeGenHelper_;
+            FloatCodeGenHelper floatCodeGenHelper_;
+
+        public:
+            llvm::LLVMContext &llvmContext;
+            llvm::IRBuilder<> &irBuilder;
+            llvm::Module &llvmModule;
+
+            CodeGenerationContext(
+                llvm::LLVMContext &llvmContext,
+                llvm::Module &module,
+                llvm::IRBuilder<> &irBuilder)
+                : llvmContext{llvmContext},
+                  llvmModule{module},
+                  irBuilder{irBuilder},
+                  int32CodeGenHelper_{llvmContext, irBuilder},
+                  floatCodeGenHelper_{llvmContext, irBuilder} { }
+
+        public:
+            CodeGenHelper *getCodeGenHelper(type::Type *type) {
+                ASSERT(type);
+                ASSERT(type->isPrimitive() && "Expected a primitive data type here");
+                ASSERT(type->primitiveType() != type::PrimitiveType::Void);
+
+                switch (type->primitiveType()) {
+                    case type::PrimitiveType::Int32:
+                        return &int32CodeGenHelper_;
+                    case type::PrimitiveType::Float:
+                        return &floatCodeGenHelper_;
+                    default:
+                        ASSERT_FAIL("Unhandled PrimitiveType");
+                }
+            } //getCodeGenHelper
+
+        }; //CodeGenenerationContext
 
         class ExprAstVisitor : public ScopeFollowingVisitor {
-            llvm::LLVMContext &llvmContext_;
-            llvm::Module &llvmModule_;
-            llvm::IRBuilder<> &irBuilder_;
-
+            CodeGenerationContext &context_;
             std::stack<llvm::Value *> valueStack_;
 
         public:
-            ExprAstVisitor(llvm::LLVMContext &llvmContext_, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder)
-                : llvmContext_(llvmContext_), llvmModule_(llvmModule), irBuilder_(irBuilder) { }
+            ExprAstVisitor(CodeGenerationContext &context)
+                : context_(context) { }
 
             bool hasValue() {
                 return valueStack_.size() > 0;
@@ -70,33 +185,37 @@ namespace lwnn {
                 return valueStack_.top();
             }
 
-            virtual bool visitingVariableDeclExpr(VariableDeclExpr *var) override {
-                return true;
+            virtual void visitedCastExpr(CastExpr *expr) {
+                llvm::Value *value = valueStack_.top();
+                valueStack_.pop();
+                CodeGenHelper *fromIrGen = context_.getCodeGenHelper(expr->valueExpr()->type());
+                CodeGenHelper *toIrGen = context_.getCodeGenHelper(expr->type());
+                llvm::Value *castedValue = fromIrGen->createCastTo(value, toIrGen->getLlvmType());
+                valueStack_.push(castedValue);
             }
 
             virtual void visitedVariableDeclExpr(VariableDeclExpr *expr) override {
-                llvm::Type *type = to_llvmType(expr->type(), llvmContext_);
+                CodeGenHelper *typeHelper = context_.getCodeGenHelper(expr->type());
+                llvm::Type *type = typeHelper->getLlvmType();
 
                 //For now assume global variables.
                 //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
-                llvmModule_.getOrInsertGlobal(expr->name(), type);
+                context_.llvmModule.getOrInsertGlobal(expr->name(), type);
 
-                llvm::Value *initializer = nullptr;
-                if(expr->initializerExpr()) {
-                    initializer = valueStack_.top();
-                    valueStack_.pop();
-                }
-
-                llvm::GlobalVariable *globalVariable = llvmModule_.getNamedGlobal(expr->name());
+                llvm::GlobalVariable *globalVariable = context_.llvmModule.getNamedGlobal(expr->name());
                 globalVariable->setLinkage(llvm::GlobalValue::CommonLinkage);
                 globalVariable->setAlignment(4);
-                globalVariable->setInitializer(getDefaultValueForPrimitiveType(expr->type()->primitiveType()));
+                globalVariable->setInitializer(typeHelper->getDefaultValue());
 
-
-                if(initializer) {
-                    irBuilder_.CreateStore(initializer, globalVariable);
+                if(expr->initializerExpr()) {
+                    llvm::Value *initializer = valueStack_.top();
+                    //valueStack_.pop();
+                    context_.irBuilder.CreateStore(initializer, globalVariable);
+                    //valueStack_.push();
+                } else {
+                    valueStack_.push(typeHelper->getDefaultValue());
                 }
-                valueStack_.push(irBuilder_.CreateLoad(globalVariable));
+
             }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
@@ -111,9 +230,10 @@ namespace lwnn {
                 //We are assuming global variables for now
                 //llvm::Value *allocaInst = lookupVariable(expr->name());
 
-                llvm::Type *type = to_llvmType(expr->type(), llvmContext_);
-                llvm::GlobalVariable *globalVar = llvmModule_.getNamedGlobal(expr->name());
-                valueStack_.push(irBuilder_.CreateLoad(globalVar));
+                CodeGenHelper *helper = context_.getCodeGenHelper(expr->type());
+                llvm::Type *type = helper->getLlvmType();
+                llvm::GlobalVariable *globalVar = context_.llvmModule.getNamedGlobal(expr->name());
+                valueStack_.push(context_.irBuilder.CreateLoad(globalVar));
             }
 
             virtual void visitedBinaryExpr(BinaryExpr *expr) override {
@@ -125,72 +245,20 @@ namespace lwnn {
                 llvm::Value *lValue = valueStack_.top();
                 valueStack_.pop();
 
-                llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->type());
+                auto typeHelper = context_.getCodeGenHelper(expr->type());
+                llvm::Value *result = typeHelper->createOperation(lValue, rValue, expr->operation());
                 valueStack_.push(result);
             }
 
         private:
+
             llvm::Value *getConstantInt32(int value) {
-                llvm::ConstantInt *constantInt = llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, value, true));
+                llvm::ConstantInt *constantInt = llvm::ConstantInt::get(context_.llvmContext, llvm::APInt(32, value, true));
                 return constantInt;
             }
 
             llvm::Value *getConstantFloat(float value) {
-                return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(value));
-            }
-
-            llvm::Constant *getDefaultValueForPrimitiveType(type::PrimitiveType primitiveType) {
-                ASSERT(primitiveType != type::PrimitiveType::NotAPrimitive);
-                ASSERT(primitiveType != type::PrimitiveType::Void);
-
-                switch (primitiveType) {
-                    case type::PrimitiveType::Bool:
-                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(8, 1, true));
-                    case type::PrimitiveType::Int32:
-                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
-                    case type::PrimitiveType::Float:
-                        //APFloat has different constructors depending on if you want a float or a double...
-                        return llvm::ConstantFP::get(llvmContext_, llvm::APFloat((float)0.0));
-                    case type::PrimitiveType::Double:
-                        return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(0.0));
-                    default:
-                        ASSERT_FAIL("Unhandled PrimitiveType");
-                }
-            }
-
-            llvm::Value *
-            createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op, const type::Type *type) {
-                ASSERT(type->isPrimitive() && "Only primitive types currently supported here");
-                switch (type->primitiveType()) {
-                    case type::PrimitiveType::Int32:
-                        switch (op) {
-                            case BinaryOperationKind::Add:
-                                return irBuilder_.CreateAdd(lValue, rValue);
-                            case BinaryOperationKind::Sub:
-                                return irBuilder_.CreateSub(lValue, rValue);
-                            case BinaryOperationKind::Mul:
-                                return irBuilder_.CreateMul(lValue, rValue);
-                            case BinaryOperationKind::Div:
-                                return irBuilder_.CreateSDiv(lValue, rValue);
-                            default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind");
-                        }
-                    case type::PrimitiveType::Float:
-                        switch (op) {
-                            case BinaryOperationKind::Add:
-                                return irBuilder_.CreateFAdd(lValue, rValue);
-                            case BinaryOperationKind::Sub:
-                                return irBuilder_.CreateFSub(lValue, rValue);
-                            case BinaryOperationKind::Mul:
-                                return irBuilder_.CreateFMul(lValue, rValue);
-                            case BinaryOperationKind::Div:
-                                return irBuilder_.CreateFDiv(lValue, rValue);
-                            default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind");
-                        }
-                    default:
-                        ASSERT_FAIL("Unhandled PrimitiveType");
-                }
+                return llvm::ConstantFP::get(context_.llvmContext, llvm::APFloat(value));
             }
         };
 
@@ -198,7 +266,6 @@ namespace lwnn {
             llvm::LLVMContext &llvmContext_;
             llvm::TargetMachine &targetMachine_;
             llvm::IRBuilder<> irBuilder_;
-
             std::unique_ptr<llvm::Module> llvmModule_;
             llvm::Function *initFunc_;
         public:
@@ -212,7 +279,9 @@ namespace lwnn {
             }
 
             virtual bool visitingExprStmt(ExprStmt *expr) override {
-                ExprAstVisitor visitor{llvmContext_, *llvmModule_, irBuilder_ };
+                ScopeFollowingVisitor::visitingExprStmt(expr);
+                CodeGenerationContext cgc{llvmContext_, *llvmModule_.get(), irBuilder_ };
+                ExprAstVisitor visitor{cgc};
                 expr->accept(&visitor);
 
                 if(visitor.hasValue()) {
@@ -223,7 +292,9 @@ namespace lwnn {
                 return false;
             }
 
-            virtual bool visitingModule(Module *module) override {
+            virtual void visitingModule(Module *module) override {
+                ScopeFollowingVisitor::visitingModule(module);
+
                 llvmModule_ = llvm::make_unique<llvm::Module>(module->name(), llvmContext_);
                 llvmModule_->setDataLayout(targetMachine_.createDataLayout());
 
@@ -231,7 +302,9 @@ namespace lwnn {
                 auto initFuncRetType = llvm::Type::getVoidTy(llvmContext_);
                 if(module->body()->stmtKind() == StmtKind::ExprStmt) {
                     auto bodyExpr = static_cast<ExprStmt*>(module->body());
-                    initFuncRetType = to_llvmType(bodyExpr->type(), llvmContext_);
+                    CodeGenerationContext cgc{llvmContext_, *llvmModule_.get(), irBuilder_ };
+                    initFuncRetType = cgc.getCodeGenHelper(bodyExpr->type())->getLlvmType();
+                    //to_llvmType(bodyExpr->type(), llvmContext_);
                 }
                 initFunc_ = llvm::cast<llvm::Function>(
                     llvmModule_->getOrInsertFunction(MODULE_INIT_FUNC_NAME, initFuncRetType));
@@ -239,12 +312,6 @@ namespace lwnn {
                 auto initFuncBlock = llvm::BasicBlock::Create(llvmContext_, "EntryBlock", initFunc_);
 
                 irBuilder_.SetInsertPoint(initFuncBlock);
-
-                return true;
-            }
-
-            virtual void visitedModule(Module *module) override {
-
             }
         };
 
@@ -255,4 +322,4 @@ namespace lwnn {
         }
 
     } //namespace compile
-} //namespace lwnn`
+} //namespace lwnn

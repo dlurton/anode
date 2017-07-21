@@ -39,8 +39,7 @@ namespace lwnn {
         }
 
         /** Extracts a SourceRange from values specified in ctx. */
-        static source::SourceSpan getSourceSpan(antlr4::ParserRuleContext *startContext,
-                                        antlr4::ParserRuleContext *endContext) {
+        static source::SourceSpan getSourceSpan(antlr4::ParserRuleContext *startContext, antlr4::ParserRuleContext *endContext) {
             auto startSource = startContext->getStart()->getTokenSource();
             auto endSource = endContext->getStop()->getTokenSource();
 
@@ -71,6 +70,22 @@ namespace lwnn {
                 ExprListener listener;
                 ctx->expr()->enterRule(&listener);
                 setResult(listener.surrenderResult());
+            }
+
+            virtual void enterCastExpr(LwnnParser::CastExprContext *ctx) override {
+                ExprListener listener;
+                ctx->expr()->enterRule(&listener);
+
+                source::SourceSpan sourceSpan = getSourceSpan(ctx);
+                auto typeRef = std::make_unique<TypeRef>(getSourceSpan(ctx), ctx->type->getText());
+
+                auto castExpr = std::make_unique<CastExpr>(
+                    getSourceSpan(ctx),
+                    std::move(typeRef),
+                    listener.surrenderResult(),
+                    CastKind::Explicit);
+
+                setResult(std::move(castExpr));
             }
 
             virtual void enterLiteralInt32Expr(LwnnParser::LiteralInt32ExprContext *ctx) override {
@@ -209,6 +224,10 @@ namespace lwnn {
 
             CommonTokenStream tokens{&lexer};
             tokens.fill();
+
+            if(errorStream.errorCount() > 0) {
+                return nullptr;
+            }
 
             LwnnParser parser(&tokens);
             parser.removeErrorListeners();

@@ -8,9 +8,7 @@
 
 namespace lwnn {
     namespace ast_passes {
-        void setSymbolTableParents(ast::AstNode *node);
-        void populateSymbolTables(ast::AstNode *node, error::ErrorStream & errorStream);
-        void resolveSymbols(ast::AstNode *node, error::ErrorStream & errorStream);
-        void resolveTypes(ast::AstNode *node, error::ErrorStream & errorStream);
+
+        void runAllPasses(ast::Module *module, error::ErrorStream &errorStream);
     }
 }

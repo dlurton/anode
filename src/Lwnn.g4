@@ -20,6 +20,7 @@ expr
     |   value=LIT_INT                       # literalInt32Expr
     |   value=LIT_FLOAT                     # literalFloatExpr
     |   var=ID                              # variableRefExpr
+    |   'cast' '<' type=ID '>' '(' expr ')' # castExpr
     ;
 
 varDecl
