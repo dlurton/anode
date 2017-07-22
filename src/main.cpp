@@ -27,6 +27,31 @@ namespace lwnn {
     void evaluateLine(std::string lineOfCode, bool shouldExecute);
 }
 
+std::string getHistoryFilePath() {
+    std::string home{getenv("HOME")};
+    return home + "/.lwnn_history";
+}
+
+std::string readLineOfCode() {
+    char const* prompt = "\x1b[1;32mlwnn\x1b[0m> ";
+    char* lineOfCodeChar = linenoise(prompt);
+    if (lineOfCodeChar == NULL) {
+        return "";
+    }
+    std::string lineOfCode{lineOfCodeChar};
+    free(lineOfCodeChar);
+    return lineOfCode;
+}
+
+void help() {
+    std::cout << "Command       Description\n";
+    std::cout << "/help         Displays this text.\n";
+    std::cout << "/compile      Toggles compilation.  When disabled, the LLVM IR will not be generated.\n";
+    std::cout << "/history      Displays command history.\n";
+    std::cout << "/exit         Exits the lwnn REPL.\n\n";
+    std::cout << "Valid lwnn statements may also be entered.";
+}
+
 int main(int argc, char **argv) {
     //lwnn::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();
@@ -40,27 +65,32 @@ int main(int argc, char **argv) {
         }
     }
 
-    const char* historyFilename = "~/.lwnn_history";
+    const std::string historyFilename = getHistoryFilePath();
 
-    linenoiseHistoryLoad(historyFilename);
+    linenoiseHistoryLoad(historyFilename.c_str());
+
     //linenoiseSetCompletionCallback(completionHook);
 
-    printf("starting...\n");
-
-    char const* prompt = "\x1b[1;32mlwnn\x1b[0m> ";
+    std::cout << "Welcome to the lwnn REPL.  Type '/help' for help or '/exit' to exit.\n";
 
     bool keepGoing = true;
     bool shouldCompile = true;
 
     while (keepGoing) {
-        char* lineOfCode = linenoise(prompt);
+        std::string lineOfCode{readLineOfCode()};
+        linenoiseHistoryAdd(lineOfCode.c_str());
 
-        if (lineOfCode == NULL) {
-            break;
-        } else if (!strncmp(lineOfCode, "/c", 8)) {
+        if (lineOfCode == "/compile") {
             shouldCompile = !shouldCompile;
             std::cout << "Compilation " << (shouldCompile ? "enabled" : "disabled") << "\n";
-        } else if (!strncmp(lineOfCode, "/history", 8)) {
+        }
+        else if(lineOfCode == "/help") {
+            help();
+        }
+        else if (lineOfCode == "/exit") {
+            keepGoing = false;
+        }
+        else if (lineOfCode == "/history") {
             /* Display the current history. */
             for (int index = 0; ; ++index) {
                 char* hist = linenoiseHistoryLine(index);
@@ -68,21 +98,15 @@ int main(int argc, char **argv) {
                 printf("%4d: %s\n", index, hist);
                 free(hist);
             }
-        } else if (*lineOfCode == '\0') {
-            keepGoing = false;
-        } else {
-            linenoiseHistoryAdd(lineOfCode);
-
+        }
+        else {
             lwnn::evaluateLine(lineOfCode, shouldCompile);
         }
 
-        free(lineOfCode);
-        linenoiseHistorySave(historyFilename);
+        linenoiseHistorySave(historyFilename.c_str());
     }
 
-    printf("Saving history...");
     linenoiseHistoryFree();
-
     return 0;
 }
 
@@ -116,15 +140,13 @@ namespace lwnn {
     }
 
     void evaluateLine(std::string lineOfCode, bool shouldExecute) {
-        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, "<input string>");
+        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, "<REPL>");
         //If no Module returned, parsing failed.
         if(!module) {
             return;
         }
         error::ErrorStream es{std::cerr};
-
         ast_passes::runAllPasses(module.get(), es);
-
         visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
