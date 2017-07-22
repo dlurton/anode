@@ -24,7 +24,7 @@
 //}
 
 namespace lwnn {
-    void evaluateLine(std::string lineOfCode, bool shouldExecute);
+    void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, bool shouldExecute);
 }
 
 std::string getHistoryFilePath() {
@@ -71,6 +71,8 @@ int main(int argc, char **argv) {
 
     //linenoiseSetCompletionCallback(completionHook);
 
+    std::shared_ptr<lwnn::execute::ExecutionContext> executionContext = lwnn::execute::createExecutionContext();
+
     std::cout << "Welcome to the lwnn REPL.  Type '/help' for help or '/exit' to exit.\n";
 
     bool keepGoing = true;
@@ -100,7 +102,7 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            lwnn::evaluateLine(lineOfCode, shouldCompile);
+            lwnn::evaluateLine(executionContext, lineOfCode, shouldCompile);
         }
 
         linenoiseHistorySave(historyFilename.c_str());
@@ -111,25 +113,27 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
-    bool runModule(std::unique_ptr<ast::Module> lwnnModule, std::string &resultAsString) {
+    bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext,
+                   std::unique_ptr<ast::Module> lwnnModule,
+                   std::string &resultAsString) {
+        ASSERT(executionContext);
         ASSERT(lwnnModule);
-        auto ec = execute::createExecutionContext();
-        ec->setDumpIROnLoad(true);
+        executionContext->setDumpIROnLoad(true);
         auto bodyExpr = dynamic_cast<ast::ExprStmt*>(lwnnModule->body());
         if(!bodyExpr) {
-            ec->executeModule(std::move(lwnnModule));
+            executionContext->executeModule(std::move(lwnnModule));
             return false;
         } else {
             auto moduleInitResultType = bodyExpr->type();
             ASSERT(moduleInitResultType->isPrimitive() && "Non-primitive types not yet supported here");
             switch (moduleInitResultType->primitiveType()) {
                 case type::PrimitiveType::Int32: {
-                    int result = ec->executeModuleWithResult<int>(std::move(lwnnModule));
+                    int result = executionContext->executeModuleWithResult<int>(std::move(lwnnModule));
                     resultAsString = std::to_string(result);
                     return true;
                 }
                 case type::PrimitiveType::Float: {
-                    float result = ec->executeModuleWithResult<float>(std::move(lwnnModule));
+                    float result = executionContext->executeModuleWithResult<float>(std::move(lwnnModule));
                     resultAsString = std::to_string(result);
                     return true;
                 }
@@ -139,7 +143,7 @@ namespace lwnn {
         }
     }
 
-    void evaluateLine(std::string lineOfCode, bool shouldExecute) {
+    void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, bool shouldExecute) {
         std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, "<REPL>");
         //If no Module returned, parsing failed.
         if(!module) {
@@ -147,11 +151,14 @@ namespace lwnn {
         }
         error::ErrorStream es{std::cerr};
         ast_passes::runAllPasses(module.get(), es);
+        if(es.errorCount() > 0) {
+            return;
+        }
         visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
             std::string resultAsString;
-            bool hasResult = runModule(std::move(module), resultAsString);
+            bool hasResult = runModule(executionContext, std::move(module), resultAsString);
             std::cout << (hasResult ? resultAsString : "<no result>") << "\n";
         }
     } // evaluateLine
