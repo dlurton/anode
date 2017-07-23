@@ -47,9 +47,9 @@ TEST_CASE("basic integer expressions") {
 
     SECTION("literal ints") {
         REQUIRE(test<int>("1;") == 1);
-        //REQUIRE(test("-1;") == -1);
+        REQUIRE(test<int>("-1;") == -1);
         REQUIRE(test<int>("2;") == 2);
-        //REQUIRE(test("-2;") == -2);
+        REQUIRE(test<int>("-2;") == -2);
     }
 
     SECTION("basic binary expressions for each operator") {
@@ -70,11 +70,11 @@ TEST_CASE("basic integer expressions") {
 TEST_CASE("basic float expressions") {
     SECTION("literal floats") {
         REQUIRE(test<float>("1.0;") == 1.0);
-        //REQUIRE(test("-1;") == -1);
+        REQUIRE(test<float>("-1.0;") == -1);
         REQUIRE(test<float>("2.0;") == 2.0);
 
         REQUIRE(test<float>("234.0;") == 234.0);
-        //REQUIRE(test("-2;") == -2);
+        REQUIRE(test<float>("-2.0;") == -2);
     }
     SECTION("basic binary expressions for each operator") {
         REQUIRE(test<float>("2.0 + 3.0;") == 5.0);
