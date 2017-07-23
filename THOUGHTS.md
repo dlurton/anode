@@ -1,3 +1,10 @@
+TODO:
+    
+ - See if it's possible to reduce size of LLVM shared libraries and lwnn executables... (llvm is almost a gig!)
+ - Functions
+ - Send results to an external function instead of returning them from the module initializer
+ - Negative literal ints and floats.
+ 
 Really should be using this:
 
     https://github.com/toomuchatonce/cmake-examples/blob/master/superbuild-importedtargets/CMakeLists.txt
@@ -21,7 +28,6 @@ interpreted language.  These types of statements can generate errors while compi
 
 Idea for compiler warning:
     when cast<>() is used but the result is then implicitly cast again...
-
 
 ### Principals of the language:
 

@@ -184,6 +184,7 @@ namespace lwnn {
 
             virtual void visitingModule(Module *module) override {
                 writer_.writeln("Module: " + module->name());
+                writer_.incIndent();
             }
         };
 

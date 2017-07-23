@@ -4,6 +4,9 @@
 #include "visualize.h"
 #include "error.h"
 #include "backtrace.h"
+#include "string.h"
+
+#include <unistd.h>
 
 #include <linenoise.h>
 #include <cstring>
@@ -24,7 +27,7 @@
 //}
 
 namespace lwnn {
-    void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, bool shouldExecute);
+    void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName, bool shouldExecute);
 }
 
 std::string getHistoryFilePath() {
@@ -53,8 +56,14 @@ void help() {
 }
 
 int main(int argc, char **argv) {
+    if(!isatty(fileno(stdin))) {
+        std::cout << "stdin is not a terminal\n";
+        return -1;
+    }
+        
     //lwnn::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();
+    int commandCount = 1;
 
     while(argc > 1) {
         argc--;
@@ -81,10 +90,9 @@ int main(int argc, char **argv) {
     while (keepGoing) {
         std::string lineOfCode{readLineOfCode()};
         linenoiseHistoryAdd(lineOfCode.c_str());
-
         if (lineOfCode == "/compile") {
             shouldCompile = !shouldCompile;
-            std::cout << "Compilation " << (shouldCompile ? "enabled" : "disabled") << "\n";
+//             std::cout << "Compilation " << (shouldCompile ? "enabled" : "disabled") << "\n";
         }
         else if(lineOfCode == "/help") {
             help();
@@ -102,7 +110,8 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            lwnn::evaluateLine(executionContext, lineOfCode, shouldCompile);
+            std::string moduleName = lwnn::string::format("<repl_line_%d>", ++commandCount);
+            lwnn::evaluateLine(executionContext, lineOfCode, moduleName, shouldCompile);
         }
 
         linenoiseHistorySave(historyFilename.c_str());
@@ -118,7 +127,15 @@ namespace lwnn {
                    std::string &resultAsString) {
         ASSERT(executionContext);
         ASSERT(lwnnModule);
+        executionContext->setPrettyPrintAst(true);
         executionContext->setDumpIROnLoad(true);
+
+        try {
+            executionContext->prepareModule(lwnnModule.get());
+        } catch(execute::ExecutionException &e) {
+            return false;
+        }
+
         auto bodyExpr = dynamic_cast<ast::ExprStmt*>(lwnnModule->body());
         if(!bodyExpr) {
             executionContext->executeModule(std::move(lwnnModule));
@@ -126,35 +143,33 @@ namespace lwnn {
         } else {
             auto moduleInitResultType = bodyExpr->type();
             ASSERT(moduleInitResultType->isPrimitive() && "Non-primitive types not yet supported here");
-            switch (moduleInitResultType->primitiveType()) {
-                case type::PrimitiveType::Int32: {
-                    int result = executionContext->executeModuleWithResult<int>(std::move(lwnnModule));
-                    resultAsString = std::to_string(result);
-                    return true;
+            try {
+                switch (moduleInitResultType->primitiveType()) {
+                    case type::PrimitiveType::Int32: {
+                        int result = executionContext->executeModuleWithResult<int>(std::move(lwnnModule));
+                        resultAsString = std::to_string(result);
+                        return true;
+                    }
+                    case type::PrimitiveType::Float: {
+                        float result = executionContext->executeModuleWithResult<float>(std::move(lwnnModule));
+                        resultAsString = std::to_string(result);
+                        return true;
+                    }
+                    default:
+                        ASSERT_FAIL("Unhandled PrimitiveType");
                 }
-                case type::PrimitiveType::Float: {
-                    float result = executionContext->executeModuleWithResult<float>(std::move(lwnnModule));
-                    resultAsString = std::to_string(result);
-                    return true;
-                }
-                default:
-                    ASSERT_FAIL("Unhandled PrimitiveType");
+            } catch(execute::ExecutionException ec) {
+                return false;
             }
         }
     }
 
-    void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, bool shouldExecute) {
-        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, "<REPL>");
+    void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName, bool shouldExecute) {
+        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, moduleName);
         //If no Module returned, parsing failed.
         if(!module) {
             return;
         }
-        error::ErrorStream es{std::cerr};
-        ast_passes::runAllPasses(module.get(), es);
-        if(es.errorCount() > 0) {
-            return;
-        }
-        visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
             std::string resultAsString;

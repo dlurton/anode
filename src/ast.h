@@ -65,7 +65,7 @@ namespace lwnn {
         public:
             //////////// Statements
             /** Executes before every Stmt is visited. */
-            virtual bool visitingStmt(Stmt *) { }
+            virtual bool visitingStmt(Stmt *) { return true; }
             /** Executes after every Stmt is visited. */
             virtual void visitedStmt(Stmt *) { }
 
@@ -80,7 +80,7 @@ namespace lwnn {
 
             //////////// Expressions
             /** Executes before every ExprStmt is visited. Return false to prevent visitation of the node's descendants. */
-            virtual bool visitingExprStmt(ExprStmt *) { }
+            virtual bool visitingExprStmt(ExprStmt *) { return true; }
             /** Executes after every ExprStmt is visited. */
             virtual void visitedExprStmt(ExprStmt *) { }
 
@@ -228,7 +228,7 @@ namespace lwnn {
         public:
             /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
             TypeRef(source::SourceSpan sourceSpan, std::string name)
-                : sourceSpan_(sourceSpan), name_(name) { }
+                : sourceSpan_(sourceSpan), name_(name), referencedType_(nullptr) { }
 
             /** Constructor to be used when the data type is known and doesn't need to be resolved. */
             TypeRef(source::SourceSpan sourceSpan, type::Type *dataType)
@@ -397,7 +397,7 @@ namespace lwnn {
         /** Represents a reference to a previously declared variable. */
         class VariableRefExpr : public ExprStmt {
             std::string name_;
-            std::shared_ptr<scope::Symbol> symbol_;
+            scope::Symbol *symbol_;
         public:
             VariableRefExpr(source::SourceSpan sourceSpan, std::string name) : ExprStmt(sourceSpan), name_{ name } { }
             ExprKind exprKind() const override { return ExprKind::VariableRefExpr; }
@@ -410,8 +410,13 @@ namespace lwnn {
             std::string name() const { return name_; }
             std::string toString() const { return name_ + ":" + this->type()->name(); }
 
+
+            void setSymbol(scope::Symbol *symbol) {
+                symbol_ = symbol;
+            }
+
             virtual void accept(AstVisitor *visitor) override {
-                visitor->visitingStmt(this);
+                visitor->visitingExprStmt(this);
                 visitor->visitVariableRefExpr(this);
                 visitor->visitedExprStmt(this);
             }
@@ -601,8 +606,28 @@ namespace lwnn {
             }
         };
 
+        class GlobalExportSymbol : public scope::Symbol {
+        private:
+            std::string name_;
+            type::Type *type_;
+        public:
+            GlobalExportSymbol(const std::string &name_, type::Type *type_) : name_(name_), type_(type_) { }
+
+            virtual std::string name() const override {
+                return name_;
+            }
+
+            virtual std::string toString() const override {
+                return name_ + ":" + type_->name();
+            }
+
+            virtual type::Type *type() const override {
+                return type_;
+            }
+        };
+
         class Module : public AstNode {
-            const std::string name_;
+            std::string name_;
             std::unique_ptr<Stmt> body_;
             scope::SymbolTable scope_;
         public:

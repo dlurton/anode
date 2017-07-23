@@ -29,6 +29,7 @@ using namespace lwnn::ast;
 namespace lwnn {
     namespace compile {
 
+        const int ALIGNMENT = 4;
         /** Base class to generate IR for specific types. */
         class CodeGenHelper {
         public:
@@ -200,22 +201,20 @@ namespace lwnn {
 
                 //For now assume global variables.
                 //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
-                context_.llvmModule.getOrInsertGlobal(expr->name(), type);
-
                 llvm::GlobalVariable *globalVariable = context_.llvmModule.getNamedGlobal(expr->name());
-                globalVariable->setLinkage(llvm::GlobalValue::CommonLinkage);
-                globalVariable->setAlignment(4);
+                globalVariable->setAlignment(ALIGNMENT);
                 globalVariable->setInitializer(typeHelper->getDefaultValue());
 
                 if(expr->initializerExpr()) {
                     llvm::Value *initializer = valueStack_.top();
-                    //valueStack_.pop();
-                    context_.irBuilder.CreateStore(initializer, globalVariable);
-                    //valueStack_.push();
-                } else {
-                    valueStack_.push(typeHelper->getDefaultValue());
+                    valueStack_.pop();
+                    llvm::StoreInst *storeInst = context_.irBuilder.CreateStore(initializer, globalVariable);
+                    storeInst->setAlignment(ALIGNMENT);
                 }
 
+                llvm::LoadInst *loadInst = context_.irBuilder.CreateLoad(globalVariable);
+                loadInst->setAlignment(ALIGNMENT);
+                valueStack_.push(loadInst);
             }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
@@ -233,7 +232,11 @@ namespace lwnn {
                 CodeGenHelper *helper = context_.getCodeGenHelper(expr->type());
                 llvm::Type *type = helper->getLlvmType();
                 llvm::GlobalVariable *globalVar = context_.llvmModule.getNamedGlobal(expr->name());
-                valueStack_.push(context_.irBuilder.CreateLoad(globalVar));
+                ASSERT(globalVar);
+                llvm::LoadInst *loadInst = context_.irBuilder.CreateLoad(globalVar);
+                loadInst->setAlignment(ALIGNMENT);
+                valueStack_.push(loadInst);
+
             }
 
             virtual void visitedBinaryExpr(BinaryExpr *expr) override {
@@ -295,6 +298,8 @@ namespace lwnn {
             virtual void visitingModule(Module *module) override {
                 ScopeFollowingVisitor::visitingModule(module);
 
+                CodeGenerationContext cgc{llvmContext_, *llvmModule_.get(), irBuilder_ };
+
                 llvmModule_ = llvm::make_unique<llvm::Module>(module->name(), llvmContext_);
                 llvmModule_->setDataLayout(targetMachine_.createDataLayout());
 
@@ -302,16 +307,26 @@ namespace lwnn {
                 auto initFuncRetType = llvm::Type::getVoidTy(llvmContext_);
                 if(module->body()->stmtKind() == StmtKind::ExprStmt) {
                     auto bodyExpr = static_cast<ExprStmt*>(module->body());
-                    CodeGenerationContext cgc{llvmContext_, *llvmModule_.get(), irBuilder_ };
                     initFuncRetType = cgc.getCodeGenHelper(bodyExpr->type())->getLlvmType();
                     //to_llvmType(bodyExpr->type(), llvmContext_);
                 }
                 initFunc_ = llvm::cast<llvm::Function>(
-                    llvmModule_->getOrInsertFunction(MODULE_INIT_FUNC_NAME, initFuncRetType));
+                    llvmModule_->getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
 
+                initFunc_->setCallingConv(llvm::CallingConv::C);
                 auto initFuncBlock = llvm::BasicBlock::Create(llvmContext_, "EntryBlock", initFunc_);
 
                 irBuilder_.SetInsertPoint(initFuncBlock);
+
+                //Define all the global variables now...
+                std::vector<scope::Symbol*> globals = module->scope()->symbols();
+                for(scope::Symbol *symbol : globals) {
+                    auto codeGenHelper = cgc.getCodeGenHelper(symbol->type());
+                    llvmModule_->getOrInsertGlobal(symbol->name(), codeGenHelper->getLlvmType());
+                    llvm::GlobalVariable *globalVar = llvmModule_->getNamedGlobal(symbol->name());
+                    globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
+                    globalVar->setAlignment(ALIGNMENT);
+                }
             }
         };
 

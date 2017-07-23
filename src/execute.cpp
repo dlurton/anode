@@ -1,7 +1,9 @@
 #include "execute.h"
 #include "compile.h"
+#include "ast_passes.h"
 
 #include <stack>
+#include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -28,6 +30,7 @@
 
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+#include "visualize.h"
 
 #pragma GCC diagnostic pop
 
@@ -61,7 +64,6 @@ namespace lwnn {
 
             std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackMgr;
             std::unique_ptr<llvm::orc::IndirectStubsManager> IndirectStubsMgr;
-
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
@@ -185,6 +187,7 @@ namespace lwnn {
             }
 
             std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M) {
+                //return M;
                 // Create a function pass manager.
                 auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(M.get());
 
@@ -208,6 +211,8 @@ namespace lwnn {
             llvm::LLVMContext context_;
             std::unique_ptr<SimpleJIT> jit_ = std::make_unique<SimpleJIT>();
             bool dumpIROnModuleLoad_ = false;
+            bool setPrettyPrintAst_ = false;
+            std::vector<std::shared_ptr<ast::GlobalExportSymbol>> exportedSymbols_;
         public:
 
             uint64_t getSymbolAddress(const std::string &name) override {
@@ -223,11 +228,42 @@ namespace lwnn {
             virtual void setDumpIROnLoad(bool value) override {
                 dumpIROnModuleLoad_ = value;
             }
+
+            virtual void setPrettyPrintAst(bool value) override {
+                setPrettyPrintAst_ = value;
+            }
+
+            virtual void prepareModule(ast::Module *module) override {
+
+                for(auto symbolToImport : exportedSymbols_) {
+                    module->scope()->addSymbol(symbolToImport.get());
+                }
+
+                error::ErrorStream errorStream {std::cerr};
+                ast_passes::runAllPasses(module, errorStream);
+
+                if(errorStream.errorCount() > 0) {
+                    throw ExecutionException(
+                        string::format("There were %d compilation errors.  See stderr for details.", errorStream.errorCount()));
+                }
+
+                for(auto symbolToExport : module->scope()->symbols()) {
+                    if(dynamic_cast<ast::GlobalExportSymbol*>(symbolToExport) == nullptr) {
+                        exportedSymbols_.emplace_back(
+                            std::make_shared<ast::GlobalExportSymbol>(symbolToExport->name(), symbolToExport->type()));
+                    }
+                }
+
+                if(setPrettyPrintAst_) {
+                    visualize::prettyPrint(module);
+                }
+            }
+
         protected:
             virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) override {
                 ASSERT(module);
-                std::unique_ptr<llvm::Module> llvmModule = compile::generateCode(module.get(), context_,
-                    jit_->getTargetMachine());
+
+                std::unique_ptr<llvm::Module> llvmModule = compile::generateCode(module.get(), context_, jit_->getTargetMachine());
 
                 if(dumpIROnModuleLoad_) {
                     llvm::outs() << "LLVM IR:\n";
@@ -236,7 +272,7 @@ namespace lwnn {
 
                 jit_->addModule(move(llvmModule));
 
-                if(auto moduleInitSymbol = jit_->findSymbol(compile::MODULE_INIT_FUNC_NAME))
+                if(auto moduleInitSymbol = jit_->findSymbol(module->name() + compile::MODULE_INIT_SUFFIX))
                     return llvm::cantFail(moduleInitSymbol.getAddress());
 
                 return 0;

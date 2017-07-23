@@ -35,8 +35,9 @@ namespace lwnn {
                 if(topScope()->findSymbol(expr->name())) {
                     errorStream_.error(expr->sourceSpan(), "Symbol '%s' is already defined in this scope.",
                                        expr->name().c_str());
+                } else {
+                    topScope()->addSymbol(expr);
                 }
-                topScope()->addSymbol(expr);
             }
         };
 
@@ -55,7 +56,10 @@ namespace lwnn {
                 if(!found) {
                     errorStream_.error(expr->sourceSpan(), "Variable '%s' was not defined in this scope.",
                         expr->name().c_str());
+                } else {
+                    expr->setSymbol(found);
                 }
+
             }
         };
 

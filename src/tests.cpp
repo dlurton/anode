@@ -1,35 +1,45 @@
 
-//#define VISUALIZE_AST
+#define VISUALIZE_AST
+#define DUMP_IR
 
 #include "execute.h"
 #include "parse.h"
-#include "ast_passes.h"
 #include "compile.h"
-#include "visualize.h"
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
 using namespace lwnn;
 
+int testCount = 0;
 
 template<typename T>
-T test(std::string source) {
-    std::unique_ptr<ast::Module> module = parse::parseModule(source, "<test>");
+T test(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
+    std::string module_name = string::format("test_%d", ++testCount);
 
-    error::ErrorStream errorStream{std::cerr};
-    ast_passes::runAllPasses(module.get(), errorStream);
+    std::unique_ptr<ast::Module> module = parse::parseModule(source, module_name);
+    executionContext->prepareModule(module.get());
 
 #ifdef VISUALIZE_AST
-    visualize::prettyPrint(module.get());
+    executionContext->setPrettyPrintAst(true);
 #endif
-    REQUIRE(errorStream.errorCount() == 0);
 
-    auto ec = execute::createExecutionContext();
-    int result = ec->executeModuleWithResult<T>(std::move(module));
+#ifdef DUMP_IR
+    executionContext->setDumpIROnLoad(true);
+#endif
+
+    T result = executionContext->executeModuleWithResult<T>(std::move(module));
 
     return result;
 }
+
+template<typename T>
+T test(std::string source) {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    T result = test<T>(ec, source);
+    return result;
+}
+
 
 // catch.hpp was intended to be used with a different pattern...
 
@@ -62,6 +72,8 @@ TEST_CASE("basic float expressions") {
         REQUIRE(test<float>("1.0;") == 1.0);
         //REQUIRE(test("-1;") == -1);
         REQUIRE(test<float>("2.0;") == 2.0);
+
+        REQUIRE(test<float>("234.0;") == 234.0);
         //REQUIRE(test("-2;") == -2);
     }
     SECTION("basic binary expressions for each operator") {
@@ -106,4 +118,46 @@ TEST_CASE("variable declarations") {
         REQUIRE(test<float>("foo:float = 101;") == 101.0);          //implicit
         REQUIRE(test<int>("foo:int = cast<int>(101.0);") == 101.0); //explicit
     }
+}
+
+TEST_CASE("variables with initializers persist between REPL evaluations") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+
+    REQUIRE(test<int>(ec, "foo:int = 123;") == 123);
+    REQUIRE(test<int>(ec, "foo;") == 123);
+    REQUIRE(test<int>(ec, "foo;") == 123);
+
+    REQUIRE(test<float>(ec, "bar:float = 234.0;") == 234.0);
+    REQUIRE(test<float>(ec, "bar;") == 234.0);
+    REQUIRE(test<float>(ec, "bar;") == 234.0);
+
+}
+
+TEST_CASE("variables without initializers persist between REPL evaluations") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+
+    REQUIRE(test<int>(ec, "foo:int;") == 0);
+    REQUIRE(test<int>(ec, "foo;") == 0);
+    REQUIRE(test<int>(ec, "foo;") == 0);
+
+    REQUIRE(test<float>(ec, "bar:float;") == 0);
+    REQUIRE(test<float>(ec, "bar;") == 0);
+    REQUIRE(test<float>(ec, "bar;") == 0);
+
+}
+
+TEST_CASE("arithmatic with variables") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+
+    REQUIRE(test<int>(ec, "foo:int = 100;") == 100);
+    REQUIRE(test<int>(ec, "foo + 2;") == 102);
+    REQUIRE(test<int>(ec, "foo - 2;") == 98);
+    REQUIRE(test<int>(ec, "foo * 2;") == 200);
+    REQUIRE(test<int>(ec, "foo / 2;") == 50);
+
+    REQUIRE(test<float>(ec, "bar:float = 100.0;") == 100.0);
+    REQUIRE(test<float>(ec, "bar + 2;") == 102.0);
+    REQUIRE(test<float>(ec, "bar - 2;") == 98.0);
+    REQUIRE(test<float>(ec, "bar * 2;") == 200.0);
+    REQUIRE(test<float>(ec, "bar / 2;") == 50.0);
 }

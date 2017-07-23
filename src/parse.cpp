@@ -3,9 +3,12 @@
 
 #include <antlr4-runtime.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
 #include "generated/LwnnLexer.h"
 #include "generated/LwnnParser.h"
 #include "generated/LwnnBaseListener.h"
+#pragma GCC diagnostic pop
 
 using namespace lwnn::ast;
 using namespace lwnn_parser;
@@ -69,12 +72,14 @@ namespace lwnn {
             virtual void enterParensExpr(LwnnParser::ParensExprContext *ctx) override {
                 ExprListener listener;
                 ctx->expr()->enterRule(&listener);
+                if(!listener.hasResult()) return;
                 setResult(listener.surrenderResult());
             }
 
             virtual void enterCastExpr(LwnnParser::CastExprContext *ctx) override {
                 ExprListener listener;
                 ctx->expr()->enterRule(&listener);
+                if(!listener.hasResult()) return;
 
                 source::SourceSpan sourceSpan = getSourceSpan(ctx);
                 auto typeRef = std::make_unique<TypeRef>(getSourceSpan(ctx), ctx->type->getText());
@@ -101,9 +106,12 @@ namespace lwnn {
             virtual void enterBinaryExpr(LwnnParser::BinaryExprContext *ctx) override {
                 ExprListener leftListener;
                 ctx->left->enterRule(&leftListener);
+                if(!leftListener.hasResult()) return;
+
 
                 ExprListener rightListener;
                 ctx->right->enterRule(&rightListener);
+                if(!rightListener.hasResult()) return;
 
                 BinaryOperationKind opKind;
 
@@ -128,6 +136,8 @@ namespace lwnn {
         class VarDeclListener : public LwnnBaseListenerHelper<ast::VariableDeclExpr> {
         public:
             virtual void enterVarDecl(LwnnParser::VarDeclContext *ctx) override {
+                if(ctx->type == nullptr) return;
+
                 auto typeRef = std::make_unique<TypeRef>(
                     getSourceSpan(ctx->type),
                     ctx->type->getText());
@@ -137,6 +147,7 @@ namespace lwnn {
                 if(ctx->initializer) {
                     ExprListener exprListener;
                     ctx->initializer->enterRule(&exprListener);
+                    if(!exprListener.hasResult()) return;
                     initializer = exprListener.surrenderResult();
                 }
 
@@ -159,17 +170,23 @@ namespace lwnn {
                 if(varDeclCtx != nullptr) {
                     VarDeclListener varDeclListener;
                     varDeclCtx->enterRule(&varDeclListener);
+                    if(!varDeclListener.hasResult()) return;
                     setResult(varDeclListener.surrenderResult());
                 } else if(exprCtx) {
                     ExprListener listener;
                     ctx->expr()->enterRule(&listener);
+                    if(!listener.hasResult()) return;
                     setResult(listener.surrenderResult());
                 }
             }
         };
 
         class CompiledUnitListener : public LwnnBaseListenerHelper<ast::Module> {
+            std::string moduleName_;
+
         public:
+            CompiledUnitListener(const std::string &moduleName_) : moduleName_(moduleName_) {}
+
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
                 std::vector<LwnnParser::StatementContext*> statements = ctx->statement();
                 std::unique_ptr<Stmt> body;
@@ -179,6 +196,7 @@ namespace lwnn {
                 if(statements.size() == 1) {
                     StatementListener listener;
                     statements[0]->enterRule(&listener);
+                    if(!listener.hasResult()) return;
                     body = listener.surrenderResult();
                     ASSERT(body);
                 }
@@ -187,11 +205,12 @@ namespace lwnn {
                     for (LwnnParser::StatementContext *stmt: statements) {
                         StatementListener listener;
                         stmt->enterRule(&listener);
+                        if(!listener.hasResult()) return;
                         block->addStatement(listener.surrenderResult());
                     }
                     body = std::move(block);
                 }
-                auto module = std::make_unique<ast::Module>("temp_module_name", std::move(body));
+                auto module = std::make_unique<ast::Module>(moduleName_, std::move(body));
                 setResult(std::move(module));
             }
         };
@@ -209,7 +228,6 @@ namespace lwnn {
                 source::SourceSpan span = getSourceSpan(offendingSymbol);
                 errorStream_.error(span, msg);
             };
-
         };
 
         std::unique_ptr<Module> parseModule(const std::string &lineOfCode, const std::string &inputName) {
@@ -235,10 +253,9 @@ namespace lwnn {
 
             auto *moduleCtx = parser.module();
 
-            CompiledUnitListener listener;
+            CompiledUnitListener listener{inputName};
             moduleCtx->enterRule(&listener);
-
-            if(errorStream.errorCount() > 0) {
+            if(!listener.hasResult() || errorStream.errorCount() > 0) {
                 return nullptr;
             }
 

@@ -36,5 +36,5 @@ OP_DIV: '/';
 //NUM :   [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)?;
 LIT_INT:    [0-9]+;
 LIT_FLOAT:  [0-9]+'.'[0-9]+;
-ID:         [a-zA-Z]+;
+ID:         [a-zA-Z_][a-zA-Z0-9_]*;
 WS:         [ \t\r\n] -> channel(HIDDEN);

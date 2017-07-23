@@ -69,7 +69,7 @@ set(SOURCE_FILES ${GENERATED_SOURCE_FILES}
         execute.cpp
         parse.h
         compile.cpp
-        compile.h type.cpp type.h scope.h ast_passes.cpp ast_passes.h error.cpp error.h source.h source.cpp string.h backtrace.cpp backtrace.h)
+        compile.h type.cpp type.h scope.h ast_passes.cpp ast_passes.h error.h source.h source.cpp string.h backtrace.cpp backtrace.h)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 
