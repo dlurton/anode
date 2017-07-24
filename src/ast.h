@@ -14,6 +14,7 @@
 
 namespace lwnn {
     namespace ast {
+
         enum class StmtKind {
             CompoundStmt,
             FunctionDeclStmt,
@@ -27,7 +28,6 @@ namespace lwnn {
             LiteralInt32Expr,
             LiteralFloatExpr,
             VariableRefExpr,
-            AssignVariableExpr,
             BinaryExpr,
             ConditionalExpr,
             CastExpr
@@ -35,13 +35,13 @@ namespace lwnn {
         std::string to_string(ExprKind kind);
 
         enum class BinaryOperationKind {
+            Assign,
             Add,
             Sub,
             Mul,
             Div
         };
         std::string to_string(BinaryOperationKind type);
-
 
         class AstNode;
         class Stmt;
@@ -99,9 +99,6 @@ namespace lwnn {
 
             virtual void visitVariableRefExpr(VariableRefExpr *) { }
 
-            virtual void visitingAssignExpr(AssignExpr *) { }
-            virtual void visitedAssignExpr(AssignExpr *) { }
-
             virtual void visitingCastExpr(CastExpr *) { }
             virtual void visitedCastExpr(CastExpr *) { }
 
@@ -112,51 +109,51 @@ namespace lwnn {
             virtual void visitedModule(Module *) { }
         };
 
-
-        /** Base class for annotation groups.  Doesn't do much at the moment. */
-        class AnnotationGroup {
-        public:
-            virtual ~AnnotationGroup() { }
-        };
-
-        class AnnotationContainer {
-            //See: http://en.cppreference.com/w/cpp/types/type_info/hash_code
-            using TypeInfoRef = std::reference_wrapper<const std::type_info>;
-            struct Hasher {  std::size_t operator()(TypeInfoRef code) const { return code.get().hash_code(); } };
-            struct EqualTo { bool operator()(TypeInfoRef lhs, TypeInfoRef rhs) const { return lhs.get() == rhs.get(); } };
-
-            typedef std::unordered_map<TypeInfoRef, std::unique_ptr<AnnotationGroup>, Hasher, EqualTo> annotation_map;
-            annotation_map annotations_;
-
-        public:
-            template<typename TAnnotation>
-            bool hasAnnotation() {
-                return annotations_.find(typeid(TAnnotation)) == annotations_.end();
-            }
-
-            template<typename TArgs, typename TAnnotation>
-            TAnnotation *newAnnotation(TArgs&& args) {
-                //Remove existing annotation, if any
-                auto itr = annotations_.find(typeid(TAnnotation));
-                if(itr == annotations_.end()) {
-                    annotations_.erase(itr);
-                }
-
-                std::unique_ptr<TAnnotation> annotation = std::make_unique<TAnnotation>(std::forward(args));
-                TAnnotation *annotationPtr = annotation.get();
-                annotations_.emplace(typeid(TAnnotation), std::move(annotation));
-                return annotationPtr;
-           }
-
-            template<typename TAnnotation>
-            TAnnotation* getAnnotation() {
-                auto itr = annotations_.find(typeid(TAnnotation));
-                if(itr == annotations_.end())
-                    return nullptr;
-
-                return (*itr).second;
-            }
-        };
+//
+//        /** Base class for annotation groups.  Doesn't do much at the moment. */
+//        class AnnotationGroup {
+//        public:
+//            virtual ~AnnotationGroup() { }
+//        };
+//
+//        class AnnotationContainer {
+//            //See: http://en.cppreference.com/w/cpp/types/type_info/hash_code
+//            using TypeInfoRef = std::reference_wrapper<const std::type_info>;
+//            struct Hasher {  std::size_t operator()(TypeInfoRef code) const { return code.get().hash_code(); } };
+//            struct EqualTo { bool operator()(TypeInfoRef lhs, TypeInfoRef rhs) const { return lhs.get() == rhs.get(); } };
+//
+//            typedef std::unordered_map<TypeInfoRef, std::unique_ptr<AnnotationGroup>, Hasher, EqualTo> annotation_map;
+//            annotation_map annotations_;
+//
+//        public:
+//            template<typename TAnnotation>
+//            bool hasAnnotation() {
+//                return annotations_.find(typeid(TAnnotation)) == annotations_.end();
+//            }
+//
+//            template<typename TArgs, typename TAnnotation>
+//            TAnnotation *newAnnotation(TArgs&& args) {
+//                //Remove existing annotation, if any
+//                auto itr = annotations_.find(typeid(TAnnotation));
+//                if(itr == annotations_.end()) {
+//                    annotations_.erase(itr);
+//                }
+//
+//                std::unique_ptr<TAnnotation> annotation = std::make_unique<TAnnotation>(std::forward(args));
+//                TAnnotation *annotationPtr = annotation.get();
+//                annotations_.emplace(typeid(TAnnotation), std::move(annotation));
+//                return annotationPtr;
+//           }
+//
+//            template<typename TAnnotation>
+//            TAnnotation* getAnnotation() {
+//                auto itr = annotations_.find(typeid(TAnnotation));
+//                if(itr == annotations_.end())
+//                    return nullptr;
+//
+//                return (*itr).second;
+//            }
+//        };
 
         typedef std::function<std::unique_ptr<ExprStmt>(std::unique_ptr<ExprStmt>)> ExprGraftFunctor;
 
@@ -184,8 +181,9 @@ namespace lwnn {
 
         /** Contains a series of Statments, i.e. those contained within { and }. */
         class CompoundStmt : public Stmt {
-            std::vector<std::unique_ptr<Stmt>> statements_;
             scope::SymbolTable scope_;
+        protected:
+            std::vector<std::unique_ptr<Stmt>> statements_;
         public:
             CompoundStmt(source::SourceSpan sourceSpan) : Stmt(sourceSpan) { }
             virtual ~CompoundStmt() {}
@@ -254,6 +252,7 @@ namespace lwnn {
             }
         };
 
+
         /** Base class for all expressions. */
         class ExprStmt : public Stmt {
         protected:
@@ -263,6 +262,7 @@ namespace lwnn {
             virtual StmtKind stmtKind() const override { return StmtKind::ExprStmt; }
             virtual ExprKind exprKind() const = 0;
             virtual type::Type *type() const  = 0;
+            virtual bool canWrite() const = 0;
         };
 
         /** Represents an expression that is a literal 32 bit integer. */
@@ -274,6 +274,9 @@ namespace lwnn {
             virtual ExprKind exprKind() const override { return ExprKind::LiteralInt32Expr; }
             type::Type *type() const override { return &type::Primitives::Int32; }
             int value() const { return value_; }
+
+            virtual bool canWrite() const override { return false; };
+
             virtual void accept(AstVisitor *visitor) override {
                 visitor->visitingExprStmt(this);
                 visitor->visitLiteralInt32Expr(this);
@@ -291,6 +294,9 @@ namespace lwnn {
             type::Type *type() const override {  return &type::Primitives::Float; }
             float value() const { return value_; }
 
+            virtual bool canWrite() const override { return false; };
+
+
             virtual void accept(AstVisitor *visitor) override {
                 visitor->visitingExprStmt(this);
                 visitor->visitLiteralFloatExpr(this);
@@ -298,78 +304,40 @@ namespace lwnn {
             }
         };
 
-        /** Defines a variable. */
-        class VariableDeclExpr :
-                public ExprStmt,
-                public scope::Symbol {
-
-            const std::string name_;
-            const std::unique_ptr<TypeRef> typeRef_;
-            std::unique_ptr<ExprStmt> initializerExpr_;
-
-        public:
-            VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name,
-                             std::unique_ptr<TypeRef> typeRef, std::unique_ptr<ExprStmt> initializerExpr)
-                : ExprStmt(sourceSpan),
-                  name_(name),
-                  typeRef_(std::move(typeRef)),
-                  initializerExpr_(std::move(initializerExpr))
-            {
-                ASSERT(name.size() > 0);
-            }
-
-            ExprKind exprKind() const override { return ExprKind::VariableDeclExpr; }
-            TypeRef *typeRef() { return typeRef_.get(); }
-            virtual type::Type *type() const override { return typeRef_->type(); }
-            ExprStmt *initializerExpr() { return initializerExpr_.get(); }
-
-            virtual std::string name() const override { return name_; }
-            virtual std::string toString() const override {  return name_ + ":" + typeRef_->name(); }
-
-            void graftInitializerExpr(ExprGraftFunctor graftFunctor) {
-                initializerExpr_ = std::move(graftFunctor(std::move(initializerExpr_)));
-            }
-
-            virtual void accept(AstVisitor *visitor) override {
-                bool visitChildren = visitor->visitingExprStmt(this);
-                visitor->visitingVariableDeclExpr(this);
-
-                if(visitChildren) {
-                    typeRef_->accept(visitor);
-                    if (initializerExpr_) {
-                        initializerExpr_->accept(visitor);
-                    }
-                }
-
-                visitor->visitedVariableDeclExpr(this);
-                visitor->visitedExprStmt(this);
-            }
-        };
 
         /** Represents a binary expression, i.e. 1 + 2 or foo + bar */
         class BinaryExpr : public ExprStmt {
             std::unique_ptr<ExprStmt> lValue_;
             const BinaryOperationKind operation_;
+            const source::SourceSpan operatorSpan_;
             std::unique_ptr<ExprStmt> rValue_;
         public:
             /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
             BinaryExpr(source::SourceSpan sourceSpan,
                        std::unique_ptr<ExprStmt> lValue,
                        BinaryOperationKind operation,
+                       source::SourceSpan operatorSpan,
                        std::unique_ptr<ExprStmt> rValue)
-                : ExprStmt(sourceSpan),
-                  lValue_(std::move(lValue)),
-                  operation_(operation),
-                  rValue_(move(rValue)) {
+                : ExprStmt{sourceSpan},
+                  lValue_{std::move(lValue)},
+                  operation_{operation},
+                  operatorSpan_{operatorSpan},
+                  rValue_{move(rValue)} {
+
                 ASSERT(lValue_);
                 ASSERT(rValue_);
             }
             virtual ~BinaryExpr() { }
+
+            source::SourceSpan operatorSpan() { return operatorSpan_; }
+
             ExprKind exprKind() const override { return ExprKind::BinaryExpr; }
             /** The data type of an rValue expression is always the same as the rValue's data type. */
             type::Type *type() const override { return rValue_->type(); }
             ExprStmt *lValue() const { return lValue_.get(); }
             ExprStmt *rValue() const { return rValue_.get(); }
+
+            virtual bool canWrite() const override { return false; };
 
             void graftLValue(ExprGraftFunctor graftFunctor) {
                 lValue_ = std::move(graftFunctor(std::move(lValue_)));
@@ -394,12 +362,20 @@ namespace lwnn {
             }
         };
 
+        enum class VariableAccess {
+            Read,
+            Write
+        };
+
         /** Represents a reference to a previously declared variable. */
         class VariableRefExpr : public ExprStmt {
             std::string name_;
-            scope::Symbol *symbol_;
+            scope::Symbol *symbol_ = nullptr;
+            VariableAccess access_ = VariableAccess::Read;
         public:
-            VariableRefExpr(source::SourceSpan sourceSpan, std::string name) : ExprStmt(sourceSpan), name_{ name } { }
+            VariableRefExpr(source::SourceSpan sourceSpan, const std::string &name) : ExprStmt(sourceSpan), name_{ name } {
+                ASSERT(name.size() > 0);
+            }
             ExprKind exprKind() const override { return ExprKind::VariableRefExpr; }
 
             virtual type::Type *type() const override {
@@ -407,13 +383,18 @@ namespace lwnn {
                 return symbol_->type();
             }
 
-            std::string name() const { return name_; }
+            virtual std::string name() const { return name_; }
             std::string toString() const { return name_ + ":" + this->type()->name(); }
 
-
+            scope::Symbol *symbol() { return symbol_; }
             void setSymbol(scope::Symbol *symbol) {
                 symbol_ = symbol;
             }
+
+            virtual bool canWrite() const override { return true; };
+
+            VariableAccess variableAccess() { return access_; };
+            VariableAccess setVariableAccess(VariableAccess access) { access_ = access; }
 
             virtual void accept(AstVisitor *visitor) override {
                 visitor->visitingExprStmt(this);
@@ -422,30 +403,38 @@ namespace lwnn {
             }
         };
 
-        /** Represents an assignment expression. */
-        class AssignExpr : public ExprStmt, public AnnotationContainer {
-            std::unique_ptr<VariableRefExpr> assignee_;
-            const std::unique_ptr<ExprStmt> valueExpr_;
-        public:
-            AssignExpr(source::SourceSpan sourceSpan,
-                       std::unique_ptr<VariableRefExpr> variable,
-                       std::unique_ptr<ExprStmt> valueExpr)
-                : ExprStmt(sourceSpan), assignee_(std::move(variable)), valueExpr_(std::move(valueExpr)) { }
 
-            ExprKind exprKind() const override { return ExprKind::AssignVariableExpr; }
-            ExprStmt *valueExpr() const { return valueExpr_.get(); }
-            VariableRefExpr *assignee() { return assignee_.get(); }
+        /** Defines a variable and references it. */
+        class VariableDeclExpr : public VariableRefExpr, public scope::Symbol {
+            const std::unique_ptr<TypeRef> typeRef_;
+        public:
+            VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name,
+                             std::unique_ptr<TypeRef> typeRef)
+                : VariableRefExpr(sourceSpan, name),
+                  typeRef_(std::move(typeRef))
+            {
+                //I am my own symbol.
+                setSymbol(this);
+            }
+
+            virtual std::string name() const override { return VariableRefExpr::name(); }
+
+            ExprKind exprKind() const override { return ExprKind::VariableDeclExpr; }
+            TypeRef *typeRef() { return typeRef_.get(); }
+            virtual type::Type *type() const override { return typeRef_->type(); }
+
+            virtual std::string toString() const override {  return this->name() + ":" + typeRef_->name(); }
+
+            virtual bool canWrite() const override { return false; };
 
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
-                visitor->visitingAssignExpr(this);
+                visitor->visitingVariableDeclExpr(this);
 
                 if(visitChildren) {
-                    assignee_->accept(visitor);
-                    valueExpr_->accept(visitor);
+                    typeRef_->accept(visitor);
                 }
-
-                visitor->visitedAssignExpr(this);
+                visitor->visitedVariableDeclExpr(this);
                 visitor->visitedExprStmt(this);
             }
         };
@@ -486,6 +475,8 @@ namespace lwnn {
             ExprKind exprKind() const override { return ExprKind::CastExpr; }
             type::Type *type() const  override{ return toType_->type(); }
             CastKind castKind() const { return castKind_; }
+
+            virtual bool canWrite() const override { return false; };
 
             ExprStmt *valueExpr() const { return valueExpr_.get(); }
 
@@ -560,6 +551,8 @@ namespace lwnn {
             const ExprStmt *truePart() const { return truePart_.get(); }
             const ExprStmt *falsePart() const { return falsePart_.get(); }
 
+            virtual bool canWrite() const override { return false; };
+
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
                 visitor->visitingConditionalExpr(this);
@@ -626,25 +619,25 @@ namespace lwnn {
             }
         };
 
-        class Module : public AstNode {
+        class Module : public CompoundStmt {
             std::string name_;
-            std::unique_ptr<Stmt> body_;
-            scope::SymbolTable scope_;
         public:
-            Module(std::string name, std::unique_ptr<Stmt> body)
-                : name_{name}, body_{std::move(body)} {
-                ASSERT(body_);
+            Module(source::SourceSpan sourceSpan, std::string name)
+                : CompoundStmt(sourceSpan), name_{name} {
             }
 
             std::string name() const { return name_; }
-            Stmt *body() const { return body_.get(); }
-            scope::SymbolTable *scope() { return &scope_; }
 
             void accept(AstVisitor *visitor) override {
+                bool visitChildren = visitor->visitingStmt(this);
                 visitor->visitingModule(this);
-                body_->accept(visitor);
+                if(visitChildren) {
+                    for (auto &stmt : statements_) {
+                        stmt->accept(visitor);
+                    }
+                }
                 visitor->visitedModule(this);
-            }
+                visitor->visitedStmt(this);            }
         };
 
 

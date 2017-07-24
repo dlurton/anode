@@ -44,7 +44,6 @@ namespace lwnn {
 
             /** Creates a cast to a different type. */
             virtual llvm::Value *createCastTo(llvm::Value *, llvm::Type *) = 0;
-
         };
 
         class Int32CodeGenHelper : public CodeGenHelper {
@@ -61,6 +60,9 @@ namespace lwnn {
             /** Creates arithmetic operation. */
             virtual llvm::Value *createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op) {
                 switch (op) {
+                    case BinaryOperationKind::Assign:
+                        irBuilder_.CreateStore(rValue, lValue); //(args swapped on purpose)
+                        return rValue; //Note:  I think this will call rValue a second time if rValue is a function
                     case BinaryOperationKind::Add:
                         return irBuilder_.CreateAdd(lValue, rValue);
                     case BinaryOperationKind::Sub:
@@ -103,6 +105,9 @@ namespace lwnn {
             /** Creates arithmetic operation. */
             virtual llvm::Value *createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op) {
                 switch (op) {
+                    case BinaryOperationKind ::Assign:
+                        irBuilder_.CreateStore(rValue, lValue); //(args swapped on purpose)
+                        return rValue; //Note:  I think this will call rValue a second time if rValue is a function.
                     case BinaryOperationKind::Add:
                         return irBuilder_.CreateFAdd(lValue, rValue);
                     case BinaryOperationKind::Sub:
@@ -202,19 +207,11 @@ namespace lwnn {
                 //For now assume global variables.
                 //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
                 llvm::GlobalVariable *globalVariable = context_.llvmModule.getNamedGlobal(expr->name());
+                ASSERT(globalVariable);
                 globalVariable->setAlignment(ALIGNMENT);
                 globalVariable->setInitializer(typeHelper->getDefaultValue());
 
-                if(expr->initializerExpr()) {
-                    llvm::Value *initializer = valueStack_.top();
-                    valueStack_.pop();
-                    llvm::StoreInst *storeInst = context_.irBuilder.CreateStore(initializer, globalVariable);
-                    storeInst->setAlignment(ALIGNMENT);
-                }
-
-                llvm::LoadInst *loadInst = context_.irBuilder.CreateLoad(globalVariable);
-                loadInst->setAlignment(ALIGNMENT);
-                valueStack_.push(loadInst);
+                 visitVariableRefExpr(expr);
             }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
@@ -233,6 +230,12 @@ namespace lwnn {
                 llvm::Type *type = helper->getLlvmType();
                 llvm::GlobalVariable *globalVar = context_.llvmModule.getNamedGlobal(expr->name());
                 ASSERT(globalVar);
+
+                if(expr->variableAccess() == VariableAccess::Write) {
+                    valueStack_.push(globalVar);
+                    return;
+                }
+
                 llvm::LoadInst *loadInst = context_.irBuilder.CreateLoad(globalVar);
                 loadInst->setAlignment(ALIGNMENT);
                 valueStack_.push(loadInst);
@@ -271,6 +274,9 @@ namespace lwnn {
             llvm::IRBuilder<> irBuilder_;
             std::unique_ptr<llvm::Module> llvmModule_;
             llvm::Function *initFunc_;
+            int resultExprStmtCount_ = 0;
+            llvm::Function *resultFunc_;
+            llvm::Value *executionContextPtrValue_;
         public:
             ModuleAstVisitor(llvm::LLVMContext &llvmContext, llvm::TargetMachine &targetMachine)
                 : llvmContext_(llvmContext),
@@ -288,8 +294,24 @@ namespace lwnn {
                 expr->accept(&visitor);
 
                 if(visitor.hasValue()) {
-                    //This is temporary - can't be returning in the middle of module init!
-                    irBuilder_.CreateRet(visitor.getValue());
+                    resultExprStmtCount_++;
+                    std::string variableName = string::format("result_%d", resultExprStmtCount_);
+                    llvm::AllocaInst *resultVar = cgc.irBuilder.CreateAlloca(visitor.getValue()->getType(), nullptr, variableName);
+
+                    cgc.irBuilder.CreateStore(visitor.getValue(), resultVar);
+
+                    std::string bitcastVariableName = string::format("bitcasted_%d", resultExprStmtCount_);
+                    auto bitcasted = cgc.irBuilder.CreateBitCast(resultVar, llvm::Type::getInt64PtrTy(llvmContext_));
+//
+                    std::vector<llvm::Value*> args {
+                        //ExecutionContext pointer
+                        executionContextPtrValue_,
+                        //PrimitiveType,
+                        llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, (uint64_t)expr->type()->primitiveType(), true)),
+                        //Pointer to value.
+                        bitcasted
+                    };
+                    auto call = cgc.irBuilder.CreateCall(resultFunc_, args);
                 }
 
                 return false;
@@ -297,28 +319,20 @@ namespace lwnn {
 
             virtual void visitingModule(Module *module) override {
                 ScopeFollowingVisitor::visitingModule(module);
-
                 CodeGenerationContext cgc{llvmContext_, *llvmModule_.get(), irBuilder_ };
 
                 llvmModule_ = llvm::make_unique<llvm::Module>(module->name(), llvmContext_);
                 llvmModule_->setDataLayout(targetMachine_.createDataLayout());
 
-                //The module init func has a return type of void if module->body() is not an ExprStmt.
-                auto initFuncRetType = llvm::Type::getVoidTy(llvmContext_);
-                if(module->body()->stmtKind() == StmtKind::ExprStmt) {
-                    auto bodyExpr = static_cast<ExprStmt*>(module->body());
-                    initFuncRetType = cgc.getCodeGenHelper(bodyExpr->type())->getLlvmType();
-                    //to_llvmType(bodyExpr->type(), llvmContext_);
-                }
-                initFunc_ = llvm::cast<llvm::Function>(
-                    llvmModule_->getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
+                declareResultFunction();
 
-                initFunc_->setCallingConv(llvm::CallingConv::C);
-                auto initFuncBlock = llvm::BasicBlock::Create(llvmContext_, "EntryBlock", initFunc_);
+                startModuleInitFunc(module);
 
-                irBuilder_.SetInsertPoint(initFuncBlock);
+                declareExecutionContextGlobal();
 
                 //Define all the global variables now...
+                //The reason for doing this here instead of in visitVariableDeclExpr is we do not
+                //have VariableDeclExprs for the imported global variables.
                 std::vector<scope::Symbol*> globals = module->scope()->symbols();
                 for(scope::Symbol *symbol : globals) {
                     auto codeGenHelper = cgc.getCodeGenHelper(symbol->type());
@@ -328,6 +342,53 @@ namespace lwnn {
                     globalVar->setAlignment(ALIGNMENT);
                 }
             }
+
+            virtual void visitedModule(Module *module) override {
+                irBuilder_.CreateRetVoid();
+            }
+
+        private:
+            void startModuleInitFunc(const Module *module) {
+                auto initFuncRetType = llvm::Type::getVoidTy(llvmContext_);
+                initFunc_ = llvm::cast<llvm::Function>(
+                    llvmModule_->getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
+
+                initFunc_->setCallingConv(llvm::CallingConv::C);
+                auto initFuncBlock = llvm::BasicBlock::Create(llvmContext_, "begin", initFunc_);
+
+                irBuilder_.SetInsertPoint(initFuncBlock);
+            }
+
+            void declareResultFunction() {
+                resultFunc_ = llvm::cast<llvm::Function>(llvmModule_->getOrInsertFunction(
+                    RECEIVE_RESULT_FUNC_NAME,
+                    llvm::Type::getVoidTy(llvmContext_),        //Return type
+                    llvm::Type::getInt64PtrTy(llvmContext_),    //Pointer to ExecutionContext
+                    llvm::Type::getInt32Ty(llvmContext_),       //type::PrimitiveType
+                    llvm::Type::getInt64PtrTy(llvmContext_)));  //Pointer to value
+
+
+                auto paramItr = resultFunc_->arg_begin();
+                llvm::Value *executionContext = paramItr++;
+                executionContext->setName("executionContext");
+
+                llvm::Value *primitiveType = paramItr++;
+                primitiveType->setName("primitiveType");
+
+                llvm::Value *valuePtr = paramItr++;
+                valuePtr->setName("valuePtr");
+            }
+
+
+            void declareExecutionContextGlobal() {
+                llvmModule_->getOrInsertGlobal(EXECUTION_CONTEXT_GLOBAL_NAME, llvm::Type::getInt64Ty(llvmContext_));
+                llvm::GlobalVariable *globalVar = llvmModule_->getNamedGlobal(EXECUTION_CONTEXT_GLOBAL_NAME);
+                globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
+                globalVar->setAlignment(ALIGNMENT);
+
+                executionContextPtrValue_ = globalVar;
+            }
+
         };
 
         std::unique_ptr<llvm::Module> generateCode(Module *module, llvm::LLVMContext &context, llvm::TargetMachine *targetMachine) {

@@ -3,7 +3,6 @@
 #include "execute.h"
 #include "visualize.h"
 #include "error.h"
-#include "backtrace.h"
 #include "string.h"
 
 #include <unistd.h>
@@ -54,8 +53,10 @@ void help() {
     std::cout << "/exit         Exits the lwnn REPL.\n\n";
     std::cout << "Valid lwnn statements may also be entered.";
 }
+using namespace lwnn;
 
 int main(int argc, char **argv) {
+
     if(!isatty(fileno(stdin))) {
         std::cout << "stdin is not a terminal\n";
         return -1;
@@ -63,7 +64,6 @@ int main(int argc, char **argv) {
         
     //lwnn::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();
-    int commandCount = 1;
 
     while(argc > 1) {
         argc--;
@@ -82,10 +82,35 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<lwnn::execute::ExecutionContext> executionContext = lwnn::execute::createExecutionContext();
 
+    executionContext->setResultCallback(
+        [](execute::ExecutionContext*, type::PrimitiveType primitiveType, uint64_t valuePtr) {
+        const char *resultPrefix = "result: ";
+        switch(primitiveType) {
+            case type::PrimitiveType::NotAPrimitive:
+                std::cout << "<result was not a primitive>";
+                break;
+            case type::PrimitiveType::Void:
+                break;
+            case type::PrimitiveType::Bool:
+                std::cout << resultPrefix << *reinterpret_cast<bool*>(valuePtr) << std::endl;
+                break;
+            case type::PrimitiveType::Int32:
+                std::cout << resultPrefix << *reinterpret_cast<int*>(valuePtr) << std::endl;
+                break;
+            case type::PrimitiveType::Float:
+                std::cout << resultPrefix << *reinterpret_cast<float*>(valuePtr) << std::endl;
+                break;
+            case type::PrimitiveType::Double:
+                std::cout << resultPrefix << *reinterpret_cast<double*>(valuePtr) << std::endl;
+                break;
+        }
+    });
+
     std::cout << "Welcome to the lwnn REPL.  Type '/help' for help or '/exit' to exit.\n";
 
     bool keepGoing = true;
     bool shouldCompile = true;
+    int commandCount = 0;
 
     while (keepGoing) {
         std::string lineOfCode{readLineOfCode()};
@@ -110,7 +135,7 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            std::string moduleName = lwnn::string::format("<repl_line_%d>", ++commandCount);
+            std::string moduleName = lwnn::string::format("repl_line_%d", ++commandCount);
             lwnn::evaluateLine(executionContext, lineOfCode, moduleName, shouldCompile);
         }
 
@@ -122,9 +147,7 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
-    bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext,
-                   std::unique_ptr<ast::Module> lwnnModule,
-                   std::string &resultAsString) {
+    void runModule(std::shared_ptr<execute::ExecutionContext> executionContext, std::unique_ptr<ast::Module> lwnnModule) {
         ASSERT(executionContext);
         ASSERT(lwnnModule);
         executionContext->setPrettyPrintAst(true);
@@ -132,49 +155,24 @@ namespace lwnn {
 
         try {
             executionContext->prepareModule(lwnnModule.get());
-        } catch(execute::ExecutionException &e) {
-            return false;
+        } catch (execute::ExecutionException &e) {
+            return; //Don't try to compile a module that doesn't even pass semantics checks.
         }
-
-        auto bodyExpr = dynamic_cast<ast::ExprStmt*>(lwnnModule->body());
-        if(!bodyExpr) {
-            executionContext->executeModule(std::move(lwnnModule));
-            return false;
-        } else {
-            auto moduleInitResultType = bodyExpr->type();
-            ASSERT(moduleInitResultType->isPrimitive() && "Non-primitive types not yet supported here");
-            try {
-                switch (moduleInitResultType->primitiveType()) {
-                    case type::PrimitiveType::Int32: {
-                        int result = executionContext->executeModuleWithResult<int>(std::move(lwnnModule));
-                        resultAsString = std::to_string(result);
-                        return true;
-                    }
-                    case type::PrimitiveType::Float: {
-                        float result = executionContext->executeModuleWithResult<float>(std::move(lwnnModule));
-                        resultAsString = std::to_string(result);
-                        return true;
-                    }
-                    default:
-                        ASSERT_FAIL("Unhandled PrimitiveType");
-                }
-            } catch(execute::ExecutionException ec) {
-                return false;
-            }
-        }
+        executionContext->executeModule(std::move(lwnnModule));
     }
 
     void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName, bool shouldExecute) {
         std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, moduleName);
+
         //If no Module returned, parsing failed.
         if(!module) {
             return;
         }
+//        std::cout << "Before ";
+//        visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
-            std::string resultAsString;
-            bool hasResult = runModule(executionContext, std::move(module), resultAsString);
-            std::cout << (hasResult ? resultAsString : "<no result>") << "\n";
+            runModule(executionContext, std::move(module));
         }
     } // evaluateLine
 } //namespace lwnn

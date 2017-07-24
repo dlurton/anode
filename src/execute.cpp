@@ -36,6 +36,8 @@
 
 namespace lwnn {
     namespace execute {
+        /** This function is called by the JITd code to deliver the result of an expression */
+        extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr);
 
         //The llvm::orc::createResolver(...) version of this doesn't seem to work for some reason...
         template<typename DylibLookupFtorT, typename ExternalLookupFtorT>
@@ -64,6 +66,8 @@ namespace lwnn {
 
             std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackMgr;
             std::unique_ptr<llvm::orc::IndirectStubsManager> IndirectStubsMgr;
+
+            std::unordered_map<std::string, uint64_t> exports_;
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
@@ -82,6 +86,17 @@ namespace lwnn {
                     llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple());
                 IndirectStubsMgr = IndirectStubsMgrBuilder();
                 llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+
+                putExport(compile::RECEIVE_RESULT_FUNC_NAME, (uint64_t)receiveReplResult);
+            }
+
+            /** Adds a symbol to be exported to the JIT'd modules, overwriting any previously added values.*/
+            void putExport(std::string name, uint64_t address) {
+                auto found = exports_.find(name);
+                if(found != exports_.end()) {
+                    exports_.erase(found);
+                }
+                exports_.emplace(name, address);
             }
 
             llvm::TargetMachine *getTargetMachine() { return TM.get(); }
@@ -99,7 +114,12 @@ namespace lwnn {
                             return Sym;
                         return llvm::JITSymbol(nullptr);
                     },
-                    [](const std::string &Name) {
+                    [&](const std::string &Name) {
+                        auto foundExport = exports_.find(Name);
+                        if(foundExport != exports_.end()) {
+                            return llvm::JITSymbol(llvm::JITTargetAddress((*foundExport).second), llvm::JITSymbolFlags::Exported);
+                        }
+
                         if (auto SymAddr =
                             llvm::RTDyldMemoryManager::getSymbolAddressInProcess(Name))
                             return llvm::JITSymbol(SymAddr, llvm::JITSymbolFlags::Exported);
@@ -213,7 +233,16 @@ namespace lwnn {
             bool dumpIROnModuleLoad_ = false;
             bool setPrettyPrintAst_ = false;
             std::vector<std::shared_ptr<ast::GlobalExportSymbol>> exportedSymbols_;
+            ResultCallbackFunctor resultFunctor_ = nullptr;
         public:
+            ExecutionContextImpl() {
+                jit_->putExport(compile::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
+            }
+
+            void dispatchResult(type::PrimitiveType primitiveType, uint64_t valuePtr) {
+                if(resultFunctor_)
+                    resultFunctor_(this, primitiveType, valuePtr);
+            }
 
             uint64_t getSymbolAddress(const std::string &name) override {
                 llvm::JITSymbol symbol = jit_->findSymbol(name);
@@ -231,6 +260,10 @@ namespace lwnn {
 
             virtual void setPrettyPrintAst(bool value) override {
                 setPrettyPrintAst_ = value;
+            }
+
+            virtual void setResultCallback(ResultCallbackFunctor functor)  {
+                resultFunctor_ = functor;
             }
 
             virtual void prepareModule(ast::Module *module) override {
@@ -278,6 +311,11 @@ namespace lwnn {
                 return 0;
             }
         }; //ExecutionContextImpl
+
+        extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr) {
+            ExecutionContextImpl *ec = reinterpret_cast<ExecutionContextImpl*>(ecPtr);
+            ec->dispatchResult(primitiveType, valuePtr);
+        }
 
         std::unique_ptr<ExecutionContext> createExecutionContext() {
 

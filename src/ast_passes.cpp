@@ -9,19 +9,15 @@ namespace lwnn {
         class SetSymbolTableParentsAstVisitor : public ast::ScopeFollowingVisitor {
         public:
             virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+                ast::ScopeFollowingVisitor::visitedFuncDeclStmt(funcDeclStmt);
                 funcDeclStmt->parameterScope()->setParent(topScope());
             }
 
             virtual void visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
+                ast::ScopeFollowingVisitor::visitingCompoundStmt(compoundStmt);
                 compoundStmt->scope()->setParent(topScope());
             }
         };
-
-        void setSymbolTableParents(ast::AstNode *node) {
-            SetSymbolTableParentsAstVisitor visitor;
-            node->accept(&visitor);
-        }
-
 
         class PopulateSymbolTablesVisitor : public ast::ScopeFollowingVisitor {
             error::ErrorStream &errorStream_;
@@ -41,17 +37,14 @@ namespace lwnn {
             }
         };
 
-        void populateSymbolTables(ast::AstNode *node, error::ErrorStream & errorStream) {
-            PopulateSymbolTablesVisitor visitor{errorStream};
-            node->accept(&visitor);
-        }
-
         class SymbolResolvingVisitor : public ast::ScopeFollowingVisitor {
             error::ErrorStream &errorStream_;
         public:
             SymbolResolvingVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
             virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) {
+                if(expr->symbol()) return;
+
                 scope::Symbol *found = topScope()->findSymbol(expr->name());
                 if(!found) {
                     errorStream_.error(expr->sourceSpan(), "Variable '%s' was not defined in this scope.",
@@ -62,12 +55,6 @@ namespace lwnn {
 
             }
         };
-
-        void resolveSymbols(ast::AstNode *node, error::ErrorStream & errorStream) {
-            SymbolResolvingVisitor visitor{errorStream};
-            node->accept(&visitor);
-        }
-
         class TypeResolvingVisitor : public ast::ScopeFollowingVisitor {
             error::ErrorStream &errorStream_;
         public:
@@ -85,20 +72,18 @@ namespace lwnn {
             }
         };
 
-        void resolveTypes(ast::AstNode *node, error::ErrorStream & errorStream) {
-            TypeResolvingVisitor visitor{errorStream};
-            node->accept(&visitor);
-        }
-
-        class AddImplicitCastsVisitor : public ast::ScopeFollowingVisitor {
+        class AddImplicitCastsVisitor : public ast::AstVisitor {
             error::ErrorStream &errorStream_;
         public:
             AddImplicitCastsVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
             virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
-                if(binaryExpr->lValue()->type() != binaryExpr->rValue()->type()) {
+
+                if(binaryExpr->lValue()->type() != binaryExpr->rValue()->type())
+                {
                     //If we can implicitly cast the lvalue to same type as the rvalue, we should...
-                    if(binaryExpr->lValue()->type()->canImplicitCastTo(binaryExpr->rValue()->type())) {
+                    if(binaryExpr->lValue()->type()->canImplicitCastTo(binaryExpr->rValue()->type())
+                       && binaryExpr->operation() != ast::BinaryOperationKind::Assign) {
                         binaryExpr->graftLValue(
                             [&](std::unique_ptr<ast::ExprStmt> oldLValue) {
                                 return std::make_unique<ast::CastExpr>(
@@ -119,67 +104,88 @@ namespace lwnn {
                             });
                     }
                     else { // No implicit cast available...
+                        const char *message = binaryExpr->operation() == ast::BinaryOperationKind::Assign
+                                        ? "Cannot assign value of type '%s' to a variable of type '%s'"
+                                        : "Cannot implicitly convert '%s' to '%s' or vice-versa";
+
                         errorStream_.error(
                             //<-- it might be clearest if we called out the location of the operator here, however we don't have that at this time...
                             binaryExpr->sourceSpan(),
-                            "Cannot implicitly convert '%s' to '%s' or vice-versa",
-                            binaryExpr->lValue()->type()->name().c_str(),
-                            binaryExpr->rValue()->type()->name().c_str());
+                            message,
+                            binaryExpr->rValue()->type()->name().c_str(),
+                            binaryExpr->lValue()->type()->name().c_str());
                     }
                 }
             }
-
-            virtual void visitedVariableDeclExpr(ast::VariableDeclExpr *varDeclExpr) override {
-                type::Type *varDeclType = varDeclExpr->type();
-                if(!varDeclExpr->initializerExpr())
-                    return;
-
-                type::Type *initializerType = varDeclExpr->initializerExpr()->type();
-
-                //If data type of initializerExpr doesn't already match that of the variable being declared...
-                if(varDeclType != initializerType) {
-                    //If the initializerExpr can be implicitly cast to the type of the variable being declared...
-                    if(initializerType->canImplicitCastTo(varDeclType)) {
-                        varDeclExpr->graftInitializerExpr([&](std::unique_ptr<ast::ExprStmt> oldInitializerExpr) {
-                            return std::make_unique<ast::CastExpr>(
-                                oldInitializerExpr->sourceSpan(),
-                                varDeclType,
-                                std::move(oldInitializerExpr),
-                                ast::CastKind::Implicit);
-                        });
-                    } else {
-                        errorStream_.error(
-                            //<-- it might be clearest if we called out the location of the operator here, however we don't have that at this time...
-                            varDeclExpr->initializerExpr()->sourceSpan(),
-                            "Cannot implicitly convert '%s' to '%s'",
-                            initializerType->name().c_str(),
-                            varDeclType->name().c_str());
-                    }
+//
+//            virtual void visitedVariableDeclExpr(ast::VariableDeclExpr *varDeclExpr) override {
+//                type::Type *varDeclType = varDeclExpr->type();
+//                if(!varDeclExpr->initializerExpr())
+//                    return;
+//
+//                type::Type *initializerType = varDeclExpr->initializerExpr()->type();
+//
+//                //If data type of initializerExpr doesn't already match that of the variable being declared...
+//                if(varDeclType != initializerType) {
+//                    //If the initializerExpr can be implicitly cast to the type of the variable being declared...
+//                    if(initializerType->canImplicitCastTo(varDeclType)) {
+//                        varDeclExpr->graftInitializerExpr([&](std::unique_ptr<ast::ExprStmt> oldInitializerExpr) {
+//                            return std::make_unique<ast::CastExpr>(
+//                                oldInitializerExpr->sourceSpan(),
+//                                varDeclType,
+//                                std::move(oldInitializerExpr),
+//                                ast::CastKind::Implicit);
+//                        });
+//                    } else {
+//                        errorStream_.error(
+//                            //<-- it might be clearest if we called out the location of the operator here, however we don't have that at this time...
+//                            varDeclExpr->initializerExpr()->sourceSpan(),
+//                            "Cannot implicitly convert '%s' to '%s'",
+//                            initializerType->name().c_str(),
+//                            varDeclType->name().c_str());
+//                    }
+//                }
+//            }
+        };
+        class MarkAssignmentLValuesAstVisitor : public ast::AstVisitor {
+        public:
+            virtual void visitingBinaryExpr(ast::BinaryExpr *expr) override {
+                if(expr->operation() != ast::BinaryOperationKind::Assign) return;
+                if(ast::VariableRefExpr *varRefExpr = dynamic_cast<ast::VariableRefExpr*>(expr->lValue())) {
+                    varRefExpr->setVariableAccess(ast::VariableAccess::Write);
                 }
             }
+//            virtual void visitedBinaryExpr(ast::BinaryExpr *expr) override {
+//
+//            }
         };
 
-        void addImplicitCasts(ast::AstNode *node, error::ErrorStream &errorStream) {
-            AddImplicitCastsVisitor visitor{errorStream};
-            node->accept(&visitor);
-        }
-
         void runAllPasses(ast::Module *module, error::ErrorStream &es) {
-            ast_passes::setSymbolTableParents(module);
+            SetSymbolTableParentsAstVisitor setSymbolTableParentsAstVisitor;
+            module->accept(&setSymbolTableParentsAstVisitor);
 
-            ast_passes::populateSymbolTables(module, es);
+            PopulateSymbolTablesVisitor populateSymbolTablesVisitor{es};
+            module->accept(&populateSymbolTablesVisitor);
             if(es.errorCount() > 0)
                 return;
 
-            ast_passes::resolveTypes(module, es);
+            TypeResolvingVisitor resolvingVisitor{es};
+            module->accept(&resolvingVisitor);
             if(es.errorCount() > 0)
                 return;
 
-            ast_passes::resolveSymbols(module, es);
+            SymbolResolvingVisitor symbolResolvingVisitor{es};
+            module->accept(&symbolResolvingVisitor);
             if(es.errorCount() > 0)
                 return;
 
-            ast_passes::addImplicitCasts(module, es);
+            AddImplicitCastsVisitor addImplicitCastsVisitor{es};
+            module->accept(&addImplicitCastsVisitor);
+            if(es.errorCount() > 0)
+                return;
+
+            MarkAssignmentLValuesAstVisitor markAssignmentLValuesAstVisitor;
+            module->accept(&markAssignmentLValuesAstVisitor);
         }
     } //namespace ast_passes
 } //namespace lwnn

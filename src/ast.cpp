@@ -30,8 +30,6 @@ namespace lwnn {
                     return "LiteralFloatExpr";
                 case ExprKind::VariableRefExpr:
                     return "VariableRefExpr";
-                case ExprKind::AssignVariableExpr:
-                    return "AssignVariableExpr";
                 case ExprKind::BinaryExpr:
                     return "BinaryExpr";
                 case ExprKind::ConditionalExpr:
@@ -43,6 +41,8 @@ namespace lwnn {
 
         std::string to_string(BinaryOperationKind type) {
             switch (type) {
+                case BinaryOperationKind::Assign:
+                    return "Assign";
                 case BinaryOperationKind::Add:
                     return "Add";
                 case BinaryOperationKind::Sub:

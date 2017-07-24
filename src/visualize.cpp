@@ -83,10 +83,10 @@ namespace lwnn {
                 writer_.write('(');
                 auto symbols = scope->symbols();
                 if (symbols.size() == 0) {
-                    writer_.writeln(')');
+                    writer_.write(')');
                 } else if (symbols.size() == 1) {
                     writer_.write(symbols.front()->toString());
-                    writer_.writeln(')');
+                    writer_.write(')');
                 } else {
                     std::sort(symbols.begin(), symbols.end(),
                        [](scope::Symbol *a, scope::Symbol *b) {
@@ -99,7 +99,7 @@ namespace lwnn {
                     }
 
                     writer_.write(symbols.back()->toString());
-                    writer_.writeln(')');
+                    writer_.write(')');
                 }
             }
 
@@ -142,16 +142,6 @@ namespace lwnn {
             virtual void visitedConditionalExpr(ConditionalExpr *) override {
                 writer_.decIndent();
             }
-
-            virtual void visitingAssignExpr(AssignExpr *expr) override {
-                writer_.writeln("AssignExpr:");
-                writer_.incIndent();
-            }
-
-            virtual void visitedAssignExpr(AssignExpr *) override {
-                writer_.decIndent();
-            }
-
 
             virtual void visitingCastExpr(CastExpr *expr) override {
                 writer_.writeln("CastExpr (%s, to %s):",

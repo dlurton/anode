@@ -3,11 +3,13 @@
 
 #include "ast.h"
 
+#include <functional>
+
 namespace lwnn {
     namespace execute {
         typedef float (*FloatFuncPtr)(void);
         typedef int (*IntFuncPtr)(void);
-        typedef void (*VoidFuncPtr)();
+        typedef void (*VoidFuncPtr)(void);
 
         class ExecutionException : public std::runtime_error {
         public:
@@ -28,21 +30,24 @@ namespace lwnn {
 
             virtual void setPrettyPrintAst(bool value) = 0;
             virtual void setDumpIROnLoad(bool value) = 0;
-
             virtual void prepareModule(ast::Module *) = 0;
 
-            /** Loads the specified module and executes its initialization returns its result.
-             * This variant of executeModule() is meant to be used by the REPL. */
-            template<typename TResult>
-            TResult executeModuleWithResult(std::unique_ptr<ast::Module> module) {
-                ASSERT(module);
-                uint64_t funcPtr = loadModule(std::move(module));
-                ASSERT(funcPtr > 0 && "loadModule should not return null");
-                //TResult (*func)() = reinterpret_cast<__attribute__((cdecl))TResult (*)(void)>(funcPtr);
-                TResult (*func)() = reinterpret_cast<TResult (*)(void)>(funcPtr);
-                TResult result = func();
-                return result;
-            };
+            typedef std::function<void(ExecutionContext*, type::PrimitiveType, uint64_t)> ResultCallbackFunctor;
+
+            virtual void setResultCallback(ResultCallbackFunctor functor) = 0;
+
+//            /** Loads the specified module and executes its initialization returns its result.
+//             * This variant of executeModule() is meant to be used by the REPL. */
+//            template<typename TResult>
+//            TResult executeModuleWithResult(std::unique_ptr<ast::Module> module) {
+//                ASSERT(module);
+//                uint64_t funcPtr = loadModule(std::move(module));
+//                ASSERT(funcPtr > 0 && "loadModule should not return null");
+//                //TResult (*func)() = reinterpret_cast<__attribute__((cdecl))TResult (*)(void)>(funcPtr);
+//                TResult (*func)() = reinterpret_cast<TResult (*)(void)>(funcPtr);
+//                TResult result = func();
+//                return result;
+//            };
 
             /** Loads the specified module and executes its initialization function. */
             void executeModule(std::unique_ptr<ast::Module> module) {

@@ -1,14 +1,14 @@
 #include "ast.h"
 #include "error.h"
 
-#include <antlr4-runtime.h>
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
+#include <antlr4-runtime.h>
+#pragma GCC diagnostic pop
+
 #include "generated/LwnnLexer.h"
 #include "generated/LwnnParser.h"
 #include "generated/LwnnBaseListener.h"
-#pragma GCC diagnostic pop
 
 using namespace lwnn::ast;
 using namespace lwnn_parser;
@@ -76,6 +76,18 @@ namespace lwnn {
                 setResult(listener.surrenderResult());
             }
 
+            virtual void enterVarDeclExpr(LwnnParser::VarDeclExprContext *ctx) override {
+                auto typeRef = std::make_unique<TypeRef>(
+                    getSourceSpan(ctx->type),
+                    ctx->type->getText());
+
+                setResult(std::make_unique<ast::VariableDeclExpr>(
+                    getSourceSpan(ctx),
+                    ctx->name->getText(),
+                    std::move(typeRef)
+                ));
+            }
+
             virtual void enterCastExpr(LwnnParser::CastExprContext *ctx) override {
                 ExprListener listener;
                 ctx->expr()->enterRule(&listener);
@@ -108,7 +120,6 @@ namespace lwnn {
                 ctx->left->enterRule(&leftListener);
                 if(!leftListener.hasResult()) return;
 
-
                 ExprListener rightListener;
                 ctx->right->enterRule(&rightListener);
                 if(!rightListener.hasResult()) return;
@@ -116,16 +127,21 @@ namespace lwnn {
                 BinaryOperationKind opKind;
 
                 switch(ctx->op->getType()) {
-                    case LwnnParser::OP_ADD: opKind = BinaryOperationKind::Add; break;
-                    case LwnnParser::OP_SUB: opKind = BinaryOperationKind::Sub; break;
-                    case LwnnParser::OP_MUL: opKind = BinaryOperationKind::Mul; break;
-                    case LwnnParser::OP_DIV: opKind = BinaryOperationKind::Div; break;
+                    case LwnnParser::OP_ASSIGN: opKind = BinaryOperationKind::Assign; break;
+                    case LwnnParser::OP_ADD:    opKind = BinaryOperationKind::Add; break;
+                    case LwnnParser::OP_SUB:    opKind = BinaryOperationKind::Sub; break;
+                    case LwnnParser::OP_MUL:    opKind = BinaryOperationKind::Mul; break;
+                    case LwnnParser::OP_DIV:    opKind = BinaryOperationKind::Div; break;
                     default:
                         ASSERT_FAIL("Unhandled Token Type (Operators)");
                 }
 
-                setResult(std::make_unique<BinaryExpr>(getSourceSpan(ctx->left, ctx->right),
-                    leftListener.surrenderResult(), opKind, rightListener.surrenderResult()));
+                setResult(std::make_unique<BinaryExpr>(
+                    getSourceSpan(ctx->left, ctx->right),
+                    leftListener.surrenderResult(),
+                    opKind,
+                    getSourceSpan(ctx->op),
+                    rightListener.surrenderResult()));
             }
 
             virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext * ctx) override {
@@ -133,51 +149,15 @@ namespace lwnn {
             }
         };
 
-        class VarDeclListener : public LwnnBaseListenerHelper<ast::VariableDeclExpr> {
-        public:
-            virtual void enterVarDecl(LwnnParser::VarDeclContext *ctx) override {
-                if(ctx->type == nullptr) return;
-
-                auto typeRef = std::make_unique<TypeRef>(
-                    getSourceSpan(ctx->type),
-                    ctx->type->getText());
-
-                std::unique_ptr<ast::ExprStmt> initializer;
-
-                if(ctx->initializer) {
-                    ExprListener exprListener;
-                    ctx->initializer->enterRule(&exprListener);
-                    if(!exprListener.hasResult()) return;
-                    initializer = exprListener.surrenderResult();
-                }
-
-                setResult(std::make_unique<ast::VariableDeclExpr>(
-                    getSourceSpan(ctx),
-                    ctx->name->getText(),
-                    std::move(typeRef),
-                    std::move(initializer)
-                ));
-            }
-        };
-
         class StatementListener : public LwnnBaseListenerHelper<ast::Stmt> {
         public:
 
             virtual void enterStatement(LwnnParser::StatementContext *ctx) override {
-                LwnnParser::VarDeclContext *varDeclCtx = ctx->varDecl();
                 LwnnParser::ExprContext *exprCtx = ctx->expr();
-
-                if(varDeclCtx != nullptr) {
-                    VarDeclListener varDeclListener;
-                    varDeclCtx->enterRule(&varDeclListener);
-                    if(!varDeclListener.hasResult()) return;
-                    setResult(varDeclListener.surrenderResult());
-                } else if(exprCtx) {
-                    ExprListener listener;
-                    ctx->expr()->enterRule(&listener);
-                    if(!listener.hasResult()) return;
-                    setResult(listener.surrenderResult());
-                }
+                ExprListener listener;
+                ctx->expr()->enterRule(&listener);
+                if(!listener.hasResult()) return;
+                setResult(listener.surrenderResult());
             }
         };
 
@@ -189,28 +169,13 @@ namespace lwnn {
 
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
                 std::vector<LwnnParser::StatementContext*> statements = ctx->statement();
-                std::unique_ptr<Stmt> body;
-
-                //Don't wrap a single global statement of a module in a BlockStmt because
-                //that hides it's return type which is needed for the REPL.
-                if(statements.size() == 1) {
+                auto module = std::make_unique<ast::Module>(getSourceSpan(ctx), moduleName_);;
+                for (LwnnParser::StatementContext *stmt: statements) {
                     StatementListener listener;
-                    statements[0]->enterRule(&listener);
+                    stmt->enterRule(&listener);
                     if(!listener.hasResult()) return;
-                    body = listener.surrenderResult();
-                    ASSERT(body);
+                    module->addStatement(listener.surrenderResult());
                 }
-                else {
-                    auto block = std::make_unique<ast::CompoundStmt>(getSourceSpan(ctx));
-                    for (LwnnParser::StatementContext *stmt: statements) {
-                        StatementListener listener;
-                        stmt->enterRule(&listener);
-                        if(!listener.hasResult()) return;
-                        block->addStatement(listener.surrenderResult());
-                    }
-                    body = std::move(block);
-                }
-                auto module = std::make_unique<ast::Module>(moduleName_, std::move(body));
                 setResult(std::move(module));
             }
         };
@@ -236,9 +201,10 @@ namespace lwnn {
 
             ANTLRInputStream inputStream{lineOfCode};
             LwnnLexer lexer{&inputStream};
+            inputStream.name = inputName;
+
             lexer.removeErrorListeners();
             lexer.addErrorListener(&errorListener);
-            inputStream.name = inputName;
 
             CommonTokenStream tokens{&lexer};
             tokens.fill();
@@ -251,10 +217,11 @@ namespace lwnn {
             parser.removeErrorListeners();
             parser.addErrorListener(&errorListener);
 
-            auto *moduleCtx = parser.module();
-
             CompiledUnitListener listener{inputName};
+
+            auto *moduleCtx = parser.module();
             moduleCtx->enterRule(&listener);
+
             if(!listener.hasResult() || errorStream.errorCount() > 0) {
                 return nullptr;
             }
