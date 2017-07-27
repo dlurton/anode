@@ -20,15 +20,24 @@ expr
 //  |   func=ID '(' expr ')'                                    # funcExpr
     |   value=LIT_INT                                           # literalInt32Expr
     |   value=LIT_FLOAT                                         # literalFloatExpr
+    |   value=litBool                                           # literalBool
     |   var=ID                                                  # variableRefExpr
     |   'cast' '<' type=ID '>' '(' expr ')'                     # castExpr
     ;
+
+
+litBool
+    : KW_TRUE
+    | KW_FALSE;
 
 OP_ADD: '+';
 OP_SUB: '-';
 OP_MUL: '*';
 OP_DIV: '/';
 OP_ASSIGN: '=';
+
+KW_TRUE: 'true';
+KW_FALSE: 'false';
 
 //NUM :   [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)?;
 LIT_INT:    '-'?[0-9]+;

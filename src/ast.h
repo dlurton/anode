@@ -25,12 +25,14 @@ namespace lwnn {
 
         enum class ExprKind {
             VariableDeclExpr,
+            LiteralBoolExpr,
             LiteralInt32Expr,
             LiteralFloatExpr,
             VariableRefExpr,
             BinaryExpr,
             ConditionalExpr,
-            CastExpr
+            CastExpr,
+
         };
         std::string to_string(ExprKind kind);
 
@@ -51,6 +53,7 @@ namespace lwnn {
         class FuncDeclStmt;
         class ReturnStmt;
         class ConditionalExpr;
+        class LiteralBoolExpr;
         class LiteralInt32Expr;
         class LiteralFloatExpr;
         class BinaryExpr;
@@ -92,6 +95,8 @@ namespace lwnn {
 
             virtual void visitingBinaryExpr(BinaryExpr *) { }
             virtual void visitedBinaryExpr(BinaryExpr *) { }
+
+            virtual void visitLiteralBoolExpr(LiteralBoolExpr *) { }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *) { }
 
@@ -263,6 +268,26 @@ namespace lwnn {
             virtual ExprKind exprKind() const = 0;
             virtual type::Type *type() const  = 0;
             virtual bool canWrite() const = 0;
+        };
+
+
+        /** Represents a literal boolean */
+        class LiteralBoolExpr : public ExprStmt {
+            bool const value_;
+        public:
+            LiteralBoolExpr(source::SourceSpan sourceSpan, const bool value) : ExprStmt(sourceSpan), value_(value) {}
+            virtual ~LiteralBoolExpr() {}
+            virtual ExprKind exprKind() const override { return ExprKind::LiteralBoolExpr; }
+            type::Type *type() const override { return &type::Primitives::Bool; }
+            bool value() const { return value_; }
+
+            virtual bool canWrite() const override { return false; };
+
+            virtual void accept(AstVisitor *visitor) override {
+                visitor->visitingExprStmt(this);
+                visitor->visitLiteralBoolExpr(this);
+                visitor->visitedExprStmt(this);
+            }
         };
 
         /** Represents an expression that is a literal 32 bit integer. */

@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
             case type::PrimitiveType::Void:
                 break;
             case type::PrimitiveType::Bool:
-                std::cout << resultPrefix << *reinterpret_cast<bool*>(valuePtr) << std::endl;
+                std::cout << resultPrefix << (*reinterpret_cast<bool*>(valuePtr) ? "true" : "false") << std::endl;
                 break;
             case type::PrimitiveType::Int32:
                 std::cout << resultPrefix << *reinterpret_cast<int*>(valuePtr) << std::endl;

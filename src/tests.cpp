@@ -25,7 +25,7 @@ struct StmtResult {
     ResultStorage storage;
     
     template<typename T>
-    T getResult() {
+    T get() {
         if (typeid(T) == typeid(bool)) {
             ASSERT(primitiveType == type::PrimitiveType::Bool);
             return storage.boolResult;
@@ -66,8 +66,8 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
 
     std::vector<StmtResult> results;
 
-    executionContext->setResultCallback([&]
-        (execute::ExecutionContext*, type::PrimitiveType primitiveType, uint64_t valuePtr) {
+    executionContext->setResultCallback(
+        [&](execute::ExecutionContext*, type::PrimitiveType primitiveType, uint64_t valuePtr) {
             StmtResult result;
             result.primitiveType = primitiveType;
             switch (primitiveType) {
@@ -98,7 +98,8 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
 template<typename T>
 T test(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
     std::vector<StmtResult> results = testWithResults(executionContext, source);
-    return results[0].getResult<T>();
+    ASSERT(results.size() == 1);
+    return results[0].get<T>();
 }
 
 template<typename T>
@@ -109,7 +110,14 @@ T test(std::string source) {
 }
 
 
-// catch.hpp was intended to be used with a different pattern...
+TEST_CASE("basic bool expressions") {
+    SECTION("literals") {
+        REQUIRE(test<bool>("true;"));
+        REQUIRE(!test<bool>("false;"));
+    }
+
+    //TO DO:  boolean operators
+}
 
 TEST_CASE("basic integer expressions") {
 
@@ -160,18 +168,42 @@ TEST_CASE("basic float expressions") {
 }
 
 TEST_CASE("casting") {
-    SECTION("implicit casts") {
+    SECTION("implicit casts with literals") {
+        //int to float
         REQUIRE(test<float>("1.0 + 1;") == 2.0);
         REQUIRE(test<float>("1 + 1.0;") == 2.0);
+
+        //bool to int
+        REQUIRE(test<int>("true + 10;") == 11);
+        REQUIRE(test<int>("10 + true;") == 11);
+
+        //bool to float
+        REQUIRE(test<float>("true + 10.1;") == 11.1f);
+        REQUIRE(test<float>("10.1 + true;") == 11.1f);
     }
+    //TODO: implicit casts with variables?
 
     SECTION("explicit casts") {
+        //int to bool
+        REQUIRE(test<bool>("cast<bool>(2);"));
+        REQUIRE(!test<bool>("cast<bool>(0);"));
+
+        //float to int
         REQUIRE(test<int>("cast<int>(1.0) + 1;") == 2);
         REQUIRE(test<int>("1 + cast<int>(1.0);") == 2);
+
+        //float to bool
+        REQUIRE(test<bool>("cast<bool>(2.1);"));
+        REQUIRE(!test<bool>("cast<bool>(0.0);"));
     }
 }
 
 TEST_CASE("variable declarations") {
+    SECTION("bool variable declarations") {
+        REQUIRE(!test<bool>("foo:bool;"));
+        REQUIRE(test<bool>("foo:bool = true;"));
+    }
+
     SECTION("int variable declarations") {
         REQUIRE(test<int>("foo:int;") == 0);
         REQUIRE(test<int>("foo:int = 101;") == 101);
@@ -191,6 +223,10 @@ TEST_CASE("variable declarations") {
 TEST_CASE("variables with initializers persist between REPL evaluations") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
 
+    REQUIRE(test<bool>(ec, "fee:bool= true;"));
+    REQUIRE(test<bool>(ec, "fee;"));
+    REQUIRE(test<bool>(ec, "fee;"));
+
     REQUIRE(test<int>(ec, "foo:int = 123;") == 123);
     REQUIRE(test<int>(ec, "foo;") == 123);
     REQUIRE(test<int>(ec, "foo;") == 123);
@@ -199,10 +235,16 @@ TEST_CASE("variables with initializers persist between REPL evaluations") {
     REQUIRE(test<float>(ec, "bar;") == 234.0);
     REQUIRE(test<float>(ec, "bar;") == 234.0);
 
+    //TODO: bool
+
 }
 
 TEST_CASE("variables without initializers persist between REPL evaluations") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+
+    REQUIRE(!test<bool>(ec, "fee:bool;"));
+    REQUIRE(!test<bool>(ec, "fee;"));
+    REQUIRE(!test<bool>(ec, "fee;"));
 
     REQUIRE(test<int>(ec, "foo:int;") == 0);
     REQUIRE(test<int>(ec, "foo;") == 0);
@@ -214,26 +256,45 @@ TEST_CASE("variables without initializers persist between REPL evaluations") {
 }
 
 TEST_CASE("chained variable declaration and assignment") {
-    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    REQUIRE(test<int>(ec, "a:int = b:int = c:int = 10;"));
-    REQUIRE(test<int>(ec, "a;") == 10);
-    REQUIRE(test<int>(ec, "b;") == 10);
-    REQUIRE(test<int>(ec, "c;") == 10);
+    SECTION("int") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        REQUIRE(test<int>(ec, "a:int = b:int = c:int = 10;"));
+        REQUIRE(test<int>(ec, "a;") == 10);
+        REQUIRE(test<int>(ec, "b;") == 10);
+        REQUIRE(test<int>(ec, "c;") == 10);
+    }
+    SECTION("float") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        REQUIRE(test<float>(ec, "a:float = b:float = c:float = 1.23;"));
+        REQUIRE(test<float>(ec, "a;") == 1.23f);
+        REQUIRE(test<float>(ec, "b;") == 1.23f);
+        REQUIRE(test<float>(ec, "c;") == 1.23f);
+    }
+    SECTION("bool") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        REQUIRE(test<bool>(ec, "a:bool = b:bool = c:bool = true;"));
+        REQUIRE(test<bool>(ec, "a;"));
+        REQUIRE(test<bool>(ec, "b;"));
+        REQUIRE(test<bool>(ec, "c;"));
+    }
 }
 
 TEST_CASE("multiple declarations in a module") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    auto results = testWithResults(ec, "foo:int; bar:int = 1; bat:int = 2;");
-    REQUIRE(results[0].getResult<int>() == 0);
-    REQUIRE(results[1].getResult<int>() == 1);
-    REQUIRE(results[2].getResult<int>() == 2);
-    REQUIRE(test<int>(ec, "foo;") == 0);
-    REQUIRE(test<int>(ec, "bar;") == 1);
-    REQUIRE(test<int>(ec, "bat;") == 2);
+    auto results = testWithResults(ec, "foo:int = 10; bar:float = 1.1; bat:bool = true;");
+    REQUIRE(results.size() == 3);
+    REQUIRE(results[0].get<int>() == 10);
+    REQUIRE(results[1].get<float>() == 1.1f);
+    REQUIRE(results[2].get<bool>());
+    REQUIRE(test<int>(ec, "foo;") == 10);
+    REQUIRE(test<float>(ec, "bar;") == 1.1f);
+    REQUIRE(test<bool>(ec, "bat;"));
 }
 
 TEST_CASE("arithmetic with variables") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+
+    //TODO: bool
 
     REQUIRE(test<int>(ec, "foo:int = 100;") == 100);
     REQUIRE(test<int>(ec, "foo + 2;") == 102);
@@ -249,6 +310,8 @@ TEST_CASE("arithmetic with variables") {
 }
 
 TEST_CASE("simple assignment expressions") {
+    //TODO: bool
+    //TODO: float
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     REQUIRE(test<int>(ec, "foo:int = 100;") == 100);
     REQUIRE(test<int>(ec, "foo;") == 100);
@@ -259,6 +322,8 @@ TEST_CASE("simple assignment expressions") {
 }
 
 TEST_CASE("chained assignment expressions") {
+    //TODO: bool
+    //TODO: float
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     REQUIRE(test<int>(ec, "foo:int;") == 0);
     REQUIRE(test<int>(ec, "bar:int;") == 0);
@@ -268,6 +333,8 @@ TEST_CASE("chained assignment expressions") {
 }
 
 TEST_CASE("variable declaration as expression") {
+    //TODO: bool
+    //TODO: float
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     REQUIRE(test<int>(ec, "foo:int = 100;") == 100);
     REQUIRE(test<int>(ec, "foo = bar:int = 102;") == 102);

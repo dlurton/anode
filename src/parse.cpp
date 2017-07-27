@@ -105,6 +105,16 @@ namespace lwnn {
                 setResult(std::move(castExpr));
             }
 
+            virtual void enterLiteralBool(LwnnParser::LiteralBoolContext *ctx) override {
+                if(ctx->getText() == "true") {
+                    setResult(std::make_unique<LiteralBoolExpr>(getSourceSpan(ctx), true));
+                } else if(ctx->getText() == "false") {
+                    setResult(std::make_unique<LiteralBoolExpr>(getSourceSpan(ctx), false));
+                } else {
+                    ASSERT_FAIL("Parser parsed something that it thinks is a boolean literal but wasn't 'true' or 'false'.");
+                }
+            }
+
             virtual void enterLiteralInt32Expr(LwnnParser::LiteralInt32ExprContext *ctx) override {
                 int value = std::stoi(ctx->getText());
                 setResult(std::make_unique<LiteralInt32Expr>(getSourceSpan(ctx), value));
@@ -209,9 +219,7 @@ namespace lwnn {
             CommonTokenStream tokens{&lexer};
             tokens.fill();
 
-            if(errorStream.errorCount() > 0) {
-                return nullptr;
-            }
+            if(errorStream.errorCount() > 0) return nullptr;
 
             LwnnParser parser(&tokens);
             parser.removeErrorListeners();
@@ -221,8 +229,9 @@ namespace lwnn {
 
             auto *moduleCtx = parser.module();
             moduleCtx->enterRule(&listener);
-
-            if(!listener.hasResult() || errorStream.errorCount() > 0) {
+            if(errorStream.errorCount() > 0) return nullptr;
+            if(!listener.hasResult()) {
+                std::cerr << "Nothing was parsed!\n";
                 return nullptr;
             }
 
