@@ -20,6 +20,11 @@ namespace lwnn {
             }
         }
 
+        bool isArithmeticOperation(BinaryOperationKind kind) {
+            return (int)kind > (int)BinaryOperationKind::ArithmeticBeginValue
+                   && (int)kind < (int)BinaryOperationKind::ArithmeticEndValue;
+        }
+
         std::string to_string(ExprKind kind) {
             switch (kind) {
                 case ExprKind::VariableDeclExpr:
@@ -42,15 +47,15 @@ namespace lwnn {
         std::string to_string(BinaryOperationKind type) {
             switch (type) {
                 case BinaryOperationKind::Assign:
-                    return "Assign";
+                    return "=";
                 case BinaryOperationKind::Add:
-                    return "Add";
+                    return "+";
                 case BinaryOperationKind::Sub:
-                    return "Sub";
+                    return "-";
                 case BinaryOperationKind::Mul:
-                    return "Mul";
+                    return "*";
                 case BinaryOperationKind::Div:
-                    return "Div";
+                    return "/";
                 default:
                     ASSERT_FAIL("Unhandled BinaryOperationKind");
             }

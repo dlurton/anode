@@ -135,9 +135,17 @@ namespace lwnn {
                 if(!rightListener.hasResult()) return;
 
                 BinaryOperationKind opKind;
+                std::unique_ptr<ExprStmt> leftExpr = leftListener.surrenderResult();
 
                 switch(ctx->op->getType()) {
-                    case LwnnParser::OP_ASSIGN: opKind = BinaryOperationKind::Assign; break;
+                    case LwnnParser::OP_ASSIGN: {
+                        opKind = BinaryOperationKind::Assign;
+                        ast::VariableRefExpr *varRef = dynamic_cast<ast::VariableRefExpr*>(leftExpr.get());
+                        if(varRef != nullptr) {
+                            varRef->setVariableAccess(VariableAccess::Write);
+                        }
+                        break;
+                    }
                     case LwnnParser::OP_ADD:    opKind = BinaryOperationKind::Add; break;
                     case LwnnParser::OP_SUB:    opKind = BinaryOperationKind::Sub; break;
                     case LwnnParser::OP_MUL:    opKind = BinaryOperationKind::Mul; break;
@@ -146,12 +154,15 @@ namespace lwnn {
                         ASSERT_FAIL("Unhandled Token Type (Operators)");
                 }
 
-                setResult(std::make_unique<BinaryExpr>(
-                    getSourceSpan(ctx->left, ctx->right),
-                    leftListener.surrenderResult(),
-                    opKind,
-                    getSourceSpan(ctx->op),
-                    rightListener.surrenderResult()));
+
+                std::unique_ptr<ExprStmt> rightExpr = rightListener.surrenderResult();
+                auto node = std::make_unique<BinaryExpr>(
+                                    getSourceSpan(ctx->left, ctx->right),
+                                    std::move(leftExpr),
+                                    opKind,
+                                    getSourceSpan(ctx->op),
+                                    std::move(rightExpr));
+                setResult(std::move(node));
             }
 
             virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext * ctx) override {

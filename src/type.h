@@ -27,22 +27,38 @@ namespace lwnn {
         class Type {
             std::string name_;
             PrimitiveType primitiveType_;
+            bool canDoArithmetic_;
         public:
-            Type(const std::string &name_, PrimitiveType primitiveType_)
-                : name_(name_), primitiveType_(primitiveType_) {}
+            Type(const std::string &name_, PrimitiveType primitiveType_, bool canDoArithmetic)
+                : name_(name_), primitiveType_(primitiveType_), canDoArithmetic_(canDoArithmetic) {}
 
             bool isPrimitive() const { return primitiveType() != PrimitiveType::NotAPrimitive; }
+
+            bool canDoArithmetic() { return canDoArithmetic_; }
 
             std::string name() const { return name_; }
             PrimitiveType primitiveType() const { return primitiveType_; }
 
             int operandPriority() const { return (int) primitiveType(); }
 
+            /** Returns true when a value of the specified type can be implicitly cast to this type.
+             * Returns false if the other type is the same as this type (as this does not require casting). */
             bool canImplicitCastTo(Type *other) const {
+                if(primitiveType_ == other->primitiveType()) return false;
+
+                if(primitiveType_ == type::PrimitiveType::Bool || other->primitiveType() == type::PrimitiveType::Bool)
+                    return false;
+
                 return operandPriority() <= other->operandPriority();
             }
 
+            /** Returns true when a value of the specified type may be be explicitly cast to this type.
+             * Returns false if the other type is the same as this type (as this does not require casting). */
             bool canExplicitCastTo(Type *other) const {
+                if(primitiveType_ == other->primitiveType()) return false;
+
+                if(primitiveType_ == type::PrimitiveType::Bool) return false;
+
                 return operandPriority() >= other->operandPriority();
             };
         };

@@ -68,6 +68,7 @@ namespace lwnn {
             std::unique_ptr<llvm::orc::IndirectStubsManager> IndirectStubsMgr;
 
             std::unordered_map<std::string, uint64_t> exports_;
+            bool enableOptimization_ = true;
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
@@ -198,6 +199,10 @@ namespace lwnn {
                 cantFail(OptimizeLayer.removeModule(H));
             }
 
+            void setEnableOptimization(bool enableOptimization) {
+                enableOptimization_ = enableOptimization;
+            }
+
         private:
             std::string mangle(const std::string &Name) {
                 std::string MangledName;
@@ -207,7 +212,9 @@ namespace lwnn {
             }
 
             std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M) {
-                //return M;
+
+                if(!enableOptimization_) return M;
+
                 // Create a function pass manager.
                 auto FPM = llvm::make_unique<llvm::legacy::FunctionPassManager>(M.get());
 
@@ -222,7 +229,6 @@ namespace lwnn {
                 // the JIT.
                 for (auto &F : *M)
                     FPM->run(F);
-
                 return M;
             }
         }; //SimpleJIT
@@ -237,6 +243,7 @@ namespace lwnn {
         public:
             ExecutionContextImpl() {
                 jit_->putExport(compile::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
+                jit_->setEnableOptimization(false);
             }
 
             void dispatchResult(type::PrimitiveType primitiveType, uint64_t valuePtr) {

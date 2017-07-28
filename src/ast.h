@@ -38,12 +38,17 @@ namespace lwnn {
 
         enum class BinaryOperationKind {
             Assign,
+            ArithmeticBeginValue,
             Add,
             Sub,
             Mul,
-            Div
+            Div,
+            ArithmeticEndValue,
         };
         std::string to_string(BinaryOperationKind type);
+
+        bool isArithmeticOperation(BinaryOperationKind kind);
+
 
         class AstNode;
         class Stmt;

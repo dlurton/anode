@@ -109,83 +109,72 @@ namespace lwnn {
                                         : "Cannot implicitly convert '%s' to '%s' or vice-versa";
 
                         errorStream_.error(
-                            //<-- it might be clearest if we called out the location of the operator here, however we don't have that at this time...
-                            binaryExpr->sourceSpan(),
+                            binaryExpr->operatorSpan(),
                             message,
                             binaryExpr->rValue()->type()->name().c_str(),
                             binaryExpr->lValue()->type()->name().c_str());
                     }
                 }
             }
-//
-//            virtual void visitedVariableDeclExpr(ast::VariableDeclExpr *varDeclExpr) override {
-//                type::Type *varDeclType = varDeclExpr->type();
-//                if(!varDeclExpr->initializerExpr())
-//                    return;
-//
-//                type::Type *initializerType = varDeclExpr->initializerExpr()->type();
-//
-//                //If data type of initializerExpr doesn't already match that of the variable being declared...
-//                if(varDeclType != initializerType) {
-//                    //If the initializerExpr can be implicitly cast to the type of the variable being declared...
-//                    if(initializerType->canImplicitCastTo(varDeclType)) {
-//                        varDeclExpr->graftInitializerExpr([&](std::unique_ptr<ast::ExprStmt> oldInitializerExpr) {
-//                            return std::make_unique<ast::CastExpr>(
-//                                oldInitializerExpr->sourceSpan(),
-//                                varDeclType,
-//                                std::move(oldInitializerExpr),
-//                                ast::CastKind::Implicit);
-//                        });
-//                    } else {
-//                        errorStream_.error(
-//                            //<-- it might be clearest if we called out the location of the operator here, however we don't have that at this time...
-//                            varDeclExpr->initializerExpr()->sourceSpan(),
-//                            "Cannot implicitly convert '%s' to '%s'",
-//                            initializerType->name().c_str(),
-//                            varDeclType->name().c_str());
-//                    }
-//                }
-//            }
         };
-        class MarkAssignmentLValuesAstVisitor : public ast::AstVisitor {
+
+        class CastExprSemanticPass : public ast::AstVisitor {
+            error::ErrorStream &errorStream_;
         public:
-            virtual void visitingBinaryExpr(ast::BinaryExpr *expr) override {
-                if(expr->operation() != ast::BinaryOperationKind::Assign) return;
-                if(ast::VariableRefExpr *varRefExpr = dynamic_cast<ast::VariableRefExpr*>(expr->lValue())) {
-                    varRefExpr->setVariableAccess(ast::VariableAccess::Write);
+            CastExprSemanticPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+            virtual void visitingCastExpr(ast::CastExpr *expr) {
+                type::Type *fromType = expr->valueExpr()->type();
+                type::Type *toType = expr->type();
+
+                if(fromType->canImplicitCastTo(toType)) return;
+
+                if(!fromType->canExplicitCastTo(toType)) {
+                    errorStream_.error(
+                        expr->sourceSpan(),
+                        "Cannot cast from '%s' to '%s'",
+                        fromType->name().c_str(),
+                        toType->name().c_str());
                 }
             }
-//            virtual void visitedBinaryExpr(ast::BinaryExpr *expr) override {
-//
-//            }
+        };
+
+        class BinaryExprSemanticsPass : public ast::AstVisitor {
+            error::ErrorStream &errorStream_;
+        public:
+            BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+
+            virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
+                if(binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
+                    if(!dynamic_cast<ast::VariableRefExpr*>(binaryExpr->lValue())) {
+                        errorStream_.error(binaryExpr->operatorSpan(), "Invalid l-value for operator '='");
+                    }
+                } else if(ast::isArithmeticOperation(binaryExpr->operation())) {
+                    if(!binaryExpr->type()->canDoArithmetic()) {
+                        errorStream_.error(binaryExpr->operatorSpan(), "Operator '%s' cannot be used with type '%s'.",
+                            ast::to_string(binaryExpr->operation()).c_str(), binaryExpr->type()->name().c_str());
+                    }
+                }
+            }
         };
 
         void runAllPasses(ast::Module *module, error::ErrorStream &es) {
-            SetSymbolTableParentsAstVisitor setSymbolTableParentsAstVisitor;
-            module->accept(&setSymbolTableParentsAstVisitor);
 
-            PopulateSymbolTablesVisitor populateSymbolTablesVisitor{es};
-            module->accept(&populateSymbolTablesVisitor);
-            if(es.errorCount() > 0)
-                return;
+            std::vector<std::unique_ptr<ast::AstVisitor>> passes;
+            passes.emplace_back(std::make_unique<SetSymbolTableParentsAstVisitor>());
+            passes.emplace_back(std::make_unique<PopulateSymbolTablesVisitor>(es));
+            passes.emplace_back(std::make_unique<TypeResolvingVisitor>(es));
+            passes.emplace_back(std::make_unique<SymbolResolvingVisitor>(es));
+            passes.emplace_back(std::make_unique<AddImplicitCastsVisitor>(es));
+            passes.emplace_back(std::make_unique<BinaryExprSemanticsPass>(es));
+            passes.emplace_back(std::make_unique<CastExprSemanticPass>(es));
 
-            TypeResolvingVisitor resolvingVisitor{es};
-            module->accept(&resolvingVisitor);
-            if(es.errorCount() > 0)
-                return;
 
-            SymbolResolvingVisitor symbolResolvingVisitor{es};
-            module->accept(&symbolResolvingVisitor);
-            if(es.errorCount() > 0)
-                return;
-
-            AddImplicitCastsVisitor addImplicitCastsVisitor{es};
-            module->accept(&addImplicitCastsVisitor);
-            if(es.errorCount() > 0)
-                return;
-
-            MarkAssignmentLValuesAstVisitor markAssignmentLValuesAstVisitor;
-            module->accept(&markAssignmentLValuesAstVisitor);
+            for(auto & pass : passes) {
+                module->accept(pass.get());
+                if(es.errorCount() > 0) {
+                    break;
+                }
+            }
         }
     } //namespace ast_passes
 } //namespace lwnn

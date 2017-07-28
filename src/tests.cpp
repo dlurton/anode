@@ -43,7 +43,7 @@ struct StmtResult {
             return storage.doubleResult;
         }
 
-        ASSERT_FAIL("Unrecognized typeName");
+        ASSERT_FAIL("T may be only bool, int, float or double");
     }
 };
 
@@ -172,21 +172,15 @@ TEST_CASE("casting") {
         //int to float
         REQUIRE(test<float>("1.0 + 1;") == 2.0);
         REQUIRE(test<float>("1 + 1.0;") == 2.0);
-
-        //bool to int
-        REQUIRE(test<int>("true + 10;") == 11);
-        REQUIRE(test<int>("10 + true;") == 11);
-
-        //bool to float
-        REQUIRE(test<float>("true + 10.1;") == 11.1f);
-        REQUIRE(test<float>("10.1 + true;") == 11.1f);
     }
+
     //TODO: implicit casts with variables?
 
     SECTION("explicit casts") {
         //int to bool
-        REQUIRE(test<bool>("cast<bool>(2);"));
         REQUIRE(!test<bool>("cast<bool>(0);"));
+        REQUIRE(test<bool>("cast<bool>(1);"));
+        REQUIRE(test<bool>("cast<bool>(2);"));
 
         //float to int
         REQUIRE(test<int>("cast<int>(1.0) + 1;") == 2);
@@ -215,6 +209,10 @@ TEST_CASE("variable declarations") {
     }
 
     SECTION("initializer casting") {
+        REQUIRE(!test<bool>("foo:bool = cast<bool>(0);")); //explicit
+        REQUIRE(test<bool>("foo:bool = cast<bool>(1);")); //explicit
+        REQUIRE(test<bool>("foo:bool = cast<bool>(2);")); //explicit
+
         REQUIRE(test<float>("foo:float = 101;") == 101.0);          //implicit
         REQUIRE(test<int>("foo:int = cast<int>(101.0);") == 101.0); //explicit
     }
@@ -234,9 +232,6 @@ TEST_CASE("variables with initializers persist between REPL evaluations") {
     REQUIRE(test<float>(ec, "bar:float = 234.0;") == 234.0);
     REQUIRE(test<float>(ec, "bar;") == 234.0);
     REQUIRE(test<float>(ec, "bar;") == 234.0);
-
-    //TODO: bool
-
 }
 
 TEST_CASE("variables without initializers persist between REPL evaluations") {
@@ -293,8 +288,6 @@ TEST_CASE("multiple declarations in a module") {
 
 TEST_CASE("arithmetic with variables") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-
-    //TODO: bool
 
     REQUIRE(test<int>(ec, "foo:int = 100;") == 100);
     REQUIRE(test<int>(ec, "foo + 2;") == 102);

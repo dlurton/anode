@@ -32,15 +32,14 @@ namespace lwnn {
 
         const int ALIGNMENT = 4;
 
-        llvm::Type *to_llvmType(type::Type *type, llvm::LLVMContext &llvmContext) {
-            ASSERT(type);
-            ASSERT(type->isPrimitive() && "Expected a primitive data type here");
 
-            switch (type->primitiveType()) {
+        llvm::Type *to_llvmType(type::PrimitiveType primitiveType, llvm::LLVMContext &llvmContext) {
+            ASSERT(primitiveType != type::PrimitiveType::Void && "Expected a primitive data type here");
+            switch (primitiveType) {
                 case type::PrimitiveType::Void:
                     return llvm::Type::getVoidTy(llvmContext);
                 case type::PrimitiveType::Bool:
-                    return llvm::Type::getInt8Ty(llvmContext);
+                    return llvm::Type::getInt1Ty(llvmContext);
                 case type::PrimitiveType::Int32:
                     return llvm::Type::getInt32Ty(llvmContext);
                 case type::PrimitiveType::Float:
@@ -51,6 +50,13 @@ namespace lwnn {
                     ASSERT_FAIL("Unhandled PrimitiveType");
             }
         }
+
+        llvm::Type *to_llvmType(type::Type *type, llvm::LLVMContext &llvmContext) {
+            ASSERT(type);
+            type::PrimitiveType primitiveType = type->primitiveType();
+            return to_llvmType(primitiveType, llvmContext);
+        }
+
 
         class ExprAstVisitor : public ScopeFollowingVisitor {
             llvm::LLVMContext &llvmContext_;
@@ -85,9 +91,10 @@ namespace lwnn {
                     case type::PrimitiveType::Int32:
                         switch(expr->type()->primitiveType()) {
                             //To bool
-                            case type::PrimitiveType::Bool:
-                                castedValue = irBuilder_.CreateTrunc(value, destLlvmType);
+                            case type::PrimitiveType::Bool: {
+                                castedValue = irBuilder_.CreateICmpNE(value, getDefaultValueForType(expr->valueExpr()->type()));
                                 break;
+                            }
                             //To int
                             case type::PrimitiveType::Int32:
                                 castedValue = value;
@@ -105,6 +112,8 @@ namespace lwnn {
                         switch(expr->type()->primitiveType()) {
                             //To to int32 or bool
                             case type::PrimitiveType::Bool:
+                                castedValue = irBuilder_.CreateFCmpUNE(value, getDefaultValueForType(expr->valueExpr()->type()));
+                                break;
                             case type::PrimitiveType::Int32:
                                 castedValue = irBuilder_.CreateFPToSI(value, destLlvmType);
                                 break;
@@ -117,22 +126,23 @@ namespace lwnn {
                         break;
                     //From bool
                     case type::PrimitiveType::Bool:
-                        switch(expr->type()->primitiveType()) {
-                            //To bool
-                            case type::PrimitiveType::Bool:
-                                castedValue = value;
-                                break;
-                            //To to int32
-                            case type::PrimitiveType::Int32:
-                                castedValue = irBuilder_.CreateSExt(value, destLlvmType);
-                                break;
-                                //to float
-                            case type::PrimitiveType::Float:
-                                castedValue = irBuilder_.CreateSIToFP(value, destLlvmType);
-                                break;
-                            default:
-                                ASSERT_FAIL("Unknown cast from bool");
-                        }
+                        ASSERT_FAIL("cannot cast from bool to anything");
+//                        switch(expr->type()->primitiveType()) {
+//                            //To bool
+//                            case type::PrimitiveType::Bool:
+//                                castedValue = value;
+//                                break;
+//                            //To to int32
+//                            case type::PrimitiveType::Int32:
+//                                castedValue = irBuilder_.CreateSExt(value, destLlvmType);
+//                                break;
+//                                //to float
+//                            case type::PrimitiveType::Float:
+//                                castedValue = irBuilder_.CreateSIToFP(value, destLlvmType);
+//                                break;
+//                            default:
+//                                ASSERT_FAIL("Unknown cast from bool");
+//                        }
                         break;
                     default:
                         ASSERT_FAIL("Unhandled type::PrimitiveType")
@@ -155,7 +165,7 @@ namespace lwnn {
             }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
-                valueStack_.push(llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, expr->value(), true)));
+                valueStack_.push(llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, (uint64_t)expr->value(), true)));
             }
 
             virtual void visitLiteralFloatExpr(LiteralFloatExpr *expr) override {
@@ -163,7 +173,7 @@ namespace lwnn {
             }
 
             virtual void visitLiteralBoolExpr(LiteralBoolExpr *expr) {
-                valueStack_.push(llvm::ConstantInt::get(llvmContext_, llvm::APInt(8, expr->value(), true)));
+                valueStack_.push(llvm::ConstantInt::get(llvmContext_, llvm::APInt(1, (uint64_t)expr->value(), true)));
             }
 
             virtual void visitVariableRefExpr(VariableRefExpr *expr) override {
@@ -202,11 +212,14 @@ namespace lwnn {
 
             llvm::Constant *getDefaultValueForType(type::Type *type) {
                 ASSERT(type->isPrimitive());
-                ASSERT(type->primitiveType() != type::PrimitiveType::Void);
+                return getDefaultValueForType(type->primitiveType());
+            }
 
-                switch(type->primitiveType()) {
+            llvm::Constant *getDefaultValueForType(type::PrimitiveType primitiveType) {
+                ASSERT(primitiveType != type::PrimitiveType::Void);
+                switch(primitiveType) {
                     case type::PrimitiveType::Bool:
-                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(8, 0, true));
+                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(1, 0, false));
                     case type::PrimitiveType::Int32:
                         return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
                     case type::PrimitiveType::Float:
@@ -225,9 +238,7 @@ namespace lwnn {
 
                 if(op == BinaryOperationKind::Assign) {
                     irBuilder_.CreateStore(rValue, lValue); //(args swapped on purpose)
-
                     //Note:  I think this will call rValue a second time if rValue is a call site.
-                    //TODO:  when function call sites are implemented, might need to
                     return rValue;
                 }
 

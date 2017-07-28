@@ -5,11 +5,11 @@
 namespace lwnn {
     namespace type {
         namespace Primitives {
-            Type Int32("int", PrimitiveType::Int32);
-            Type Float("float", PrimitiveType::Float);
-            Type Double("double", PrimitiveType::Double);
-            Type Bool("bool", PrimitiveType::Bool);
-            Type Void("void", PrimitiveType::Void);
+            Type Int32("int", PrimitiveType::Int32, true);
+            Type Float("float", PrimitiveType::Float, true);
+            Type Double("double", PrimitiveType::Double, true);
+            Type Bool("bool", PrimitiveType::Bool, false);
+            Type Void("void", PrimitiveType::Void, false);
 
             Type *fromKeyword(const std::string &keyword) {
                 if(keyword == "int") {
