@@ -57,7 +57,6 @@ namespace lwnn {
             return to_llvmType(primitiveType, llvmContext);
         }
 
-
         class ExprAstVisitor : public ScopeFollowingVisitor {
             llvm::LLVMContext &llvmContext_;
             llvm::IRBuilder<> irBuilder_;
@@ -206,6 +205,19 @@ namespace lwnn {
 
                 llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->type());
                 valueStack_.push(result);
+            }
+
+            virtual void visitedSelectExpr(SelectExpr *) override {
+                llvm::Value *falseValue = valueStack_.top();
+                valueStack_.pop();
+
+                llvm::Value *trueValue = valueStack_.top();
+                valueStack_.pop();
+
+                llvm::Value *condValue = valueStack_.top();
+                valueStack_.pop();
+
+                valueStack_.push(irBuilder_.CreateSelect(condValue, trueValue, falseValue));
             }
 
         private:

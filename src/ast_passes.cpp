@@ -116,6 +116,59 @@ namespace lwnn {
                     }
                 }
             }
+
+            virtual void visitedSelectExpr(ast::SelectExpr *condExpr) {
+
+                if(condExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
+                    if (condExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+                        condExpr->graftCondition(
+                            [&](std::unique_ptr<ast::ExprStmt> oldTruePart) {
+                                return std::make_unique<ast::CastExpr>(
+                                    oldTruePart->sourceSpan(),
+                                    &type::Primitives::Bool,
+                                    std::move(oldTruePart),
+                                    ast::CastKind::Implicit);
+                            });
+                    } else {
+                        errorStream_.error(
+                            condExpr->condition()->sourceSpan(),
+                            "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
+                            condExpr->condition()->type()->name().c_str());
+                    }
+                }
+
+
+                if(condExpr->truePart()->type() != condExpr->falsePart()->type()) {
+                    //If we can implicitly cast the lvalue to same type as the rvalue, we should...
+                    if(condExpr->falsePart()->type()->canImplicitCastTo(condExpr->truePart()->type())) {
+                        condExpr->graftFalsePart(
+                            [&](std::unique_ptr<ast::ExprStmt> oldFalsePart) {
+                                return std::make_unique<ast::CastExpr>(
+                                    oldFalsePart->sourceSpan(),
+                                    condExpr->truePart()->type(),
+                                    std::move(oldFalsePart),
+                                    ast::CastKind::Implicit);
+                            });
+                    } //otherwise, if we can to the reverse, we should...
+                    else if (condExpr->truePart()->type()->canImplicitCastTo(condExpr->falsePart()->type())) {
+                        condExpr->graftTruePart(
+                            [&](std::unique_ptr<ast::ExprStmt> oldTruePart) {
+                                return std::make_unique<ast::CastExpr>(
+                                    oldTruePart->sourceSpan(),
+                                    condExpr->falsePart()->type(),
+                                    std::move(oldTruePart),
+                                    ast::CastKind::Implicit);
+                            });
+                    }
+                    else { // No implicit cast available...
+                        errorStream_.error(
+                            condExpr->sourceSpan(),
+                            "Cannot implicitly convert '%s' to '%s' or vice-versa",
+                            condExpr->truePart()->type()->name().c_str(),
+                            condExpr->falsePart()->type()->name().c_str());
+                    }
+                }
+            }
         };
 
         class CastExprSemanticPass : public ast::AstVisitor {
@@ -135,6 +188,8 @@ namespace lwnn {
                         fromType->name().c_str(),
                         toType->name().c_str());
                 }
+
+
             }
         };
 
@@ -167,7 +222,6 @@ namespace lwnn {
             passes.emplace_back(std::make_unique<AddImplicitCastsVisitor>(es));
             passes.emplace_back(std::make_unique<BinaryExprSemanticsPass>(es));
             passes.emplace_back(std::make_unique<CastExprSemanticPass>(es));
-
 
             for(auto & pass : passes) {
                 module->accept(pass.get());

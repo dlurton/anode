@@ -1,4 +1,16 @@
 TODO:
+
+    variable = select(condition, someValue, anotherValue);
+    variable = ?[condition; someValue; anotherValue];
+    variable = ?[condition > thatsReallyReallyLong || evenLonger 
+               someValue; 
+               anotherValue];
+
+
+    variable = ?{condition; someValue; anotherValue};
+        
+        
+    
     
  - See if it's possible to reduce size of LLVM shared libraries and lwnn executables... (llvm is almost a gig!)
  - Functions

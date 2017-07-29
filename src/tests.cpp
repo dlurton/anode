@@ -167,6 +167,29 @@ TEST_CASE("basic float expressions") {
     }
 }
 
+TEST_CASE("conditional expressions operator") {
+    REQUIRE(test<int>("{? true; 1; 2};") == 1);
+    REQUIRE(test<int>("{? false; 1; 2};") == 2);
+
+    //Implicit casting of true part / false part
+    REQUIRE(test<float>("{? true; 1.0; 2};") == 1.0);
+    REQUIRE(test<float>("{? false; 1; 2.0};") == 2.0);
+
+    //Implicit casting of condition from int to bool
+    REQUIRE(test<int>("{? 1; 2; 3};") == 2);
+    REQUIRE(test<int>("{? 2; 2; 3};") == 2);
+    REQUIRE(test<int>("{? 0; 2; 3};") == 3);
+
+    //Implicit casting of condition from float to bool
+    REQUIRE(test<int>("{? 1.0; 2; 3};") == 2);
+    REQUIRE(test<int>("{? 0; 2; 3};") == 3);
+
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    REQUIRE(test<int>(ec, "foo:int = {? 1.0; 2; 3};") == 2);
+    REQUIRE(test<int>(ec, "foo;") == 2);
+    REQUIRE(test<int>(ec, "foo = {? 0; 2; 3};") == 3);
+}
+
 TEST_CASE("casting") {
     SECTION("implicit casts with literals") {
         //int to float

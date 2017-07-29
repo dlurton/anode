@@ -57,7 +57,7 @@ namespace lwnn {
         class CompoundStmt;
         class FuncDeclStmt;
         class ReturnStmt;
-        class ConditionalExpr;
+        class SelectExpr;
         class LiteralBoolExpr;
         class LiteralInt32Expr;
         class LiteralFloatExpr;
@@ -95,8 +95,8 @@ namespace lwnn {
             virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
             virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-            virtual void visitingConditionalExpr(ConditionalExpr *) { }
-            virtual void visitedConditionalExpr(ConditionalExpr *) { }
+            virtual void visitingSelectExpr(SelectExpr *) { }
+            virtual void visitedSelectExpr(SelectExpr *) { }
 
             virtual void visitingBinaryExpr(BinaryExpr *) { }
             virtual void visitedBinaryExpr(BinaryExpr *) { }
@@ -184,7 +184,7 @@ namespace lwnn {
         public:
             virtual StmtKind stmtKind() const = 0;
 
-            source::SourceSpan sourceSpan() {
+            source::SourceSpan sourceSpan() const {
                 return sourceSpan_;
             }
         };
@@ -546,14 +546,14 @@ namespace lwnn {
         };
 
         /** Can be the basis of an if-then-else or ternary operator. */
-        class ConditionalExpr : public ExprStmt {
+        class SelectExpr : public ExprStmt {
             std::unique_ptr<ExprStmt> condition_;
             std::unique_ptr<ExprStmt> truePart_;
             std::unique_ptr<ExprStmt> falsePart_;
         public:
 
             /** Note:  assumes ownership of condition, truePart and falsePart.  */
-            ConditionalExpr(source::SourceSpan sourceSpan,
+            SelectExpr(source::SourceSpan sourceSpan,
                             std::unique_ptr<ExprStmt> condition,
                             std::unique_ptr<ExprStmt> truePart,
                             std::unique_ptr<ExprStmt> falsePart)
@@ -583,15 +583,30 @@ namespace lwnn {
 
             virtual bool canWrite() const override { return false; };
 
+            void graftCondition(ExprGraftFunctor graftFunctor) {
+                condition_= std::move(graftFunctor(std::move(condition_)));
+            }
+
+            void graftTruePart(ExprGraftFunctor graftFunctor) {
+                truePart_ = std::move(graftFunctor(std::move(truePart_)));
+            }
+
+            void graftFalsePart(ExprGraftFunctor graftFunctor) {
+                falsePart_ = std::move(graftFunctor(std::move(falsePart_)));
+            }
+
+
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
-                visitor->visitingConditionalExpr(this);
+                visitor->visitingSelectExpr(this);
 
-                if(visitor) {
+                if(visitChildren) {
+                    condition_->accept(visitor);
                     truePart_->accept(visitor);
+                    falsePart_->accept(visitor);
                 }
 
-                visitor->visitedConditionalExpr(this);
+                visitor->visitedSelectExpr(this);
                 visitor->visitedExprStmt(this);
             }
         };

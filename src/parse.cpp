@@ -168,6 +168,25 @@ namespace lwnn {
             virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext * ctx) override {
                 setResult(std::make_unique<VariableRefExpr>(getSourceSpan(ctx), ctx->getText()));
             }
+
+            virtual void enterConditionalExpr(LwnnParser::ConditionalExprContext *ctx) override {
+                ExprListener condListener;
+                ctx->cond->enterRule(&condListener);
+                if(!condListener.hasResult()) return;
+
+                ExprListener truePartListener;
+                ctx->truePart->enterRule(&truePartListener);
+                if(!truePartListener.hasResult()) return;
+
+                ExprListener falsePartListener;
+                ctx->falsePart->enterRule(&falsePartListener);
+                if(!truePartListener.hasResult()) return;
+
+                setResult(std::make_unique<SelectExpr>(getSourceSpan(ctx),
+                    condListener.surrenderResult(),
+                    truePartListener.surrenderResult(),
+                    falsePartListener.surrenderResult()));
+            }
         };
 
         class StatementListener : public LwnnBaseListenerHelper<ast::Stmt> {
@@ -203,6 +222,7 @@ namespace lwnn {
 
         class LwnnErrorListener : public DiagnosticErrorListener {
             error::ErrorStream &errorStream_;
+            std::string inputName_;
         public:
             LwnnErrorListener(error::ErrorStream &errorStream_)
                 : DiagnosticErrorListener(true),
@@ -211,8 +231,20 @@ namespace lwnn {
             virtual void syntaxError(Recognizer *recognizer, Token *offendingSymbol, size_t line,
                                      size_t charPositionInLine, const std::string &msg, std::exception_ptr e) {
 
-                source::SourceSpan span = getSourceSpan(offendingSymbol);
-                errorStream_.error(span, msg);
+                //If offendingSymbol is null, error was from lexer and we don't even have an error token yet.
+                if(offendingSymbol == nullptr) {
+                    //We can create a new source span--this one will only have a length of 1, though...
+                    source::SourceSpan span {
+                        inputName_,
+                        source::SourceLocation { line, charPositionInLine },
+                        source::SourceLocation { line, charPositionInLine + 1 }
+                    };
+                    errorStream_.error(span, msg);
+                } else {
+                    //However if we do have the offendingSymbol we should use that because the span generated
+                    //from it should have the span's full length.
+                    errorStream_.error(getSourceSpan(offendingSymbol), msg);
+                }
             };
         };
 

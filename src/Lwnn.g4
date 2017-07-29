@@ -11,19 +11,25 @@ statement
     ;
 
 expr
-    :   name=ID ':' type=ID                                     # varDeclExpr
-    |   '(' expr ')'                                            # parensExpr
-//  |   op=('+'|'-') expr                                       # unaryExpr
-    |   left=expr op=(OP_MUL|OP_DIV) right=expr                 # binaryExpr
-    |   left=expr op=(OP_ADD|OP_SUB) right=expr                 # binaryExpr
-    |   <assoc=right> left=expr op=OP_ASSIGN right=expr         # binaryExpr
-//  |   func=ID '(' expr ')'                                    # funcExpr
-    |   value=LIT_INT                                           # literalInt32Expr
-    |   value=LIT_FLOAT                                         # literalFloatExpr
-    |   value=litBool                                           # literalBool
-    |   var=ID                                                  # variableRefExpr
-    |   'cast' '<' type=ID '>' '(' expr ')'                     # castExpr
+    :   name=ID ':' type=ID                                         # varDeclExpr
+    |   '(' expr ')'                                                # parensExpr
+//  |   op=('+'|'-') expr                                           # unaryExpr
+    |   left=expr op=(OP_MUL|OP_DIV) right=expr                     # binaryExpr
+    |   left=expr op=(OP_ADD|OP_SUB) right=expr                     # binaryExpr
+    |   <assoc=right> left=expr op=OP_ASSIGN right=expr             # binaryExpr
+//  |   func=ID '(' expr ')'                                        # funcExpr
+    |   value=LIT_INT                                               # literalInt32Expr
+    |   value=LIT_FLOAT                                             # literalFloatExpr
+    |   value=litBool                                               # literalBool
+    |   var=ID                                                      # variableRefExpr
+    |   'cast' '<' type=ID '>' '(' expr ')'                         # castExpr
+    |   '{?' cond=expr ';' truePart=expr ';' falsePart=expr '}'     # conditionalExpr
     ;
+
+//conditionalExpr
+//    : '?{' cond=expr ')' truePart=expr
+//    | 'if' '(' cond=expr ')' truePart=expr 'else' falsePart=expr
+//    ;
 
 
 litBool

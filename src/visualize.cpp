@@ -134,17 +134,17 @@ namespace lwnn {
                 writer_.writeln("VariableRefExpr: " + expr->name());
             }
 
-            virtual void visitingConditionalExpr(ConditionalExpr *) override {
-                writer_.writeln("Conditional:");
+            virtual void visitingSelectExpr(SelectExpr *) override {
+                writer_.writeln("Select:");
                 writer_.incIndent();
             }
 
-            virtual void visitedConditionalExpr(ConditionalExpr *) override {
+            virtual void visitedSelectExpr(SelectExpr *) override {
                 writer_.decIndent();
             }
 
             virtual void visitingCastExpr(CastExpr *expr) override {
-                writer_.writeln("CastExpr (%s, to %s):",
+                writer_.writeln("Cast(%s, to %s):",
                                 expr->castKind() == CastKind::Implicit ? "implicit" : "explicit",
                                 expr->type()->name().c_str());
 

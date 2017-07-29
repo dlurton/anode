@@ -11,28 +11,24 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
 There's only a very limited set of functionality that works right now.  Examination of `tests.cpp` will give a more complete
 and up-to-date picture of supported syntax and features, however, here's a short summary:
 
-Calculate any expression containing only integers and floats +, -, * or / operators:
-        
-        10 + 20 * 3 / (5 - 2);
-
-Declare a global variables, optionally assigning their default value:
-         
-        imaglobalyo:int = 5 * 20 / (2 + 3);
-
-The above expression declares a variable named "imaglobalyo" of type "int" and assigns a default value.
-Note that variables don't yet persist between statements entered at the REPL.  I expect to add support for this
-within the next several commits.
-
-Implicit type conversion between float and int:
-
-        5.0 + 3
-
-The resulting value is of type float.  When the data types of the operands differ, the compiler checks to see if one can
-be implicitly cast to the other.  In the example above, because `int` type can be cast to `float`, the `3` is implicitly
-cast to `float` and the result is a `float`. Rules for implicit casting are/will be similar to C's...  Essentially,
-implicit casting can occur as long as there is no data loss.
-
-Literal floats are expressed normally: i.e. `1.0` is a literal float while `1` is a literal integer.
+- Data types: `bool`, `int` and `float`.
+- Literal ints (`123`), floats (`123.0`) and booleans (`true` or `false`).
+- Global variable declarations: `someVariable:int;`
+    - Variables are strongly typed.
+    - Variables must be declared before use.
+    - New variables are always initialized to 0.
+    - Variables may have an initializer: 'someVariable:int = 1 + 2 * anyExpressionHere;'
+ - Casting:
+    - Implicit casting happens when there is no precision loss between float and int:
+    - For example in the expression:  `1.0 + 2` the `2` is cast to a `float` and the expression's result is a `float`.
+    - Explicit casting is required when there is a precision loss, for example:
+        ```         
+        someFloatValue:float = 3.14;
+        someIntValue:int = cast<int>(someFloatvalue);
+        ```
+    - The the fractional portion of `someFloatValue` is truncated and `someIntValue` becomes `3`.
+ - Ternary expressions: `${ condition; trueValue; falseValue }`
+    - When `condition` evaluates to true, `trueValue` is returned otherwise `falseValue` is returned.
 
 ## Building
 

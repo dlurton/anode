@@ -24,6 +24,18 @@ namespace lwnn {
         };
         std::string to_string(PrimitiveType dataType);
 
+        class Type;
+
+        namespace Primitives {
+            extern Type Int32;
+            extern Type Float;
+            extern Type Double;
+            extern Type Bool;
+            extern Type Void;
+
+            Type *fromKeyword(const std::string &keyword);
+        }
+
         class Type {
             std::string name_;
             PrimitiveType primitiveType_;
@@ -46,8 +58,11 @@ namespace lwnn {
             bool canImplicitCastTo(Type *other) const {
                 if(primitiveType_ == other->primitiveType()) return false;
 
-                if(primitiveType_ == type::PrimitiveType::Bool || other->primitiveType() == type::PrimitiveType::Bool)
+                if(primitiveType_ == type::PrimitiveType::Bool)
                     return false;
+
+                if(isPrimitive() && other->primitiveType() == type::PrimitiveType::Bool)
+                    return true;
 
                 return operandPriority() <= other->operandPriority();
             }
@@ -63,14 +78,5 @@ namespace lwnn {
             };
         };
 
-        namespace Primitives {
-            extern Type Int32;
-            extern Type Float;
-            extern Type Double;
-            extern Type Bool;
-            extern Type Void;
-
-            Type *fromKeyword(const std::string &keyword);
-        }
     }
 }
