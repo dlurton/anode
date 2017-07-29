@@ -23,7 +23,7 @@ expr
     |   value=litBool                                               # literalBool
     |   var=ID                                                      # variableRefExpr
     |   'cast' '<' type=ID '>' '(' expr ')'                         # castExpr
-    |   '{?' cond=expr ';' truePart=expr ';' falsePart=expr '}'     # conditionalExpr
+    |   '(?' cond=expr ',' truePart=expr ',' falsePart=expr ')'     # conditionalExpr
     ;
 
 //conditionalExpr

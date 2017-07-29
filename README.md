@@ -27,7 +27,7 @@ and up-to-date picture of supported syntax and features, however, here's a short
         someIntValue:int = cast<int>(someFloatvalue);
         ```
     - The the fractional portion of `someFloatValue` is truncated and `someIntValue` becomes `3`.
- - Ternary expressions: `${ condition; trueValue; falseValue }`
+ - Ternary expressions: `(? condition, trueValue, falseValue )`
     - When `condition` evaluates to true, `trueValue` is returned otherwise `falseValue` is returned.
 
 ## Building
