@@ -58,7 +58,7 @@ namespace lwnn {
         class CompoundStmt;
         class FuncDeclStmt;
         class ReturnStmt;
-        class SelectExpr;
+        class IfExpr;
         class LiteralBoolExpr;
         class LiteralInt32Expr;
         class LiteralFloatExpr;
@@ -96,8 +96,8 @@ namespace lwnn {
             virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
             virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-            virtual bool visitingSelectExpr(SelectExpr *) { }
-            virtual void visitedSelectExpr(SelectExpr *) { }
+            virtual bool visitingIfExpr(IfExpr *) { }
+            virtual void visitedIfExpr(IfExpr *) { }
 
             virtual void visitingBinaryExpr(BinaryExpr *) { }
             virtual void visitedBinaryExpr(BinaryExpr *) { }
@@ -561,14 +561,14 @@ namespace lwnn {
         };
 
         /** Can be the basis of an if-then-else or ternary operator. */
-        class SelectExpr : public ExprStmt {
+        class IfExpr : public ExprStmt {
             std::unique_ptr<ExprStmt> condition_;
             std::unique_ptr<ExprStmt> truePart_;
             std::unique_ptr<ExprStmt> falsePart_;
         public:
 
             /** Note:  assumes ownership of condition, truePart and falsePart.  */
-            SelectExpr(source::SourceSpan sourceSpan,
+            IfExpr(source::SourceSpan sourceSpan,
                             std::unique_ptr<ExprStmt> condition,
                             std::unique_ptr<ExprStmt> truePart,
                             std::unique_ptr<ExprStmt> falsePart)
@@ -593,8 +593,8 @@ namespace lwnn {
             }
 
             ExprStmt *condition() const { return condition_.get(); }
-            ExprStmt *truePart() const { return truePart_.get(); }
-            ExprStmt *falsePart() const { return falsePart_.get(); }
+            ExprStmt *thenExpr() const { return truePart_.get(); }
+            ExprStmt *elseExpr() const { return falsePart_.get(); }
 
             virtual bool canWrite() const override { return false; };
 
@@ -613,7 +613,7 @@ namespace lwnn {
 
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
-                visitChildren = visitor->visitingSelectExpr(this) ? visitChildren : false;
+                visitChildren = visitor->visitingIfExpr(this) ? visitChildren : false;
 
                 if(visitChildren) {
                     condition_->accept(visitor);
@@ -621,7 +621,7 @@ namespace lwnn {
                     falsePart_->accept(visitor);
                 }
 
-                visitor->visitedSelectExpr(this);
+                visitor->visitedIfExpr(this);
                 visitor->visitedExprStmt(this);
             }
         };

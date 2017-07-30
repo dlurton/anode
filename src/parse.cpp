@@ -183,7 +183,7 @@ namespace lwnn {
                 ctx->falsePart->enterRule(&falsePartListener);
                 if(!truePartListener.hasResult()) return;
 
-                setResult(std::make_unique<SelectExpr>(getSourceSpan(ctx),
+                setResult(std::make_unique<IfExpr>(getSourceSpan(ctx),
                     condListener.surrenderResult(),
                     truePartListener.surrenderResult(),
                     falsePartListener.surrenderResult()));

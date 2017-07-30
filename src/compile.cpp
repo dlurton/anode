@@ -76,7 +76,7 @@ namespace lwnn {
         };
 
         llvm::Value *compileExpr(ExprStmt *exprStmt, CompileContext &);
-        llvm::Value *compileSelectExpr(SelectExpr *exprStmt, CompileContext &);
+        llvm::Value *compileIfExpr(IfExpr *exprStmt, CompileContext &);
 
         llvm::Type *to_llvmType(type::PrimitiveType primitiveType, llvm::LLVMContext &llvmContext) {
             ASSERT(primitiveType != type::PrimitiveType::Void && "Expected a primitive data type here");
@@ -248,8 +248,8 @@ namespace lwnn {
                 valueStack_.push(result);
             }
 
-            virtual bool visitingSelectExpr(SelectExpr *expr) override {
-                llvm::Value *value = compileSelectExpr(expr, cc());
+            virtual bool visitingIfExpr(IfExpr *expr) override {
+                llvm::Value *value = compileIfExpr(expr, cc());
                 valueStack_.push(value);
                 return false;
             }
@@ -342,12 +342,46 @@ namespace lwnn {
             return visitor.hasValue() ? visitor.getValue() : nullptr;
         }
 
-        llvm::Value *compileSelectExpr(SelectExpr *selectExpr, CompileContext &cc) {
-            llvm::Value *condValue = compileExpr(selectExpr->condition(), cc);
-            llvm::Value *trueValue = compileExpr(selectExpr->truePart(), cc);
-            llvm::Value *falseValue = compileExpr(selectExpr->falsePart(), cc);
+        llvm::Value *compileIfExpr(IfExpr *selectExpr, CompileContext &cc) {
+            //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
 
-            return cc.irBuilder().CreateSelect(condValue, trueValue, falseValue);
+            //Emit the condition
+            llvm::Value *condValue = compileExpr(selectExpr->condition(), cc);
+
+            //Prepare the BasicBlocks
+            llvm::Function *currentFunc = cc.irBuilder().GetInsertBlock()->getParent();
+            llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc.llvmContext(), "thenBlock");
+            llvm::BasicBlock *elseBlock = llvm::BasicBlock::Create(cc.llvmContext(), "elseBlock");
+            llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc.llvmContext(), "endBlock");
+
+            //Branch to then or else blocks, depending on condition.
+            cc.irBuilder().CreateCondBr(condValue, thenBlock, elseBlock);
+
+            //Emit the thenBlock
+            currentFunc->getBasicBlockList().push_back(thenBlock);
+            cc.irBuilder().SetInsertPoint(thenBlock);
+            llvm::Value *thenValue = compileExpr(selectExpr->thenExpr(), cc);
+            thenBlock = cc.irBuilder().GetInsertBlock();
+
+            //Emit the endBlock, skipping the elseBlock
+            cc.irBuilder().CreateBr(endBlock);
+
+            //Compile the elseBlock
+            currentFunc->getBasicBlockList().push_back(elseBlock);
+            cc.irBuilder().SetInsertPoint(elseBlock);
+            llvm::Value *elseValue = compileExpr(selectExpr->elseExpr(), cc);
+            cc.irBuilder().CreateBr(endBlock);
+            elseBlock = cc.irBuilder().GetInsertBlock();
+
+            //Emit the endBlock
+            currentFunc->getBasicBlockList().push_back(endBlock);
+            cc.irBuilder().SetInsertPoint(endBlock);
+            llvm::PHINode *phi = cc.irBuilder().CreatePHI(to_llvmType(selectExpr->type(), cc.llvmContext()), 2, "iftmp");
+            phi->addIncoming(thenValue, thenBlock);
+            phi->addIncoming(elseValue, elseBlock);
+
+            return phi;
+            //return cc.irBuilder().CreateSelect(condValue, thenValue, elseValue);
         }
 
         class ModuleAstVisitor : public CompileAstVisitor {

@@ -81,13 +81,13 @@ namespace lwnn {
                 writer_.writeln("VariableRefExpr: " + expr->name());
             }
 
-            virtual bool visitingSelectExpr(SelectExpr *) override {
+            virtual bool visitingIfExpr(IfExpr *) override {
                 writer_.writeln("Select:");
                 writer_.incIndent();
                 return true;
             }
 
-            virtual void visitedSelectExpr(SelectExpr *) override {
+            virtual void visitedIfExpr(IfExpr *) override {
                 writer_.decIndent();
             }
 

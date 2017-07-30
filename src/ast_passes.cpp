@@ -117,7 +117,7 @@ namespace lwnn {
                 }
             }
 
-            virtual void visitedSelectExpr(ast::SelectExpr *condExpr) {
+            virtual void visitedIfExpr(ast::IfExpr *condExpr) {
 
                 if(condExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
                     if (condExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
@@ -138,24 +138,24 @@ namespace lwnn {
                 }
 
 
-                if(condExpr->truePart()->type() != condExpr->falsePart()->type()) {
+                if(condExpr->thenExpr()->type() != condExpr->elseExpr()->type()) {
                     //If we can implicitly cast the lvalue to same type as the rvalue, we should...
-                    if(condExpr->falsePart()->type()->canImplicitCastTo(condExpr->truePart()->type())) {
+                    if(condExpr->elseExpr()->type()->canImplicitCastTo(condExpr->thenExpr()->type())) {
                         condExpr->graftFalsePart(
                             [&](std::unique_ptr<ast::ExprStmt> oldFalsePart) {
                                 return std::make_unique<ast::CastExpr>(
                                     oldFalsePart->sourceSpan(),
-                                    condExpr->truePart()->type(),
+                                    condExpr->thenExpr()->type(),
                                     std::move(oldFalsePart),
                                     ast::CastKind::Implicit);
                             });
                     } //otherwise, if we can to the reverse, we should...
-                    else if (condExpr->truePart()->type()->canImplicitCastTo(condExpr->falsePart()->type())) {
+                    else if (condExpr->thenExpr()->type()->canImplicitCastTo(condExpr->elseExpr()->type())) {
                         condExpr->graftTruePart(
                             [&](std::unique_ptr<ast::ExprStmt> oldTruePart) {
                                 return std::make_unique<ast::CastExpr>(
                                     oldTruePart->sourceSpan(),
-                                    condExpr->falsePart()->type(),
+                                    condExpr->elseExpr()->type(),
                                     std::move(oldTruePart),
                                     ast::CastKind::Implicit);
                             });
@@ -164,8 +164,8 @@ namespace lwnn {
                         errorStream_.error(
                             condExpr->sourceSpan(),
                             "Cannot implicitly convert '%s' to '%s' or vice-versa",
-                            condExpr->truePart()->type()->name().c_str(),
-                            condExpr->falsePart()->type()->name().c_str());
+                            condExpr->thenExpr()->type()->name().c_str(),
+                            condExpr->elseExpr()->type()->name().c_str());
                     }
                 }
             }
