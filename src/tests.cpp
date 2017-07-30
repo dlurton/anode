@@ -6,6 +6,7 @@
 #include "parse.h"
 #include "compile.h"
 
+
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
@@ -109,7 +110,6 @@ T test(std::string source) {
     return result;
 }
 
-
 TEST_CASE("basic bool expressions") {
     SECTION("literals") {
         REQUIRE(test<bool>("true;"));
@@ -141,6 +141,33 @@ TEST_CASE("basic integer expressions") {
         REQUIRE(test<int>("(1 + 2) * 3;") == 9);
         REQUIRE(test<int>("(5 + 10) / 3;") == 5);
     }
+}
+
+TEST_CASE("equality") {
+    //Boolean
+    REQUIRE(test<bool>("true == true;"));
+    REQUIRE(test<bool>("false == false;"));
+    REQUIRE(!test<bool>("false == true;"));
+    REQUIRE(!test<bool>("true == false;"));
+
+    //Integer
+    REQUIRE(test<bool>("1 == 1;"));
+    REQUIRE(!test<bool>("1 == 2;"));
+
+    //Float
+    REQUIRE(test<bool>("1.0 == 1.0;"));
+    REQUIRE(!test<bool>("1.0 == 2.0;"));
+
+    //Integer-float implict casts
+    REQUIRE(test<bool>("1 == 1.0;"));
+    REQUIRE(!test<bool>("1 == 2.0;"));
+    REQUIRE(test<bool>("1.0 == 1;"));
+    REQUIRE(!test<bool>("1.0 == 2;"));
+
+    //Integer-bool implict casts?
+
+    //Float-bool implict casts?
+
 }
 
 TEST_CASE("basic float expressions") {
@@ -191,10 +218,21 @@ TEST_CASE("conditional expressions operator") {
 }
 
 TEST_CASE("casting") {
+
     SECTION("implicit casts with literals") {
         //int to float
         REQUIRE(test<float>("1.0 + 1;") == 2.0);
         REQUIRE(test<float>("1 + 1.0;") == 2.0);
+    }
+
+    SECTION("implicit cast to bool type") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        REQUIRE(!test<bool>(ec, "foo:bool;"));
+        REQUIRE(!test<bool>(ec, "foo = 0;"));
+        REQUIRE(test<bool>(ec, "foo = 1;"));
+
+        REQUIRE(!test<bool>(ec, "foo = 0.0;"));
+        REQUIRE(test<bool>(ec, "foo = 1.0;"));
     }
 
     //TODO: implicit casts with variables?

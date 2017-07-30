@@ -16,6 +16,9 @@ expr
 //  |   op=('+'|'-') expr                                           # unaryExpr
     |   left=expr op=(OP_MUL|OP_DIV) right=expr                     # binaryExpr
     |   left=expr op=(OP_ADD|OP_SUB) right=expr                     # binaryExpr
+//    |   left=expr op=OP_AND right=expr                              # binaryExpr
+//    |   left=expr op=OP_OR right=expr                               # binaryExpr
+    |   left=expr op=OP_EQ right=expr                               # binaryExpr
     |   <assoc=right> left=expr op=OP_ASSIGN right=expr             # binaryExpr
 //  |   func=ID '(' expr ')'                                        # funcExpr
     |   value=LIT_INT                                               # literalInt32Expr
@@ -25,11 +28,6 @@ expr
     |   'cast' '<' type=ID '>' '(' expr ')'                         # castExpr
     |   '(?' cond=expr ',' truePart=expr ',' falsePart=expr ')'     # conditionalExpr
     ;
-
-//conditionalExpr
-//    : '?{' cond=expr ')' truePart=expr
-//    | 'if' '(' cond=expr ')' truePart=expr 'else' falsePart=expr
-//    ;
 
 
 litBool
@@ -41,6 +39,9 @@ OP_SUB: '-';
 OP_MUL: '*';
 OP_DIV: '/';
 OP_ASSIGN: '=';
+OP_EQ: '==';
+//OP_OR: '||';
+//OP_AND: '&&';
 
 KW_TRUE: 'true';
 KW_FALSE: 'false';

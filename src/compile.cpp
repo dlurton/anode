@@ -27,6 +27,12 @@
 
 using namespace lwnn::ast;
 
+/**
+ * The best way I have found to figure out what instructions to use with LLVM is to
+ * write some c++ that does the equivalent of what want to do and compile it here: http://ellcc.org/demo/index.cgi
+ * then examine the IR that's generated.
+ */
+
 namespace lwnn {
     namespace compile {
 
@@ -203,7 +209,7 @@ namespace lwnn {
                 llvm::Value *lValue = valueStack_.top();
                 valueStack_.pop();
 
-                llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->type());
+                llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->operandsType());
                 valueStack_.push(result);
             }
 
@@ -253,10 +259,22 @@ namespace lwnn {
                     //Note:  I think this will call rValue a second time if rValue is a call site.
                     return rValue;
                 }
-
                 switch (type->primitiveType()) {
+                    case type::PrimitiveType::Bool:
+                        switch(op) {
+                            case BinaryOperationKind::Eq:
+                                return irBuilder_.CreateICmpEQ(lValue, rValue);
+//                            case BinaryOperationKind::And:
+//                                return irBuilder_.CreateICmpEQ(lValue, rValue);
+//                            case BinaryOperationKind::Or:
+//                                return irBuilder_.CreateICmpEQ(lValue, rValue);
+                            default:
+                                ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type")
+                        }
                     case type::PrimitiveType::Int32:
                         switch (op) {
+                            case BinaryOperationKind::Eq:
+                                return irBuilder_.CreateICmpEQ(lValue, rValue);
                             case BinaryOperationKind::Add:
                                 return irBuilder_.CreateAdd(lValue, rValue);
                             case BinaryOperationKind::Sub:
@@ -270,6 +288,8 @@ namespace lwnn {
                         }
                     case type::PrimitiveType::Float:
                         switch (op) {
+                            case BinaryOperationKind::Eq:
+                                return irBuilder_.CreateFCmpOEQ(lValue, rValue);
                             case BinaryOperationKind::Add:
                                 return irBuilder_.CreateFAdd(lValue, rValue);
                             case BinaryOperationKind::Sub:

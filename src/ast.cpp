@@ -21,9 +21,26 @@ namespace lwnn {
         }
 
         bool isArithmeticOperation(BinaryOperationKind kind) {
-            return (int)kind > (int)BinaryOperationKind::ArithmeticBeginValue
-                   && (int)kind < (int)BinaryOperationKind::ArithmeticEndValue;
+            switch(kind) {
+                case BinaryOperationKind::Mul:
+                case BinaryOperationKind::Add:
+                case BinaryOperationKind::Sub:
+                case BinaryOperationKind::Div:
+                    return true;
+                default:
+                    return false;
+            }
         }
+
+//        bool isLogicalOperation(BinaryOperationKind kind) {
+//            switch(kind) {
+//                case BinaryOperationKind::Or:
+//                case BinaryOperationKind::And:
+//                    return true;
+//                default:
+//                    return false;
+//            }
+//        }
 
         std::string to_string(ExprKind kind) {
             switch (kind) {

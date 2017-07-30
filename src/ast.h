@@ -38,17 +38,18 @@ namespace lwnn {
 
         enum class BinaryOperationKind {
             Assign,
-            ArithmeticBeginValue,
             Add,
             Sub,
             Mul,
             Div,
-            ArithmeticEndValue,
+            Eq,
+//            And,
+//            Or
         };
         std::string to_string(BinaryOperationKind type);
 
         bool isArithmeticOperation(BinaryOperationKind kind);
-
+        bool isLogicalOperation(BinaryOperationKind kind);
 
         class AstNode;
         class Stmt;
@@ -362,8 +363,22 @@ namespace lwnn {
             source::SourceSpan operatorSpan() { return operatorSpan_; }
 
             ExprKind exprKind() const override { return ExprKind::BinaryExpr; }
-            /** The data type of an rValue expression is always the same as the rValue's data type. */
-            type::Type *type() const override { return rValue_->type(); }
+
+            /** This is the type of the result, which may be different than the type of the operands depending on the operation type,
+             * because some operation types (e.g. equality, logical and, or, etc) always yield boolean values.  */
+            type::Type *type() const override {
+                if(operation_ == BinaryOperationKind::Eq /*|| isLogicalOperation(operation_)*/) {
+                    return &type::Primitives::Bool;
+                }
+                return operandsType();
+            }
+
+            /** This is the type of the operands. */
+            type::Type *operandsType() const {
+                ASSERT(rValue_->type() == lValue_->type());
+                return rValue_->type();
+            }
+
             ExprStmt *lValue() const { return lValue_.get(); }
             ExprStmt *rValue() const { return rValue_.get(); }
 

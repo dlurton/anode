@@ -150,6 +150,7 @@ namespace lwnn {
                     case LwnnParser::OP_SUB:    opKind = BinaryOperationKind::Sub; break;
                     case LwnnParser::OP_MUL:    opKind = BinaryOperationKind::Mul; break;
                     case LwnnParser::OP_DIV:    opKind = BinaryOperationKind::Div; break;
+                    case LwnnParser::OP_EQ:     opKind = BinaryOperationKind::Eq; break;
                     default:
                         ASSERT_FAIL("Unhandled Token Type (Operators)");
                 }
