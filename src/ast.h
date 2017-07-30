@@ -96,7 +96,7 @@ namespace lwnn {
             virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
             virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-            virtual void visitingSelectExpr(SelectExpr *) { }
+            virtual bool visitingSelectExpr(SelectExpr *) { }
             virtual void visitedSelectExpr(SelectExpr *) { }
 
             virtual void visitingBinaryExpr(BinaryExpr *) { }
@@ -592,9 +592,9 @@ namespace lwnn {
                 }
             }
 
-            const ExprStmt *condition() const { return condition_.get(); }
-            const ExprStmt *truePart() const { return truePart_.get(); }
-            const ExprStmt *falsePart() const { return falsePart_.get(); }
+            ExprStmt *condition() const { return condition_.get(); }
+            ExprStmt *truePart() const { return truePart_.get(); }
+            ExprStmt *falsePart() const { return falsePart_.get(); }
 
             virtual bool canWrite() const override { return false; };
 
@@ -613,7 +613,7 @@ namespace lwnn {
 
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
-                visitor->visitingSelectExpr(this);
+                visitChildren = visitor->visitingSelectExpr(this) ? visitChildren : false;
 
                 if(visitChildren) {
                     condition_->accept(visitor);
@@ -703,6 +703,7 @@ namespace lwnn {
 
         /** Most visitors will inherit from this because it tracks symbol scopes through the AST.
          * Note that all overrides in inheritors should the member functions they are overriding so that the scope is properly tracked. */
+        // TODO:  move this class back to compile.cpp since it's not being used outside of there anymore
         class ScopeFollowingVisitor : public ast::AstVisitor {
             //We use this only as a stack but it has to be a deque so we can iterate over its contents.
             std::deque<scope::SymbolTable*> symbolTableStack_;

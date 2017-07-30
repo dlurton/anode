@@ -35,9 +35,48 @@ using namespace lwnn::ast;
 
 namespace lwnn {
     namespace compile {
-
         const int ALIGNMENT = 4;
 
+
+        class CompileContext {
+            llvm::LLVMContext &llvmContext_;
+            llvm::Module &llvmModule_;
+            llvm::IRBuilder<> &irBuilder_;
+            std::stack<scope::SymbolTable*> symbolTableStack_;
+        public:
+            CompileContext(llvm::LLVMContext &llvmContext,
+                           llvm::Module &llvmModule,
+                           llvm::IRBuilder<> &irBuilder_)
+                : llvmContext_(llvmContext), llvmModule_(llvmModule),
+                    irBuilder_(irBuilder_) { }
+
+            void pushScope(scope::SymbolTable *scope) {
+                ASSERT(scope);
+                symbolTableStack_.push(scope);
+            }
+
+            void popScope() {
+                ASSERT(symbolTableStack_.size() > 0);
+                symbolTableStack_.pop();
+            }
+
+            llvm::LLVMContext &llvmContext() { return llvmContext_; };
+            llvm::Module &llvmModule() { return llvmModule_; }
+            llvm::IRBuilder<> &irBuilder() { return irBuilder_; };
+        };
+
+        class CompileAstVisitor : public AstVisitor {
+            CompileContext cc_;
+        protected:
+            CompileContext &cc() { return cc_; }
+        public:
+            CompileAstVisitor(CompileContext &cc) : cc_(cc) {
+
+            }
+        };
+
+        llvm::Value *compileExpr(ExprStmt *exprStmt, CompileContext &);
+        llvm::Value *compileSelectExpr(SelectExpr *exprStmt, CompileContext &);
 
         llvm::Type *to_llvmType(type::PrimitiveType primitiveType, llvm::LLVMContext &llvmContext) {
             ASSERT(primitiveType != type::PrimitiveType::Void && "Expected a primitive data type here");
@@ -63,15 +102,11 @@ namespace lwnn {
             return to_llvmType(primitiveType, llvmContext);
         }
 
-        class ExprAstVisitor : public ScopeFollowingVisitor {
-            llvm::LLVMContext &llvmContext_;
-            llvm::IRBuilder<> irBuilder_;
-            llvm::Module &llvmModule_;
+        class ExprAstVisitor : public CompileAstVisitor {
             std::stack<llvm::Value *> valueStack_;
 
         public:
-            ExprAstVisitor(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> irBuilder)
-                : llvmContext_{llvmContext}, llvmModule_{llvmModule}, irBuilder_{irBuilder} { }
+            ExprAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
             bool hasValue() {
                 return valueStack_.size() > 0;
@@ -90,14 +125,14 @@ namespace lwnn {
                 ASSERT(expr->valueExpr()->type()->isPrimitive());
 
                 llvm::Value* castedValue = nullptr;
-                llvm::Type *destLlvmType = to_llvmType(expr->type(), llvmContext_);
+                llvm::Type *destLlvmType = to_llvmType(expr->type(), cc().llvmContext());
                 switch(expr->valueExpr()->type()->primitiveType()) {
                     //From int32
                     case type::PrimitiveType::Int32:
                         switch(expr->type()->primitiveType()) {
                             //To bool
                             case type::PrimitiveType::Bool: {
-                                castedValue = irBuilder_.CreateICmpNE(value, getDefaultValueForType(expr->valueExpr()->type()));
+                                castedValue = cc().irBuilder().CreateICmpNE(value, getDefaultValueForType(expr->valueExpr()->type()));
                                 break;
                             }
                             //To int
@@ -106,7 +141,7 @@ namespace lwnn {
                                 break;
                             //to float
                             case type::PrimitiveType::Float:
-                                castedValue = irBuilder_.CreateSIToFP(value, destLlvmType);
+                                castedValue = cc().irBuilder().CreateSIToFP(value, destLlvmType);
                                 break;
                             default:
                                 ASSERT_FAIL("Unknown cast from int32");
@@ -117,10 +152,10 @@ namespace lwnn {
                         switch(expr->type()->primitiveType()) {
                             //To to int32 or bool
                             case type::PrimitiveType::Bool:
-                                castedValue = irBuilder_.CreateFCmpUNE(value, getDefaultValueForType(expr->valueExpr()->type()));
+                                castedValue = cc().irBuilder().CreateFCmpUNE(value, getDefaultValueForType(expr->valueExpr()->type()));
                                 break;
                             case type::PrimitiveType::Int32:
-                                castedValue = irBuilder_.CreateFPToSI(value, destLlvmType);
+                                castedValue = cc().irBuilder().CreateFPToSI(value, destLlvmType);
                                 break;
                             case type::PrimitiveType::Float:
                                 castedValue = value;
@@ -157,11 +192,11 @@ namespace lwnn {
             }
 
             virtual void visitedVariableDeclExpr(VariableDeclExpr *expr) override {
-                llvm::Type *type = to_llvmType(expr->type(), llvmContext_);
+                llvm::Type *type = to_llvmType(expr->type(), cc().llvmContext());
 
                 //For now assume global variables.
                 //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
-                llvm::GlobalVariable *globalVariable = llvmModule_.getNamedGlobal(expr->name());
+                llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->name());
                 ASSERT(globalVariable);
                 globalVariable->setAlignment(ALIGNMENT);
                 globalVariable->setInitializer(getDefaultValueForType(expr->type()));
@@ -170,23 +205,23 @@ namespace lwnn {
             }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
-                valueStack_.push(llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, (uint64_t)expr->value(), true)));
+                valueStack_.push(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t)expr->value(), true)));
             }
 
             virtual void visitLiteralFloatExpr(LiteralFloatExpr *expr) override {
-                valueStack_.push(llvm::ConstantFP::get(llvmContext_, llvm::APFloat(expr->value())));
+                valueStack_.push(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr->value())));
             }
 
             virtual void visitLiteralBoolExpr(LiteralBoolExpr *expr) {
-                valueStack_.push(llvm::ConstantInt::get(llvmContext_, llvm::APInt(1, (uint64_t)expr->value(), true)));
+                valueStack_.push(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t)expr->value(), true)));
             }
 
             virtual void visitVariableRefExpr(VariableRefExpr *expr) override {
                 //We are assuming global variables for now
                 //llvm::Value *allocaInst = lookupVariable(expr->name());
 
-                llvm::Type *type = to_llvmType(expr->type(), llvmContext_);
-                llvm::GlobalVariable *globalVar = llvmModule_.getNamedGlobal(expr->name());
+                llvm::Type *type = to_llvmType(expr->type(), cc().llvmContext());
+                llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(expr->name());
                 ASSERT(globalVar);
 
                 if(expr->variableAccess() == VariableAccess::Write) {
@@ -194,7 +229,7 @@ namespace lwnn {
                     return;
                 }
 
-                llvm::LoadInst *loadInst = irBuilder_.CreateLoad(globalVar);
+                llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(globalVar);
                 loadInst->setAlignment(ALIGNMENT);
                 valueStack_.push(loadInst);
 
@@ -213,17 +248,10 @@ namespace lwnn {
                 valueStack_.push(result);
             }
 
-            virtual void visitedSelectExpr(SelectExpr *) override {
-                llvm::Value *falseValue = valueStack_.top();
-                valueStack_.pop();
-
-                llvm::Value *trueValue = valueStack_.top();
-                valueStack_.pop();
-
-                llvm::Value *condValue = valueStack_.top();
-                valueStack_.pop();
-
-                valueStack_.push(irBuilder_.CreateSelect(condValue, trueValue, falseValue));
+            virtual bool visitingSelectExpr(SelectExpr *expr) override {
+                llvm::Value *value = compileSelectExpr(expr, cc());
+                valueStack_.push(value);
+                return false;
             }
 
         private:
@@ -237,14 +265,14 @@ namespace lwnn {
                 ASSERT(primitiveType != type::PrimitiveType::Void);
                 switch(primitiveType) {
                     case type::PrimitiveType::Bool:
-                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(1, 0, false));
+                        return llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, 0, false));
                     case type::PrimitiveType::Int32:
-                        return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
+                        return llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, 0, true));
                     case type::PrimitiveType::Float:
                         //APFloat has different constructors depending on if you want a float or a double...
-                        return llvm::ConstantFP::get(llvmContext_, llvm::APFloat((float)0.0));
+                        return llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat((float)0.0));
                     case type::PrimitiveType::Double:
-                        return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(0.0));
+                        return llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(0.0));
                     default:
                         ASSERT_FAIL("Unhandled PrimitiveType");
                 }
@@ -255,7 +283,7 @@ namespace lwnn {
                 ASSERT(type->isPrimitive() && "Only primitive types currently supported here");
 
                 if(op == BinaryOperationKind::Assign) {
-                    irBuilder_.CreateStore(rValue, lValue); //(args swapped on purpose)
+                    cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
                     //Note:  I think this will call rValue a second time if rValue is a call site.
                     return rValue;
                 }
@@ -263,7 +291,7 @@ namespace lwnn {
                     case type::PrimitiveType::Bool:
                         switch(op) {
                             case BinaryOperationKind::Eq:
-                                return irBuilder_.CreateICmpEQ(lValue, rValue);
+                                return cc().irBuilder().CreateICmpEQ(lValue, rValue);
 //                            case BinaryOperationKind::And:
 //                                return irBuilder_.CreateICmpEQ(lValue, rValue);
 //                            case BinaryOperationKind::Or:
@@ -274,30 +302,30 @@ namespace lwnn {
                     case type::PrimitiveType::Int32:
                         switch (op) {
                             case BinaryOperationKind::Eq:
-                                return irBuilder_.CreateICmpEQ(lValue, rValue);
+                                return cc().irBuilder().CreateICmpEQ(lValue, rValue);
                             case BinaryOperationKind::Add:
-                                return irBuilder_.CreateAdd(lValue, rValue);
+                                return cc().irBuilder().CreateAdd(lValue, rValue);
                             case BinaryOperationKind::Sub:
-                                return irBuilder_.CreateSub(lValue, rValue);
+                                return cc().irBuilder().CreateSub(lValue, rValue);
                             case BinaryOperationKind::Mul:
-                                return irBuilder_.CreateMul(lValue, rValue);
+                                return cc().irBuilder().CreateMul(lValue, rValue);
                             case BinaryOperationKind::Div:
-                                return irBuilder_.CreateSDiv(lValue, rValue);
+                                return cc().irBuilder().CreateSDiv(lValue, rValue);
                             default:
                                 ASSERT_FAIL("Unhandled BinaryOperationKind");
                         }
                     case type::PrimitiveType::Float:
                         switch (op) {
                             case BinaryOperationKind::Eq:
-                                return irBuilder_.CreateFCmpOEQ(lValue, rValue);
+                                return cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
                             case BinaryOperationKind::Add:
-                                return irBuilder_.CreateFAdd(lValue, rValue);
+                                return cc().irBuilder().CreateFAdd(lValue, rValue);
                             case BinaryOperationKind::Sub:
-                                return irBuilder_.CreateFSub(lValue, rValue);
+                                return cc().irBuilder().CreateFSub(lValue, rValue);
                             case BinaryOperationKind::Mul:
-                                return irBuilder_.CreateFMul(lValue, rValue);
+                                return cc().irBuilder().CreateFMul(lValue, rValue);
                             case BinaryOperationKind::Div:
-                                return irBuilder_.CreateFDiv(lValue, rValue);
+                                return cc().irBuilder().CreateFDiv(lValue, rValue);
                             default:
                                 ASSERT_FAIL("Unhandled BinaryOperationKind");
                         }
@@ -307,60 +335,64 @@ namespace lwnn {
             }
         };
 
+        llvm::Value *compileExpr(ExprStmt *exprStmt, CompileContext &cc) {
+            ExprAstVisitor visitor{cc};
+            exprStmt->accept(&visitor);
 
-        class ModuleAstVisitor : public ScopeFollowingVisitor {
-            llvm::LLVMContext &llvmContext_;
+            return visitor.hasValue() ? visitor.getValue() : nullptr;
+        }
+
+        llvm::Value *compileSelectExpr(SelectExpr *selectExpr, CompileContext &cc) {
+            llvm::Value *condValue = compileExpr(selectExpr->condition(), cc);
+            llvm::Value *trueValue = compileExpr(selectExpr->truePart(), cc);
+            llvm::Value *falseValue = compileExpr(selectExpr->falsePart(), cc);
+
+            return cc.irBuilder().CreateSelect(condValue, trueValue, falseValue);
+        }
+
+        class ModuleAstVisitor : public CompileAstVisitor {
             llvm::TargetMachine &targetMachine_;
-            llvm::IRBuilder<> irBuilder_;
-            std::unique_ptr<llvm::Module> llvmModule_;
+
             llvm::Function *initFunc_;
             int resultExprStmtCount_ = 0;
             llvm::Function *resultFunc_;
             llvm::Value *executionContextPtrValue_;
         public:
-            ModuleAstVisitor(llvm::LLVMContext &llvmContext, llvm::TargetMachine &targetMachine)
-                : llvmContext_(llvmContext),
-                  targetMachine_(targetMachine),
-                  irBuilder_(llvmContext) { }
-
-            std::unique_ptr<llvm::Module> surrenderModule() {
-                return std::move(llvmModule_);
-            }
+            ModuleAstVisitor(CompileContext &cc, llvm::TargetMachine &targetMachine)
+                : CompileAstVisitor{cc},
+                  targetMachine_{targetMachine} { }
 
             virtual bool visitingExprStmt(ExprStmt *expr) override {
-                ScopeFollowingVisitor::visitingExprStmt(expr);
-                ExprAstVisitor visitor{llvmContext_, *llvmModule_, irBuilder_};
-                expr->accept(&visitor);
-
-                if(visitor.hasValue()) {
+                //opeFollowingVisitor::visitingExprStmt(expr);
+                llvm::Value *llvmValue = compileExpr(expr, cc());
+                if(llvmValue) {
                     resultExprStmtCount_++;
                     std::string variableName = string::format("result_%d", resultExprStmtCount_);
-                    llvm::AllocaInst *resultVar = irBuilder_.CreateAlloca(visitor.getValue()->getType(), nullptr, variableName);
+                    llvm::AllocaInst *resultVar = cc().irBuilder().CreateAlloca(llvmValue->getType(), nullptr, variableName);
 
-                    irBuilder_.CreateStore(visitor.getValue(), resultVar);
+                    cc().irBuilder().CreateStore(llvmValue, resultVar);
 
                     std::string bitcastVariableName = string::format("bitcasted_%d", resultExprStmtCount_);
-                    auto bitcasted = irBuilder_.CreateBitCast(resultVar, llvm::Type::getInt64PtrTy(llvmContext_));
+                    auto bitcasted = cc().irBuilder().CreateBitCast(resultVar, llvm::Type::getInt64PtrTy(cc().llvmContext()));
 //
                     std::vector<llvm::Value*> args {
                         //ExecutionContext pointer
                         executionContextPtrValue_,
                         //PrimitiveType,
-                        llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, (uint64_t)expr->type()->primitiveType(), true)),
+                        llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t)expr->type()->primitiveType(), true)),
                         //Pointer to value.
                         bitcasted
                     };
-                    auto call = irBuilder_.CreateCall(resultFunc_, args);
+                    auto call = cc().irBuilder().CreateCall(resultFunc_, args);
                 }
 
                 return false;
             }
 
             virtual void visitingModule(Module *module) override {
-                ScopeFollowingVisitor::visitingModule(module);
+                //ScopeFollowingVisitor::visitingModule(module);
 
-                llvmModule_ = llvm::make_unique<llvm::Module>(module->name(), llvmContext_);
-                llvmModule_->setDataLayout(targetMachine_.createDataLayout());
+                cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
                 declareResultFunction();
 
@@ -373,40 +405,40 @@ namespace lwnn {
                 //have VariableDeclExprs for the imported global variables.
                 std::vector<scope::Symbol*> globals = module->scope()->symbols();
                 for(scope::Symbol *symbol : globals) {
-                    llvmModule_->getOrInsertGlobal(symbol->name(), to_llvmType(symbol->type(), llvmContext_));
-                    llvm::GlobalVariable *globalVar = llvmModule_->getNamedGlobal(symbol->name());
+                    cc().llvmModule().getOrInsertGlobal(symbol->name(), to_llvmType(symbol->type(), cc().llvmContext()));
+                    llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol->name());
                     globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
                     globalVar->setAlignment(ALIGNMENT);
                 }
             }
 
             virtual void visitedModule(Module *module) override {
-                irBuilder_.CreateRetVoid();
+                cc().irBuilder().CreateRetVoid();
                 llvm::raw_ostream &os = llvm::errs();
-                if(llvm::verifyModule(*llvmModule_.get(), &os)) {
+                if(llvm::verifyModule(cc().llvmModule(), &os)) {
                     ASSERT_FAIL();
                }
             }
 
         private:
             void startModuleInitFunc(const Module *module) {
-                auto initFuncRetType = llvm::Type::getVoidTy(llvmContext_);
+                auto initFuncRetType = llvm::Type::getVoidTy(cc().llvmContext());
                 initFunc_ = llvm::cast<llvm::Function>(
-                    llvmModule_->getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
+                    cc().llvmModule().getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
 
                 initFunc_->setCallingConv(llvm::CallingConv::C);
-                auto initFuncBlock = llvm::BasicBlock::Create(llvmContext_, "begin", initFunc_);
+                auto initFuncBlock = llvm::BasicBlock::Create(cc().llvmContext(), "begin", initFunc_);
 
-                irBuilder_.SetInsertPoint(initFuncBlock);
+                cc().irBuilder().SetInsertPoint(initFuncBlock);
             }
 
             void declareResultFunction() {
-                resultFunc_ = llvm::cast<llvm::Function>(llvmModule_->getOrInsertFunction(
+                resultFunc_ = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
                     RECEIVE_RESULT_FUNC_NAME,
-                    llvm::Type::getVoidTy(llvmContext_),        //Return type
-                    llvm::Type::getInt64PtrTy(llvmContext_),    //Pointer to ExecutionContext
-                    llvm::Type::getInt32Ty(llvmContext_),       //type::PrimitiveType
-                    llvm::Type::getInt64PtrTy(llvmContext_)));  //Pointer to value
+                    llvm::Type::getVoidTy(cc().llvmContext()),        //Return type
+                    llvm::Type::getInt64PtrTy(cc().llvmContext()),    //Pointer to ExecutionContext
+                    llvm::Type::getInt32Ty(cc().llvmContext()),       //type::PrimitiveType
+                    llvm::Type::getInt64PtrTy(cc().llvmContext())));  //Pointer to value
 
 
                 auto paramItr = resultFunc_->arg_begin();
@@ -422,8 +454,8 @@ namespace lwnn {
 
 
             void declareExecutionContextGlobal() {
-                llvmModule_->getOrInsertGlobal(EXECUTION_CONTEXT_GLOBAL_NAME, llvm::Type::getInt64Ty(llvmContext_));
-                llvm::GlobalVariable *globalVar = llvmModule_->getNamedGlobal(EXECUTION_CONTEXT_GLOBAL_NAME);
+                cc().llvmModule().getOrInsertGlobal(EXECUTION_CONTEXT_GLOBAL_NAME, llvm::Type::getInt64Ty(cc().llvmContext()));
+                llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(EXECUTION_CONTEXT_GLOBAL_NAME);
                 globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
                 globalVar->setAlignment(ALIGNMENT);
 
@@ -432,10 +464,15 @@ namespace lwnn {
 
         };
 
-        std::unique_ptr<llvm::Module> generateCode(Module *module, llvm::LLVMContext &context, llvm::TargetMachine *targetMachine) {
-            ModuleAstVisitor visitor{context, *targetMachine};
+        std::unique_ptr<llvm::Module> compileModule(Module *module, llvm::LLVMContext &llvmContext, llvm::TargetMachine *targetMachine) {
+            std::unique_ptr<llvm::Module> llvmModule = std::make_unique<llvm::Module>(module->name(), llvmContext);
+            llvm::IRBuilder<> irBuilder{llvmContext};
+            
+            CompileContext cc{llvmContext, *llvmModule.get(), irBuilder};
+            ModuleAstVisitor visitor{cc, *targetMachine};
+
             module->accept(&visitor);
-            return visitor.surrenderModule();
+            return std::move(llvmModule);
         }
 
     } //namespace compile

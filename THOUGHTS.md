@@ -1,15 +1,18 @@
-TODO:
 
-    variable = select(condition, someValue, anotherValue);
-    variable = ?[condition; someValue; anotherValue];
-    variable = ?[condition > thatsReallyReallyLong || evenLonger 
-               someValue; 
-               anotherValue];
+Rename BinaryOperationKind to ArithmeticOperationKind
+    Remove non arithmatic operations
+Create LogicOperationKind { And, Or, etc. }
 
-
-    variable = ?{condition; someValue; anotherValue};
-        
-        
+Refactor thusly:
+    Make BinaryExpr abstract
+    Add the following classes which inherit from BinaryExpr:
+        AssignExpr (assignment)
+        ArithmeticExpr (addition, subtraction, bitwise operations, etc)
+        EqExpr (only for equality)
+        For later: LogicalExpr (and, or, etc)
+    
+    
+    
     
     
  - See if it's possible to reduce size of LLVM shared libraries and lwnn executables... (llvm is almost a gig!)

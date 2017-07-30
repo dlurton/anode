@@ -303,7 +303,7 @@ namespace lwnn {
             virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) override {
                 ASSERT(module);
 
-                std::unique_ptr<llvm::Module> llvmModule = compile::generateCode(module.get(), context_, jit_->getTargetMachine());
+                std::unique_ptr<llvm::Module> llvmModule = compile::compileModule(module.get(), context_, jit_->getTargetMachine());
 
                 if(dumpIROnModuleLoad_) {
                     llvm::outs() << "LLVM IR:\n";
