@@ -35,7 +35,8 @@ and up-to-date picture of supported syntax and features, however, here's a short
         ```
       The the fractional portion of `someFloatValue` is truncated and `someIntValue` becomes `3`.
  - Ternary expressions: `(? condition, trueValue, falseValue )`
-    - When `condition` evaluates to true, `trueValue` is returned otherwise `falseValue` is returned.
+    - When `condition` evaluates to true, `trueValue` is evaluated otherwise `falseValue` is evaluated.
+    - This is short circuiting!
 
 ## Building
 
