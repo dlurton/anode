@@ -342,6 +342,7 @@ namespace lwnn {
             return visitor.hasValue() ? visitor.getValue() : nullptr;
         }
 
+
         llvm::Value *compileIfExpr(IfExpr *selectExpr, CompileContext &cc) {
             //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
 
@@ -366,7 +367,7 @@ namespace lwnn {
             //Emit the endBlock, skipping the elseBlock
             cc.irBuilder().CreateBr(endBlock);
 
-            //Compile the elseBlock
+            //Emit the elseBlock
             currentFunc->getBasicBlockList().push_back(elseBlock);
             cc.irBuilder().SetInsertPoint(elseBlock);
             llvm::Value *elseValue = compileExpr(selectExpr->elseExpr(), cc);
@@ -381,7 +382,6 @@ namespace lwnn {
             phi->addIncoming(elseValue, elseBlock);
 
             return phi;
-            //return cc.irBuilder().CreateSelect(condValue, thenValue, elseValue);
         }
 
         class ModuleAstVisitor : public CompileAstVisitor {

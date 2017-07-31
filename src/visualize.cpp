@@ -15,14 +15,14 @@ namespace lwnn {
         public:
             PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-            virtual void visitingCompoundStmt(CompoundStmt *expr) override {
+            virtual void visitingCompoundStmt(CompoundExpr *expr) override {
                 writer_.write("Block: ");
                 writeScopeVariables(expr->scope());
                 writer_.writeln();
                 writer_.incIndent();
             }
 
-            virtual void visitedCompoundStmt(CompoundStmt *expr) override {
+            virtual void visitedCompoundStmt(CompoundExpr *expr) override {
                 writer_.decIndent();
             }
 

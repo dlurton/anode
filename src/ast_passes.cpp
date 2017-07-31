@@ -13,7 +13,7 @@ namespace lwnn {
                 funcDeclStmt->parameterScope()->setParent(topScope());
             }
 
-            virtual void visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
+            virtual void visitingCompoundStmt(ast::CompoundExpr *compoundStmt) override {
                 ast::ScopeFollowingVisitor::visitingCompoundStmt(compoundStmt);
                 compoundStmt->scope()->setParent(topScope());
             }

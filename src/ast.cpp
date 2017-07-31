@@ -73,6 +73,8 @@ namespace lwnn {
                     return "*";
                 case BinaryOperationKind::Div:
                     return "/";
+                case BinaryOperationKind::Eq:
+                    return "==";
                 default:
                     ASSERT_FAIL("Unhandled BinaryOperationKind");
             }

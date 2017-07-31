@@ -190,7 +190,7 @@ namespace lwnn {
             }
         };
 
-        class StatementListener : public LwnnBaseListenerHelper<ast::Stmt> {
+        class StatementListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
         public:
 
             virtual void enterStatement(LwnnParser::StatementContext *ctx) override {
@@ -210,12 +210,14 @@ namespace lwnn {
 
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
                 std::vector<LwnnParser::StatementContext*> statements = ctx->statement();
-                auto module = std::make_unique<ast::Module>(getSourceSpan(ctx), moduleName_);;
+                auto compoundExprUnique = std::make_unique<ast::CompoundExpr>(getSourceSpan(ctx));
+                ast::CompoundExpr *compoundExpr = compoundExprUnique.get();
+                auto module = std::make_unique<ast::Module>( moduleName_, std::move(compoundExprUnique));;
                 for (LwnnParser::StatementContext *stmt: statements) {
                     StatementListener listener;
                     stmt->enterRule(&listener);
                     if(!listener.hasResult()) return;
-                    module->addStatement(listener.surrenderResult());
+                    compoundExpr->addStatement(listener.surrenderResult());
                 }
                 setResult(std::move(module));
             }

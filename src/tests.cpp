@@ -6,9 +6,10 @@
 #include "parse.h"
 #include "compile.h"
 
-
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
+
+#include <chrono>
 
 using namespace lwnn;
 
@@ -51,6 +52,8 @@ struct StmtResult {
 
 std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
     std::cout << "Executing:  " << source << "\n";
+    auto testStartTime = std::chrono::high_resolution_clock::now();
+
     std::string module_name = string::format("test_%d", ++testCount);
 
     std::unique_ptr<ast::Module> module = parse::parseModule(source, module_name);
@@ -91,8 +94,15 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
         });
 
     executionContext->executeModule(std::move(module));
+    auto elapsed = std::chrono::high_resolution_clock::now() - testStartTime;
+    long long microseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+    std::cout << microseconds << "ms\n";
 
     return results;
+}
+
+void exec(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
+    testWithResults(executionContext, source);
 }
 
 /** This variant expects there to be only one result */
@@ -194,7 +204,7 @@ TEST_CASE("basic float expressions") {
     }
 }
 
-TEST_CASE("conditional expressions operator") {
+TEST_CASE("conditional expressions") {
     REQUIRE(test<int>("(? true, 1, 2);") == 1);
     REQUIRE(test<int>("(? false, 1, 2);") == 2);
 
@@ -216,6 +226,31 @@ TEST_CASE("conditional expressions operator") {
     REQUIRE(test<int>(ec, "foo;") == 2);
     REQUIRE(test<int>(ec, "foo = (? 0, 2, 3);") == 3);
 }
+
+TEST_CASE("Nested conditional expressions") {
+    //std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    REQUIRE(test<int>("(? true, (? true, 1, 2), 3);") == 1);
+    REQUIRE(test<int>("(? true, (? false, 1, 2), 3);") == 2);
+    REQUIRE(test<int>("(? false, (? true, 1, 2), 3);") == 3);
+
+    REQUIRE(test<int>("(? true, 1, (? true, 2, 3));") == 1);
+    REQUIRE(test<int>("(? false, 1, (? true, 2, 3));") == 2);
+    REQUIRE(test<int>("(? false, 1, (? false, 2, 3));") == 3);
+}
+
+TEST_CASE("Nested conditional expressions with variables") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "one:int = 1; two:int = 2; three:int = 3; t:bool = true; f:bool = false;");
+
+    REQUIRE(test<int>(ec, "(? t, (? t, one, two), three);") == 1);
+    REQUIRE(test<int>(ec, "(? t, (? f, one, two), three);") == 2);
+    REQUIRE(test<int>(ec, "(? f, (? t, one, two), three);") == 3);
+
+    REQUIRE(test<int>(ec, "(? t, one, (? t, two, three));") == 1);
+    REQUIRE(test<int>(ec, "(? f, one, (? t, two, three));") == 2);
+    REQUIRE(test<int>(ec, "(? f, one, (? f, two, three));") == 3);
+}
+
 
 TEST_CASE("casting") {
 
