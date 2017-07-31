@@ -6,8 +6,10 @@
 #include <vector>
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wall"
+#pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Mangler.h"

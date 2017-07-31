@@ -15,14 +15,15 @@ namespace lwnn {
         public:
             PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-            virtual void visitingCompoundStmt(CompoundExpr *expr) override {
-                writer_.write("Block: ");
+            virtual bool visitingCompoundExpr(CompoundExpr *expr) override {
+                writer_.write("CompoundExpr: ");
                 writeScopeVariables(expr->scope());
                 writer_.writeln();
                 writer_.incIndent();
+                return true;
             }
 
-            virtual void visitedCompoundStmt(CompoundExpr *expr) override {
+            virtual void visitedCompoundExpr(CompoundExpr *) override {
                 writer_.decIndent();
             }
 
@@ -55,8 +56,12 @@ namespace lwnn {
                 writer_.incIndent();
             }
 
-            virtual void visitedBinaryExpr(BinaryExpr *expr) override {
+            virtual void visitedBinaryExpr(BinaryExpr *) override {
                 writer_.decIndent();
+            }
+
+            virtual void visitLiteralBoolExpr(LiteralBoolExpr *expr) override {
+                writer_.writeln("LiteralBoolExpr: %s", expr->value() ? "true" : "false");
             }
 
             virtual void visitLiteralInt32Expr(LiteralInt32Expr *expr) override {
@@ -98,7 +103,7 @@ namespace lwnn {
 
                 writer_.incIndent();
             }
-            virtual void visitedCastExpr(CastExpr *pExpr) override {
+            virtual void visitedCastExpr(CastExpr *) override {
                 writer_.decIndent();
             }
 
@@ -116,13 +121,15 @@ namespace lwnn {
                 writer_.incIndent();
             }
 
-            virtual void visitedFuncDeclStmt(FuncDeclStmt *func) override {
+            virtual void visitedFuncDeclStmt(FuncDeclStmt *) override {
                 writer_.decIndent();
             }
 
-            virtual void visitingModule(Module *module) override {
+            virtual bool visitingModule(Module *module) override {
                 writer_.writeln("Module: " + module->name());
                 writer_.incIndent();
+
+                return true;
             }
         };
 

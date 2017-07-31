@@ -3,7 +3,9 @@ set(CMAKE_CXX_STANDARD 14)
 set(EXTERNS_DIR "${CMAKE_SOURCE_DIR}/externs")
 set(LINK_LLVM_DYLIB yes)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3")
+# NOTE:  I would also like to enable -Wpedantic here but some warnings come out of ANTLR4s generated header files
+# and it seems the "#pragma GCC diagnostic ignored \"-Wpedantic\"" does't work for pedantic warnings.  (Grrr...)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3 -Wall -Werror -Wextra")
 
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 #set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -27,9 +29,7 @@ set(GENERATED_SOURCE_FILES
 
 foreach( src_file ${GENERATED_SOURCE_FILES} )
     set_source_files_properties(${src_file} PROPERTIES GENERATED TRUE)
-    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS -Wno-overloaded-virtual)
-    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS -Wno-attributes)
-
+    set_source_files_properties(${src_file} PROPERTIES COMPILE_FLAGS "-w")
 endforeach(src_file ${GENERATED_SOURCE_FILES})
 
 add_custom_command(

@@ -4,8 +4,10 @@
 #include "ast.h"
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wall"
+#pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Mangler.h"
@@ -16,7 +18,6 @@
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
@@ -112,7 +113,7 @@ namespace lwnn {
                 return valueStack_.size() > 0;
             }
 
-            llvm::Value *getValue() {
+            llvm::Value *llvmValue() {
                 ASSERT(valueStack_.size() == 1);
                 return valueStack_.top();
             }
@@ -192,8 +193,6 @@ namespace lwnn {
             }
 
             virtual void visitedVariableDeclExpr(VariableDeclExpr *expr) override {
-                llvm::Type *type = to_llvmType(expr->type(), cc().llvmContext());
-
                 //For now assume global variables.
                 //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
                 llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->name());
@@ -220,7 +219,6 @@ namespace lwnn {
                 //We are assuming global variables for now
                 //llvm::Value *allocaInst = lookupVariable(expr->name());
 
-                llvm::Type *type = to_llvmType(expr->type(), cc().llvmContext());
                 llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(expr->name());
                 ASSERT(globalVar);
 
@@ -251,6 +249,21 @@ namespace lwnn {
             virtual bool visitingIfExpr(IfExpr *expr) override {
                 llvm::Value *value = compileIfExpr(expr, cc());
                 valueStack_.push(value);
+                return false;
+            }
+
+
+            virtual bool visitingCompoundExpr(CompoundExpr *expr) override {
+
+                llvm::Value *lastValue = nullptr;
+                for(ast::ExprStmt *expr : expr->statements()) {
+                    ExprAstVisitor exprAstVisitor{cc()};
+                    expr->accept(&exprAstVisitor);
+                    ASSERT(exprAstVisitor.hasValue());
+                    lastValue = exprAstVisitor.llvmValue();
+                }
+                valueStack_.push(lastValue);
+
                 return false;
             }
 
@@ -339,9 +352,8 @@ namespace lwnn {
             ExprAstVisitor visitor{cc};
             exprStmt->accept(&visitor);
 
-            return visitor.hasValue() ? visitor.getValue() : nullptr;
+            return visitor.hasValue() ? visitor.llvmValue() : nullptr;
         }
-
 
         llvm::Value *compileIfExpr(IfExpr *selectExpr, CompileContext &cc) {
             //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
@@ -383,7 +395,6 @@ namespace lwnn {
 
             return phi;
         }
-
         class ModuleAstVisitor : public CompileAstVisitor {
             llvm::TargetMachine &targetMachine_;
 
@@ -391,12 +402,16 @@ namespace lwnn {
             int resultExprStmtCount_ = 0;
             llvm::Function *resultFunc_;
             llvm::Value *executionContextPtrValue_;
+
+            ast::CompoundExpr *rootCompoundExpr_ = nullptr;
         public:
             ModuleAstVisitor(CompileContext &cc, llvm::TargetMachine &targetMachine)
                 : CompileAstVisitor{cc},
                   targetMachine_{targetMachine} { }
 
             virtual bool visitingExprStmt(ExprStmt *expr) override {
+                if(rootCompoundExpr_ == expr) return true;
+
                 //opeFollowingVisitor::visitingExprStmt(expr);
                 llvm::Value *llvmValue = compileExpr(expr, cc());
                 if(llvmValue) {
@@ -417,15 +432,14 @@ namespace lwnn {
                         //Pointer to value.
                         bitcasted
                     };
-                    auto call = cc().irBuilder().CreateCall(resultFunc_, args);
+                    cc().irBuilder().CreateCall(resultFunc_, args);
                 }
 
                 return false;
             }
 
-            virtual void visitingModule(Module *module) override {
-                //ScopeFollowingVisitor::visitingModule(module);
-
+            virtual bool visitingModule(Module *module) override {
+                rootCompoundExpr_ = module->body();
                 cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
                 declareResultFunction();
@@ -444,9 +458,11 @@ namespace lwnn {
                     globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
                     globalVar->setAlignment(ALIGNMENT);
                 }
+
+                return true;
             }
 
-            virtual void visitedModule(Module *module) override {
+            virtual void visitedModule(Module *) override {
                 cc().irBuilder().CreateRetVoid();
                 llvm::raw_ostream &os = llvm::errs();
                 if(llvm::verifyModule(cc().llvmModule(), &os)) {
@@ -495,7 +511,6 @@ namespace lwnn {
 
                 executionContextPtrValue_ = globalVar;
             }
-
         };
 
         std::unique_ptr<llvm::Module> compileModule(Module *module, llvm::LLVMContext &llvmContext, llvm::TargetMachine *targetMachine) {

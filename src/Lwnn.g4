@@ -11,24 +11,26 @@ statement
     ;
 
 expr
-    :   name=ID ':' type=ID                                         # varDeclExpr
-    |   '(' expr ')'                                                # parensExpr
-//  |   op=('+'|'-') expr                                           # unaryExpr
-    |   left=expr op=(OP_MUL|OP_DIV) right=expr                     # binaryExpr
-    |   left=expr op=(OP_ADD|OP_SUB) right=expr                     # binaryExpr
-//    |   left=expr op=OP_AND right=expr                              # binaryExpr
-//    |   left=expr op=OP_OR right=expr                               # binaryExpr
-    |   left=expr op=OP_EQ right=expr                               # binaryExpr
-    |   <assoc=right> left=expr op=OP_ASSIGN right=expr             # binaryExpr
-//  |   func=ID '(' expr ')'                                        # funcExpr
-    |   value=LIT_INT                                               # literalInt32Expr
-    |   value=LIT_FLOAT                                             # literalFloatExpr
-    |   value=litBool                                               # literalBool
-    |   var=ID                                                      # variableRefExpr
-    |   'cast' '<' type=ID '>' '(' expr ')'                         # castExpr
-    |   '(?' cond=expr ',' truePart=expr ',' falsePart=expr ')'     # conditionalExpr
+    :   name=ID ':' type=ID                                             # varDeclExpr
+    |   '(' expr ')'                                                    # parensExpr
+//  |   op=('+'|'-') expr                                               # unaryExpr
+    |   left=expr op=(OP_MUL|OP_DIV) right=expr                         # binaryExpr
+    |   left=expr op=(OP_ADD|OP_SUB) right=expr                         # binaryExpr
+//    |   left=expr op=OP_AND right=expr                                # binaryExpr
+//    |   left=expr op=OP_OR right=expr                                 # binaryExpr
+    |   left=expr op=OP_EQ right=expr                                   # binaryExpr
+    |   <assoc=right> left=expr op=OP_ASSIGN right=expr                 # binaryExpr
+//  |   func=ID '(' expr ')'                                            # funcExpr
+    |   value=LIT_INT                                                   # literalInt32Expr
+    |   value=LIT_FLOAT                                                 # literalFloatExpr
+    |   value=litBool                                                   # literalBool
+    |   var=ID                                                          # variableRefExpr
+    |   'cast' '<' type=ID '>' '(' expr ')'                             # castExpr
+    |   '(?' cond=expr ',' thenExpr=expr ',' elseExpr=expr ')'          # conditionalExpr
+    |   'if' cond=expr thenExpr=expr                                    # conditionalExpr
+    |   'if' cond=expr thenExpr=expr 'else' elseExpr=expr               # conditionalExpr
+    |   '{' (exprs=expr ';')* '}'                                       # compoundExpr
     ;
-
 
 litBool
     : KW_TRUE

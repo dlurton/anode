@@ -7,8 +7,6 @@ namespace lwnn {
 
         std::string to_string(StmtKind kind) {
             switch (kind) {
-                case StmtKind::CompoundStmt:
-                    return "CompoundStmt";
                 case StmtKind::FunctionDeclStmt:
                     return "FunctionDeclStmt";
                 case StmtKind::ReturnStmt:
@@ -44,6 +42,8 @@ namespace lwnn {
 
         std::string to_string(ExprKind kind) {
             switch (kind) {
+                case ExprKind::CompoundExpr:
+                    return "CompoundExpr";
                 case ExprKind::VariableDeclExpr:
                     return "VariableDeclExpr";
                 case ExprKind::LiteralInt32Expr:

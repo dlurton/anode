@@ -50,7 +50,7 @@ namespace lwnn {
             void writeln( const std::string& format, Args ... args ) {
                 write(format, args ...);
                 write('\n');
-            };
+            }
 
 
             void incIndent() { indent_++; }

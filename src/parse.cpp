@@ -176,11 +176,11 @@ namespace lwnn {
                 if(!condListener.hasResult()) return;
 
                 ExprListener truePartListener;
-                ctx->truePart->enterRule(&truePartListener);
+                ctx->thenExpr->enterRule(&truePartListener);
                 if(!truePartListener.hasResult()) return;
 
                 ExprListener falsePartListener;
-                ctx->falsePart->enterRule(&falsePartListener);
+                ctx->elseExpr->enterRule(&falsePartListener);
                 if(!truePartListener.hasResult()) return;
 
                 setResult(std::make_unique<IfExpr>(getSourceSpan(ctx),
@@ -188,13 +188,25 @@ namespace lwnn {
                     truePartListener.surrenderResult(),
                     falsePartListener.surrenderResult()));
             }
+
+            virtual void enterCompoundExpr(LwnnParser::CompoundExprContext * ctx) override {
+                std::vector<LwnnParser::ExprContext*> expressions = ctx->expr();
+                auto compoundExpr = std::make_unique<ast::CompoundExpr>(getSourceSpan(ctx));
+                for (LwnnParser::ExprContext *expr : expressions) {
+                    ExprListener listener;
+                    expr->enterRule(&listener);
+                    if(listener.hasResult()) {
+                        compoundExpr->addStatement(listener.surrenderResult());
+                    }
+                }
+                setResult(std::move(compoundExpr));
+            }
         };
 
         class StatementListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
         public:
 
             virtual void enterStatement(LwnnParser::StatementContext *ctx) override {
-                LwnnParser::ExprContext *exprCtx = ctx->expr();
                 ExprListener listener;
                 ctx->expr()->enterRule(&listener);
                 if(!listener.hasResult()) return;
@@ -210,14 +222,13 @@ namespace lwnn {
 
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
                 std::vector<LwnnParser::StatementContext*> statements = ctx->statement();
-                auto compoundExprUnique = std::make_unique<ast::CompoundExpr>(getSourceSpan(ctx));
-                ast::CompoundExpr *compoundExpr = compoundExprUnique.get();
-                auto module = std::make_unique<ast::Module>( moduleName_, std::move(compoundExprUnique));;
+                auto compoundExpr = std::make_unique<ast::CompoundExpr>(getSourceSpan(ctx));
+                auto module = std::make_unique<ast::Module>( moduleName_, std::move(compoundExpr));;
                 for (LwnnParser::StatementContext *stmt: statements) {
                     StatementListener listener;
                     stmt->enterRule(&listener);
                     if(!listener.hasResult()) return;
-                    compoundExpr->addStatement(listener.surrenderResult());
+                    module->body()->addStatement(listener.surrenderResult());
                 }
                 setResult(std::move(module));
             }
@@ -231,8 +242,8 @@ namespace lwnn {
                 : DiagnosticErrorListener(true),
                   errorStream_(errorStream_) {}
 
-            virtual void syntaxError(Recognizer *recognizer, Token *offendingSymbol, size_t line,
-                                     size_t charPositionInLine, const std::string &msg, std::exception_ptr e) {
+            virtual void syntaxError(Recognizer *, Token *offendingSymbol, size_t line,
+                                     size_t charPositionInLine, const std::string &msg, std::exception_ptr) {
 
                 //If offendingSymbol is null, error was from lexer and we don't even have an error token yet.
                 if(offendingSymbol == nullptr) {

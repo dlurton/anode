@@ -1,6 +1,6 @@
 
 
-#pragma onceonce
+#pragma once
 #include "ast.h"
 
 namespace lwnn {

@@ -16,7 +16,6 @@ namespace lwnn {
     namespace ast {
 
         enum class StmtKind {
-            CompoundStmt,
             FunctionDeclStmt,
             ReturnStmt,
             ExprStmt
@@ -32,7 +31,7 @@ namespace lwnn {
             BinaryExpr,
             ConditionalExpr,
             CastExpr,
-            CompoundExpr
+            CompoundExpr,
         };
         std::string to_string(ExprKind kind);
 
@@ -81,8 +80,8 @@ namespace lwnn {
             virtual void visitingFuncDeclStmt(FuncDeclStmt *) { }
             virtual void visitedFuncDeclStmt(FuncDeclStmt *) { }
 
-            virtual void visitingCompoundStmt(CompoundExpr *) { }
-            virtual void visitedCompoundStmt(CompoundExpr *) { }
+            virtual bool visitingCompoundExpr(CompoundExpr *) { return true;}
+            virtual void visitedCompoundExpr(CompoundExpr *) { }
 
             virtual void visitingReturnStmt(ReturnStmt *) { }
             virtual void visitedReturnStmt(ReturnStmt *) { }
@@ -96,7 +95,7 @@ namespace lwnn {
             virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
             virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-            virtual bool visitingIfExpr(IfExpr *) { }
+            virtual bool visitingIfExpr(IfExpr *) { return true; }
             virtual void visitedIfExpr(IfExpr *) { }
 
             virtual void visitingBinaryExpr(BinaryExpr *) { }
@@ -114,9 +113,9 @@ namespace lwnn {
             virtual void visitedCastExpr(CastExpr *) { }
 
             //////////// Misc
-            virtual void visitTypeRef(TypeRef *typeRef) { }
+            virtual void visitTypeRef(TypeRef *) { }
 
-            virtual void visitingModule(Module *) { }
+            virtual bool visitingModule(Module *) { return true; }
             virtual void visitedModule(Module *) { }
         };
 
@@ -403,7 +402,7 @@ namespace lwnn {
             virtual bool canWrite() const override { return true; };
 
             VariableAccess variableAccess() { return access_; };
-            VariableAccess setVariableAccess(VariableAccess access) { access_ = access; }
+            void setVariableAccess(VariableAccess access) { access_ = access; }
 
             virtual void accept(AstVisitor *visitor) override {
                 visitor->visitingExprStmt(this);
@@ -511,7 +510,6 @@ namespace lwnn {
         public:
             CompoundExpr(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan) { }
             virtual ~CompoundExpr() {}
-            virtual StmtKind stmtKind() const override { return StmtKind::CompoundStmt; }
             scope::SymbolTable *scope() { return &scope_; }
 
             virtual ExprKind exprKind() const { return ExprKind::CompoundExpr; };
@@ -525,8 +523,8 @@ namespace lwnn {
                 statements_.push_back(std::move(stmt));
             }
 
-            std::vector<Stmt*> statements() const {
-                std::vector<Stmt*> retval;
+            std::vector<ExprStmt*> statements() const {
+                std::vector<ExprStmt*> retval;
                 for(auto &stmt : statements_) {
                     retval.push_back(stmt.get());
                 }
@@ -534,15 +532,15 @@ namespace lwnn {
             }
 
             virtual void accept(AstVisitor *visitor) override {
-                bool visitChildren = visitor->visitingStmt(this);
-                visitor->visitingCompoundStmt(this);
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitChildren = visitor->visitingCompoundExpr(this) ? visitChildren : false;
                 if(visitChildren) {
                     for (auto &stmt : statements_) {
                         stmt->accept(visitor);
                     }
                 }
-                visitor->visitedCompoundStmt(this);
-                visitor->visitedStmt(this);
+                visitor->visitedCompoundExpr(this);
+                visitor->visitedExprStmt(this);
             }
         };
 
@@ -697,15 +695,17 @@ namespace lwnn {
 
             std::string name() const { return name_; }
 
-            scope::SymbolTable *scope() { return body_->scope();}
+            scope::SymbolTable *scope() { return body_->scope(); }
+
+            CompoundExpr *body() { return body_.get(); }
 
             void accept(AstVisitor *visitor) {
-                visitor->visitingModule(this);
-                body_->accept(visitor);
+                if(visitor->visitingModule(this)) {
+                    body_->accept(visitor);
+                }
                 visitor->visitedModule(this);
             }
         };
-
 
         /** Most visitors will inherit from this because it tracks symbol scopes through the AST.
          * Note that all overrides in inheritors should the member functions they are overriding so that the scope is properly tracked. */
@@ -730,13 +730,14 @@ namespace lwnn {
                 symbolTableStack_.pop_back();
             }
 
-            virtual void visitingCompoundStmt(ast::CompoundExpr *compoundStmt) override {
+            virtual bool visitingCompoundExpr(ast::CompoundExpr *compoundStmt) override {
                 if(symbolTableStack_.size() > 0) {
                     compoundStmt->scope()->setParent(topScope());
                 }
                 symbolTableStack_.push_back(compoundStmt->scope());
+                return true;
             }
-            virtual void visitedCompoundStmt(ast::CompoundExpr *compoundStmt) override {
+            virtual void visitedCompoundExpr(ast::CompoundExpr *compoundStmt) override {
                 ASSERT(compoundStmt->scope() == symbolTableStack_.back());
                 symbolTableStack_.pop_back();
             }

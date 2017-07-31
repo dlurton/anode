@@ -204,6 +204,26 @@ TEST_CASE("basic float expressions") {
     }
 }
 
+TEST_CASE("compound expressions") {
+
+    REQUIRE(test<bool>("{ true; };"));
+    REQUIRE(!test<bool>("{ false; };"));
+    REQUIRE(test<bool>("{ false; true; };"));
+    REQUIRE(!test<bool>("{ true; false; };"));
+
+    REQUIRE(test<int>("{ 1; };") == 1);
+    REQUIRE(test<int>("{ 2; };") == 2);
+    REQUIRE(test<int>("{ 2; 3; };") == 3);
+    REQUIRE(test<int>("{ 2; 3; 4; };") == 4);
+
+    REQUIRE(test<float>("{ 1.0; };") == 1.0);
+    REQUIRE(test<float>("{ 2.0; };") == 2.0);
+    REQUIRE(test<float>("{ 2.0; 3.0; };") == 3.0);
+    REQUIRE(test<float>("{ 2.0; 3.0; 4.0; };") == 4.0);
+
+
+}
+
 TEST_CASE("conditional expressions") {
     REQUIRE(test<int>("(? true, 1, 2);") == 1);
     REQUIRE(test<int>("(? false, 1, 2);") == 2);
