@@ -19,6 +19,9 @@ namespace lwnn {
      * ANTLR4 parser and converting parse tree to the LWNN AST.
      */
     namespace parse {
+
+        std::unique_ptr<ast::ExprStmt> extractStatement(LwnnParser::StatementContext *ctx);
+
         /** Extracts a SourceRange from values specified in token. */
         static source::SourceSpan getSourceSpan(antlr4::Token *token) {
             auto startSource = token->getTokenSource();
@@ -66,6 +69,8 @@ namespace lwnn {
                 return std::move(resultNode_);
             }
         };
+
+
 
         class ExprListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
         public:
@@ -170,30 +175,51 @@ namespace lwnn {
                 setResult(std::make_unique<VariableRefExpr>(getSourceSpan(ctx), ctx->getText()));
             }
 
-            virtual void enterConditionalExpr(LwnnParser::ConditionalExprContext *ctx) override {
+
+            virtual void enterTernaryExpr(LwnnParser::TernaryExprContext *ctx) override {
                 ExprListener condListener;
                 ctx->cond->enterRule(&condListener);
                 if(!condListener.hasResult()) return;
 
-                ExprListener truePartListener;
-                ctx->thenExpr->enterRule(&truePartListener);
-                if(!truePartListener.hasResult()) return;
+                ExprListener thenListener;
+                ctx->thenExpr->enterRule(&thenListener);
+                if(!thenListener.hasResult()) return;
 
-                ExprListener falsePartListener;
-                ctx->elseExpr->enterRule(&falsePartListener);
-                if(!truePartListener.hasResult()) return;
+                std::unique_ptr<ExprStmt> elseExpr;
 
-                setResult(std::make_unique<IfExpr>(getSourceSpan(ctx),
-                    condListener.surrenderResult(),
-                    truePartListener.surrenderResult(),
-                    falsePartListener.surrenderResult()));
+                if(ctx->elseExpr) {
+                    ExprListener elseListener;
+                    ctx->elseExpr->enterRule(&elseListener);
+                    if (!thenListener.hasResult()) return;
+                    elseExpr = elseListener.surrenderResult();
+                }
+
+                setResult(
+                    std::make_unique<IfExpr>(getSourceSpan(ctx),
+                                             condListener.surrenderResult(),
+                                             thenListener.surrenderResult(),
+                                             std::move(elseExpr)));
+            }
+
+
+
+        };
+
+        class StatementListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
+        public:
+
+            virtual void enterExprStmt(LwnnParser::ExprStmtContext *ctx) override {
+                ExprListener listener;
+                ctx->expr()->enterRule(&listener);
+                if(!listener.hasResult()) return;
+                setResult(listener.surrenderResult());
             }
 
             virtual void enterCompoundExpr(LwnnParser::CompoundExprContext * ctx) override {
-                std::vector<LwnnParser::ExprContext*> expressions = ctx->expr();
+                std::vector<LwnnParser::StatementContext*> expressions = ctx->statement();
                 auto compoundExpr = std::make_unique<ast::CompoundExpr>(getSourceSpan(ctx));
-                for (LwnnParser::ExprContext *expr : expressions) {
-                    ExprListener listener;
+                for (LwnnParser::StatementContext *expr : expressions) {
+                    StatementListener listener;
                     expr->enterRule(&listener);
                     if(listener.hasResult()) {
                         compoundExpr->addStatement(listener.surrenderResult());
@@ -201,24 +227,38 @@ namespace lwnn {
                 }
                 setResult(std::move(compoundExpr));
             }
-        };
 
-        class StatementListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
-        public:
+            virtual void enterIfExpr(LwnnParser::IfExprContext *ctx) override {
+                ASSERT(ctx->cond);
+                ASSERT(ctx->thenExprStmt)
+                ExprListener condListener;
+                ctx->cond->enterRule(&condListener);
+                if(!condListener.hasResult()) return;
 
-            virtual void enterStatement(LwnnParser::StatementContext *ctx) override {
-                ExprListener listener;
-                ctx->expr()->enterRule(&listener);
-                if(!listener.hasResult()) return;
-                setResult(listener.surrenderResult());
+                std::unique_ptr<ast::ExprStmt> thenExprStmt = extractStatement(ctx->thenExprStmt);
+                std::unique_ptr<ExprStmt> elseExprStmt = extractStatement(ctx->elseExprStmt);
+
+                setResult(
+                    std::make_unique<IfExpr>(getSourceSpan(ctx),
+                                             condListener.surrenderResult(),
+                                             std::move(thenExprStmt),
+                                             std::move(elseExprStmt)));
             }
         };
 
-        class CompiledUnitListener : public LwnnBaseListenerHelper<ast::Module> {
+        std::unique_ptr<ast::ExprStmt> extractStatement(LwnnParser::StatementContext *ctx) {
+            if(!ctx) return nullptr;
+
+            StatementListener listener;
+            ctx->enterRule(&listener);
+            return listener.hasResult() ? listener.surrenderResult() : nullptr;
+        }
+
+        class ModuleListener : public LwnnBaseListenerHelper<ast::Module> {
             std::string moduleName_;
 
         public:
-            CompiledUnitListener(const std::string &moduleName_) : moduleName_(moduleName_) {}
+            ModuleListener(const std::string &moduleName_) : moduleName_(moduleName_) {}
 
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
                 std::vector<LwnnParser::StatementContext*> statements = ctx->statement();
@@ -234,13 +274,12 @@ namespace lwnn {
             }
         };
 
-        class LwnnErrorListener : public DiagnosticErrorListener {
+        class LwnnErrorListener : public BaseErrorListener {
             error::ErrorStream &errorStream_;
             std::string inputName_;
         public:
             LwnnErrorListener(error::ErrorStream &errorStream_)
-                : DiagnosticErrorListener(true),
-                  errorStream_(errorStream_) {}
+                : errorStream_(errorStream_) {}
 
             virtual void syntaxError(Recognizer *, Token *offendingSymbol, size_t line,
                                      size_t charPositionInLine, const std::string &msg, std::exception_ptr) {
@@ -260,6 +299,26 @@ namespace lwnn {
                     errorStream_.error(getSourceSpan(offendingSymbol), msg);
                 }
             };
+
+            virtual void reportAmbiguity(Parser *, const dfa::DFA &, size_t , size_t , bool ,
+                                         const antlrcpp::BitSet &, atn::ATNConfigSet *) override {
+                // May want to grab code from here to determine how to report this intelligently
+                // https://github.com/antlr/antlr4/blob/master/runtime/Cpp/runtime/src/DiagnosticErrorListener.cpp
+//                source::SourceSpan span {
+//                    inputName_,
+//                    source::SourceLocation { 1, 1},
+//                    source::SourceLocation { 1, 1 }
+//                };
+//                errorStream_.warning(span, "Grammar is ambiguous.  I think this is an bug in Lwnn.g4.");
+            }
+
+            virtual void reportAttemptingFullContext(Parser *, const dfa::DFA &, size_t , size_t ,
+                                                     const antlrcpp::BitSet &, atn::ATNConfigSet *) override  {
+            }
+
+            virtual void reportContextSensitivity(Parser *, const dfa::DFA &, size_t , size_t ,
+                                                  size_t , atn::ATNConfigSet *) override  {
+            }
         };
 
         std::unique_ptr<Module> parseModule(const std::string &lineOfCode, const std::string &inputName) {
@@ -282,9 +341,10 @@ namespace lwnn {
             parser.removeErrorListeners();
             parser.addErrorListener(&errorListener);
 
-            CompiledUnitListener listener{inputName};
+            ModuleListener listener{inputName};
 
             auto *moduleCtx = parser.module();
+
             moduleCtx->enterRule(&listener);
             if(errorStream.errorCount() > 0) return nullptr;
             if(!listener.hasResult()) {

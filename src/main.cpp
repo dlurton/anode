@@ -46,12 +46,12 @@ std::string readLineOfCode() {
 }
 
 void help() {
-    std::cout << "Command       Description\n";
-    std::cout << "/help         Displays this text.\n";
-    std::cout << "/compile      Toggles compilation.  When disabled, the LLVM IR will not be generated.\n";
-    std::cout << "/history      Displays command history.\n";
-    std::cout << "/exit         Exits the lwnn REPL.\n\n";
-    std::cout << "Valid lwnn statements may also be entered.";
+    std::cout << "Meta-Command      Description\n";
+    std::cout << "/help             Displays this text.\n";
+    std::cout << "/compile          Toggles compilation.  When disabled, the LLVM IR will not be generated.\n";
+    std::cout << "/history          Displays command history.\n";
+    std::cout << "/exit             Exits the lwnn REPL.\n\n";
+    std::cout << "Valid lwnn statements may also be entered.\n";
 }
 using namespace lwnn;
 
@@ -106,7 +106,9 @@ int main(int argc, char **argv) {
         }
     });
 
-    std::cout << "Welcome to the lwnn REPL.  Type '/help' for help or '/exit' to exit.\n";
+
+    const char* NUDGE = "Type '/help' for help or '/exit' to exit.";
+    std::cout << "Welcome to the lwnn REPL. " << NUDGE << "\n";
 
     bool keepGoing = true;
     bool shouldCompile = true;
@@ -115,23 +117,25 @@ int main(int argc, char **argv) {
     while (keepGoing) {
         std::string lineOfCode{readLineOfCode()};
         linenoiseHistoryAdd(lineOfCode.c_str());
-        if (lineOfCode == "/compile") {
-            shouldCompile = !shouldCompile;
+        if(lineOfCode[0] == '/') {
+            std::string command = lineOfCode.substr(1);
+            if (command == "compile") {
+                shouldCompile = !shouldCompile;
 //             std::cout << "Compilation " << (shouldCompile ? "enabled" : "disabled") << "\n";
-        }
-        else if(lineOfCode == "/help") {
-            help();
-        }
-        else if (lineOfCode == "/exit") {
-            keepGoing = false;
-        }
-        else if (lineOfCode == "/history") {
-            /* Display the current history. */
-            for (int index = 0; ; ++index) {
-                char* hist = linenoiseHistoryLine(index);
-                if (hist == NULL) break;
-                printf("%4d: %s\n", index, hist);
-                free(hist);
+            } else if (command == "help") {
+                help();
+            } else if (command == "exit") {
+                keepGoing = false;
+            } else if (command == "history") {
+                /* Display the current history. */
+                for (int index = 0;; ++index) {
+                    char *hist = linenoiseHistoryLine(index);
+                    if (hist == NULL) break;
+                    printf("%4d: %s\n", index, hist);
+                    free(hist);
+                }
+            } else {
+                std::cerr << "Unknown meta-command \"" << command << "\". " << NUDGE << "\n";
             }
         }
         else {

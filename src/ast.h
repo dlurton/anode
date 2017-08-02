@@ -569,38 +569,48 @@ namespace lwnn {
         /** Can be the basis of an if-then-else or ternary operator. */
         class IfExpr : public ExprStmt {
             std::unique_ptr<ExprStmt> condition_;
-            std::unique_ptr<ExprStmt> truePart_;
-            std::unique_ptr<ExprStmt> falsePart_;
+            std::unique_ptr<ExprStmt> thenExpr_;
+            std::unique_ptr<ExprStmt> elseExpr_;
         public:
 
             /** Note:  assumes ownership of condition, truePart and falsePart.  */
             IfExpr(source::SourceSpan sourceSpan,
                             std::unique_ptr<ExprStmt> condition,
-                            std::unique_ptr<ExprStmt> truePart,
-                            std::unique_ptr<ExprStmt> falsePart)
+                            std::unique_ptr<ExprStmt> trueExpr,
+                            std::unique_ptr<ExprStmt> elseExpr)
                 : ExprStmt(sourceSpan),
                   condition_{ std::move(condition) },
-                  truePart_{ std::move(truePart) },
-                  falsePart_{ std::move(falsePart) } {
+                  thenExpr_{ std::move(trueExpr) },
+                  elseExpr_{ std::move(elseExpr) } {
                 ASSERT(condition_);
             }
 
             virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
+
             type::Type *type() const override {
-                if (truePart_ != nullptr) {
-                    return truePart_->type();
-                } else {
-                    if (falsePart_ == nullptr) {
-                        return &type::Primitives::Void;
-                    } else {
-                        return falsePart_->type();
-                    }
+
+                if(elseExpr_ == nullptr || thenExpr_->type() != elseExpr_->type()) {
+                    return &type::Primitives::Void;
                 }
+
+                return thenExpr_->type();
+
+//                ASSERT(thenExpr_->type() == elseExpr_->type());
+//
+//                if (thenExpr_ != nullptr) {
+//                    return thenExpr_->type();
+//                } else {
+//                    if (elseExpr_ == nullptr) {
+//                        return &type::Primitives::Void;
+//                    } else {
+//                        return elseExpr_->type();
+//                    }
+//                }
             }
 
             ExprStmt *condition() const { return condition_.get(); }
-            ExprStmt *thenExpr() const { return truePart_.get(); }
-            ExprStmt *elseExpr() const { return falsePart_.get(); }
+            ExprStmt *thenExpr() const { return thenExpr_.get(); }
+            ExprStmt *elseExpr() const { return elseExpr_.get(); }
 
             virtual bool canWrite() const override { return false; };
 
@@ -609,13 +619,12 @@ namespace lwnn {
             }
 
             void graftTruePart(ExprGraftFunctor graftFunctor) {
-                truePart_ = std::move(graftFunctor(std::move(truePart_)));
+                thenExpr_ = std::move(graftFunctor(std::move(thenExpr_)));
             }
 
             void graftFalsePart(ExprGraftFunctor graftFunctor) {
-                falsePart_ = std::move(graftFunctor(std::move(falsePart_)));
+                elseExpr_ = std::move(graftFunctor(std::move(elseExpr_)));
             }
-
 
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
@@ -623,8 +632,9 @@ namespace lwnn {
 
                 if(visitChildren) {
                     condition_->accept(visitor);
-                    truePart_->accept(visitor);
-                    falsePart_->accept(visitor);
+                    thenExpr_->accept(visitor);
+                    if(elseExpr_)
+                        elseExpr_->accept(visitor);
                 }
 
                 visitor->visitedIfExpr(this);

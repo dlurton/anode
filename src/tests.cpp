@@ -206,22 +206,20 @@ TEST_CASE("basic float expressions") {
 
 TEST_CASE("compound expressions") {
 
-    REQUIRE(test<bool>("{ true; };"));
-    REQUIRE(!test<bool>("{ false; };"));
-    REQUIRE(test<bool>("{ false; true; };"));
-    REQUIRE(!test<bool>("{ true; false; };"));
+    REQUIRE(test<bool>("{ true; }"));
+    REQUIRE(!test<bool>("{ false; }"));
+    REQUIRE(test<bool>("{ false; true; }"));
+    REQUIRE(!test<bool>("{ true; false; }"));
 
-    REQUIRE(test<int>("{ 1; };") == 1);
-    REQUIRE(test<int>("{ 2; };") == 2);
-    REQUIRE(test<int>("{ 2; 3; };") == 3);
-    REQUIRE(test<int>("{ 2; 3; 4; };") == 4);
+    REQUIRE(test<int>("{ 1; }") == 1);
+    REQUIRE(test<int>("{ 2; }") == 2);
+    REQUIRE(test<int>("{ 2; 3; }") == 3);
+    REQUIRE(test<int>("{ 2; 3; 4; }") == 4);
 
-    REQUIRE(test<float>("{ 1.0; };") == 1.0);
-    REQUIRE(test<float>("{ 2.0; };") == 2.0);
-    REQUIRE(test<float>("{ 2.0; 3.0; };") == 3.0);
-    REQUIRE(test<float>("{ 2.0; 3.0; 4.0; };") == 4.0);
-
-
+    REQUIRE(test<float>("{ 1.0; }") == 1.0);
+    REQUIRE(test<float>("{ 2.0; }") == 2.0);
+    REQUIRE(test<float>("{ 2.0; 3.0; }") == 3.0);
+    REQUIRE(test<float>("{ 2.0; 3.0; 4.0; }") == 4.0);
 }
 
 TEST_CASE("conditional expressions") {
@@ -271,6 +269,54 @@ TEST_CASE("Nested conditional expressions with variables") {
     REQUIRE(test<int>(ec, "(? f, one, (? f, two, three));") == 3);
 }
 
+TEST_CASE("if with value") {
+    REQUIRE(test<int>("if (true) 1; else 2;") == 1);
+    REQUIRE(test<int>("if (true) { 1; } else { 2; }") == 1);
+    REQUIRE(test<int>("if (true) { 1; 2; } else { 3; 4; }") == 2);
+    REQUIRE(test<int>("if (false) { 1; 2; } else { 3; 4; }") == 4);
+}
+
+TEST_CASE("nested if and else if with values") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; b:int;");
+    const char *TEST_SRC = "if (a == 0) if(b == 0) 1; else 2; else if(b == 0) 3; else 4;";
+    exec(ec, "a = 0; b = 0;");
+    REQUIRE(test<int>(ec, TEST_SRC) == 1);
+    exec(ec, "a = 0; b = 1;");
+    REQUIRE(test<int>(ec, TEST_SRC) == 2);
+    exec(ec, "a = 1; b = 0;");
+    REQUIRE(test<int>(ec, TEST_SRC) == 3);
+    exec(ec, "a = 1; b = 1;");
+    REQUIRE(test<int>(ec, TEST_SRC) == 4);
+}
+
+
+TEST_CASE("if with effects") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; b:int;");
+    const char *TEST_SRC = "if (a) b = 1; b;";
+    REQUIRE(test<int>(ec, TEST_SRC) == 0);
+    exec(ec, "a = 1;");
+    REQUIRE(test<int>(ec, TEST_SRC) == 1); //Second execution should because a != 0;
+}
+
+TEST_CASE("nested if and else if with effects") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; b:int; c:int;");
+    const char *TEST_SRC = "if (a == 0) if(b == 0) c = 1; else c = 2; else if(b == 0) c = 3; else c = 4;";
+    exec(ec, "a = 0; b = 0;");
+    exec(ec, TEST_SRC);
+    REQUIRE(test<int>(ec, "c;") == 1);
+    exec(ec, "a = 0; b = 1;");
+    exec(ec, TEST_SRC);
+    REQUIRE(test<int>(ec, "c;") == 2);
+    exec(ec, "a = 1; b = 0;");
+    exec(ec, TEST_SRC);
+    REQUIRE(test<int>(ec, "c;") == 3);
+    exec(ec, "a = 1; b = 1;");
+    exec(ec, TEST_SRC);
+    REQUIRE(test<int>(ec, "c;") == 4);
+}
 
 TEST_CASE("casting") {
 

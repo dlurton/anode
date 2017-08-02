@@ -76,8 +76,7 @@ namespace lwnn {
             }
         };
 
-        llvm::Value *compileExpr(ExprStmt *exprStmt, CompileContext &);
-        llvm::Value *compileIfExpr(IfExpr *exprStmt, CompileContext &);
+        llvm::Value *emitExpr(ExprStmt *exprStmt, CompileContext &);
 
         llvm::Type *to_llvmType(type::PrimitiveType primitiveType, llvm::LLVMContext &llvmContext) {
             ASSERT(primitiveType != type::PrimitiveType::Void && "Expected a primitive data type here");
@@ -246,9 +245,52 @@ namespace lwnn {
                 valueStack_.push(result);
             }
 
-            virtual bool visitingIfExpr(IfExpr *expr) override {
-                llvm::Value *value = compileIfExpr(expr, cc());
-                valueStack_.push(value);
+            virtual bool visitingIfExpr(IfExpr *ifExpr) override {
+                //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
+                //Emit the condition
+                llvm::Value *condValue = emitExpr(ifExpr->condition(), cc());
+
+                //Prepare the BasicBlocks
+                llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
+                llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc().llvmContext(), "thenBlock");
+                llvm::BasicBlock *elseBlock = llvm::BasicBlock::Create(cc().llvmContext(), "elseBlock");
+                llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "endBlock");
+
+                //Branch to then or else blocks, depending on condition.
+                cc().irBuilder().CreateCondBr(condValue, thenBlock, elseBlock);
+
+                //Emit the thenBlock
+                currentFunc->getBasicBlockList().push_back(thenBlock);
+                cc().irBuilder().SetInsertPoint(thenBlock);
+                llvm::Value *thenValue = emitExpr(ifExpr->thenExpr(), cc());
+                thenBlock = cc().irBuilder().GetInsertBlock();
+
+                //Jump to the endBlock, skipping the elseBlock
+                cc().irBuilder().CreateBr(endBlock);
+
+                //Emit the elseBlock
+                currentFunc->getBasicBlockList().push_back(elseBlock);
+                cc().irBuilder().SetInsertPoint(elseBlock);
+
+                llvm::Value *elseValue = nullptr;
+                if(ifExpr->elseExpr()) {
+                    elseValue = emitExpr(ifExpr->elseExpr(), cc());
+                }
+                cc().irBuilder().CreateBr(endBlock);
+                elseBlock = cc().irBuilder().GetInsertBlock();
+
+
+                //Emit the endBlock
+                currentFunc->getBasicBlockList().push_back(endBlock);
+                cc().irBuilder().SetInsertPoint(endBlock);
+                if(ifExpr->type()->primitiveType() != type::PrimitiveType::Void) {
+                    llvm::PHINode *phi = cc().irBuilder().CreatePHI(to_llvmType(ifExpr->type(), cc().llvmContext()), ifExpr->elseExpr() ? 2 : 1, "iftmp");
+                    phi->addIncoming(thenValue, thenBlock);
+                    if (ifExpr->elseExpr()) {
+                        phi->addIncoming(elseValue, elseBlock);
+                    }
+                    valueStack_.push(phi);
+                }
                 return false;
             }
 
@@ -348,53 +390,14 @@ namespace lwnn {
             }
         };
 
-        llvm::Value *compileExpr(ExprStmt *exprStmt, CompileContext &cc) {
+        llvm::Value *emitExpr(ExprStmt *exprStmt, CompileContext &cc) {
             ExprAstVisitor visitor{cc};
             exprStmt->accept(&visitor);
 
             return visitor.hasValue() ? visitor.llvmValue() : nullptr;
         }
 
-        llvm::Value *compileIfExpr(IfExpr *selectExpr, CompileContext &cc) {
-            //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
 
-            //Emit the condition
-            llvm::Value *condValue = compileExpr(selectExpr->condition(), cc);
-
-            //Prepare the BasicBlocks
-            llvm::Function *currentFunc = cc.irBuilder().GetInsertBlock()->getParent();
-            llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc.llvmContext(), "thenBlock");
-            llvm::BasicBlock *elseBlock = llvm::BasicBlock::Create(cc.llvmContext(), "elseBlock");
-            llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc.llvmContext(), "endBlock");
-
-            //Branch to then or else blocks, depending on condition.
-            cc.irBuilder().CreateCondBr(condValue, thenBlock, elseBlock);
-
-            //Emit the thenBlock
-            currentFunc->getBasicBlockList().push_back(thenBlock);
-            cc.irBuilder().SetInsertPoint(thenBlock);
-            llvm::Value *thenValue = compileExpr(selectExpr->thenExpr(), cc);
-            thenBlock = cc.irBuilder().GetInsertBlock();
-
-            //Emit the endBlock, skipping the elseBlock
-            cc.irBuilder().CreateBr(endBlock);
-
-            //Emit the elseBlock
-            currentFunc->getBasicBlockList().push_back(elseBlock);
-            cc.irBuilder().SetInsertPoint(elseBlock);
-            llvm::Value *elseValue = compileExpr(selectExpr->elseExpr(), cc);
-            cc.irBuilder().CreateBr(endBlock);
-            elseBlock = cc.irBuilder().GetInsertBlock();
-
-            //Emit the endBlock
-            currentFunc->getBasicBlockList().push_back(endBlock);
-            cc.irBuilder().SetInsertPoint(endBlock);
-            llvm::PHINode *phi = cc.irBuilder().CreatePHI(to_llvmType(selectExpr->type(), cc.llvmContext()), 2, "iftmp");
-            phi->addIncoming(thenValue, thenBlock);
-            phi->addIncoming(elseValue, elseBlock);
-
-            return phi;
-        }
         class ModuleAstVisitor : public CompileAstVisitor {
             llvm::TargetMachine &targetMachine_;
 
@@ -413,7 +416,7 @@ namespace lwnn {
                 if(rootCompoundExpr_ == expr) return true;
 
                 //opeFollowingVisitor::visitingExprStmt(expr);
-                llvm::Value *llvmValue = compileExpr(expr, cc());
+                llvm::Value *llvmValue = emitExpr(expr, cc());
                 if(llvmValue) {
                     resultExprStmtCount_++;
                     std::string variableName = string::format("result_%d", resultExprStmtCount_);
@@ -466,6 +469,7 @@ namespace lwnn {
                 cc().irBuilder().CreateRetVoid();
                 llvm::raw_ostream &os = llvm::errs();
                 if(llvm::verifyModule(cc().llvmModule(), &os)) {
+                    cc().llvmModule().dump();
                     ASSERT_FAIL();
                }
             }
@@ -498,7 +502,7 @@ namespace lwnn {
                 llvm::Value *primitiveType = paramItr++;
                 primitiveType->setName("primitiveType");
 
-                llvm::Value *valuePtr = paramItr++;
+                llvm::Value *valuePtr = paramItr;
                 valuePtr->setName("valuePtr");
             }
 

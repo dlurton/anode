@@ -118,11 +118,11 @@ namespace lwnn {
                 }
             }
 
-            virtual void visitedIfExpr(ast::IfExpr *condExpr) {
+            virtual void visitedIfExpr(ast::IfExpr *ifExpr) {
 
-                if(condExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
-                    if (condExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
-                        condExpr->graftCondition(
+                if(ifExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
+                    if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+                        ifExpr->graftCondition(
                             [&](std::unique_ptr<ast::ExprStmt> oldTruePart) {
                                 return std::make_unique<ast::CastExpr>(
                                     oldTruePart->sourceSpan(),
@@ -132,41 +132,42 @@ namespace lwnn {
                             });
                     } else {
                         errorStream_.error(
-                            condExpr->condition()->sourceSpan(),
+                            ifExpr->condition()->sourceSpan(),
                             "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
-                            condExpr->condition()->type()->name().c_str());
+                            ifExpr->condition()->type()->name().c_str());
                     }
                 }
 
+                if(!ifExpr->elseExpr()) return;
 
-                if(condExpr->thenExpr()->type() != condExpr->elseExpr()->type()) {
+                if(ifExpr->thenExpr()->type() != ifExpr->elseExpr()->type()) {
                     //If we can implicitly cast the lvalue to same type as the rvalue, we should...
-                    if(condExpr->elseExpr()->type()->canImplicitCastTo(condExpr->thenExpr()->type())) {
-                        condExpr->graftFalsePart(
+                    if(ifExpr->elseExpr()->type()->canImplicitCastTo(ifExpr->thenExpr()->type())) {
+                        ifExpr->graftFalsePart(
                             [&](std::unique_ptr<ast::ExprStmt> oldFalsePart) {
                                 return std::make_unique<ast::CastExpr>(
                                     oldFalsePart->sourceSpan(),
-                                    condExpr->thenExpr()->type(),
+                                    ifExpr->thenExpr()->type(),
                                     std::move(oldFalsePart),
                                     ast::CastKind::Implicit);
                             });
                     } //otherwise, if we can to the reverse, we should...
-                    else if (condExpr->thenExpr()->type()->canImplicitCastTo(condExpr->elseExpr()->type())) {
-                        condExpr->graftTruePart(
+                    else if (ifExpr->thenExpr()->type()->canImplicitCastTo(ifExpr->elseExpr()->type())) {
+                        ifExpr->graftTruePart(
                             [&](std::unique_ptr<ast::ExprStmt> oldTruePart) {
                                 return std::make_unique<ast::CastExpr>(
                                     oldTruePart->sourceSpan(),
-                                    condExpr->elseExpr()->type(),
+                                    ifExpr->elseExpr()->type(),
                                     std::move(oldTruePart),
                                     ast::CastKind::Implicit);
                             });
                     }
                     else { // No implicit cast available...
                         errorStream_.error(
-                            condExpr->sourceSpan(),
+                            ifExpr->sourceSpan(),
                             "Cannot implicitly convert '%s' to '%s' or vice-versa",
-                            condExpr->thenExpr()->type()->name().c_str(),
-                            condExpr->elseExpr()->type()->name().c_str());
+                            ifExpr->thenExpr()->type()->name().c_str(),
+                            ifExpr->elseExpr()->type()->name().c_str());
                     }
                 }
             }
