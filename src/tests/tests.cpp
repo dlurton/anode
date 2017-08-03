@@ -2,9 +2,9 @@
 //#define VISUALIZE_AST
 //#define DUMP_IR
 
-#include "execute.h"
-#include "parse.h"
-#include "compile.h"
+#include "../include/lwnn/execute/execute.h"
+#include "../include/lwnn/front/parse.h"
+#include "../include/lwnn/back/compile.h"
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"

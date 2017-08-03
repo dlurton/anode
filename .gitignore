@@ -5,3 +5,4 @@ cmake-build/
 externs/
 !externs/antlr4/antlr4-complete.jar
 bin
+lib

@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ast.h"
+#include "../front/ast.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wall"

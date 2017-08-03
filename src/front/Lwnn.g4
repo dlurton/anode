@@ -19,7 +19,7 @@ expr
 //  | op=('+'|'-') expr                                               # unaryExpr
     | left=expr op=(OP_MUL|OP_DIV) right=expr                         # binaryExpr
     | left=expr op=(OP_ADD|OP_SUB) right=expr                         # binaryExpr
-//  | left=expr op=OP_AND right=expr                                # binaryExpr
+    | left=expr op=OP_AND right=expr                                  # binaryExpr
 //  | left=expr op=OP_OR right=expr                                 # binaryExpr
     | left=expr op=OP_EQ right=expr                                   # binaryExpr
     | <assoc=right> left=expr op=OP_ASSIGN right=expr                 # binaryExpr
@@ -51,7 +51,7 @@ OP_DIV: '/';
 OP_ASSIGN: '=';
 OP_EQ: '==';
 //OP_OR: '||';
-//OP_AND: '&&';
+OP_AND: '&&';
 
 KW_TRUE: 'true';
 KW_FALSE: 'false';

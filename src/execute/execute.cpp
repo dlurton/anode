@@ -1,6 +1,6 @@
-#include "execute.h"
-#include "compile.h"
-#include "ast_passes.h"
+#include "../include/lwnn/execute/execute.h"
+#include "../include/lwnn/back/compile.h"
+#include "../front/ast_passes.h"
 
 #include <stack>
 #include <vector>
@@ -32,7 +32,7 @@
 
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
-#include "visualize.h"
+#include "../include/lwnn/front/visualize.h"
 
 #pragma GCC diagnostic pop
 

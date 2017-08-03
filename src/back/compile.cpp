@@ -1,13 +1,12 @@
 
-#include "compile.h"
+#include "../include/lwnn/back/compile.h"
 
-#include "ast.h"
+#include "../include/lwnn/front/ast.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Mangler.h"
@@ -241,8 +240,78 @@ namespace lwnn {
                 llvm::Value *lValue = valueStack_.top();
                 valueStack_.pop();
 
-                llvm::Value *result = createOperation(lValue, rValue, expr->operation(), expr->operandsType());
-                valueStack_.push(result);
+                ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
+
+                if(expr->operation() == BinaryOperationKind::Assign) {
+                    cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
+                    //Note:  I think this will call rValue a second time if rValue is a call site.
+                    valueStack_.push(rValue);
+                    return;
+                }
+                llvm::Value *resultValue = nullptr;
+                switch (expr->operandsType()->primitiveType()) {
+                    case type::PrimitiveType::Bool:
+                        switch(expr->operation()) {
+                            case BinaryOperationKind::Eq:
+                                resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
+                                break;
+//                            case BinaryOperationKind::And:
+//                                resultValue =  irBuilder_.CreateICmpEQ(lValue, rValue);
+//                                break;
+//                            case BinaryOperationKind::Or:
+//                                resultValue =  irBuilder_.CreateICmpEQ(lValue, rValue);
+//                                break;
+                            default:
+                                ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type")
+                        }
+                        break;
+                    case type::PrimitiveType::Int32:
+                        switch (expr->operation()) {
+                            case BinaryOperationKind::Eq:
+                                resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Add:
+                                resultValue =  cc().irBuilder().CreateAdd(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Sub:
+                                resultValue =  cc().irBuilder().CreateSub(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Mul:
+                                resultValue =  cc().irBuilder().CreateMul(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Div:
+                                resultValue =  cc().irBuilder().CreateSDiv(lValue, rValue);
+                                break;
+                            default:
+                                ASSERT_FAIL("Unhandled BinaryOperationKind");
+                        }
+                        break;
+                    case type::PrimitiveType::Float:
+                        switch (expr->operation()) {
+                            case BinaryOperationKind::Eq:
+                                resultValue =  cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Add:
+                                resultValue =  cc().irBuilder().CreateFAdd(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Sub:
+                                resultValue =  cc().irBuilder().CreateFSub(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Mul:
+                                resultValue =  cc().irBuilder().CreateFMul(lValue, rValue);
+                                break;
+                            case BinaryOperationKind::Div:
+                                resultValue =  cc().irBuilder().CreateFDiv(lValue, rValue);
+                                break;
+                            default:
+                                ASSERT_FAIL("Unhandled BinaryOperationKind");
+                        }
+                        break;
+                    default:
+                        ASSERT_FAIL("Unhandled PrimitiveType");
+                }
+                ASSERT(resultValue);
+                valueStack_.push(resultValue);
             }
 
             virtual bool visitingIfExpr(IfExprStmt *ifExpr) override {
@@ -328,62 +397,6 @@ namespace lwnn {
                         return llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat((float)0.0));
                     case type::PrimitiveType::Double:
                         return llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(0.0));
-                    default:
-                        ASSERT_FAIL("Unhandled PrimitiveType");
-                }
-            }
-
-            llvm::Value *
-            createOperation(llvm::Value *lValue, llvm::Value *rValue, BinaryOperationKind op, const type::Type *type) {
-                ASSERT(type->isPrimitive() && "Only primitive types currently supported here");
-
-                if(op == BinaryOperationKind::Assign) {
-                    cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
-                    //Note:  I think this will call rValue a second time if rValue is a call site.
-                    return rValue;
-                }
-                switch (type->primitiveType()) {
-                    case type::PrimitiveType::Bool:
-                        switch(op) {
-                            case BinaryOperationKind::Eq:
-                                return cc().irBuilder().CreateICmpEQ(lValue, rValue);
-//                            case BinaryOperationKind::And:
-//                                return irBuilder_.CreateICmpEQ(lValue, rValue);
-//                            case BinaryOperationKind::Or:
-//                                return irBuilder_.CreateICmpEQ(lValue, rValue);
-                            default:
-                                ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type")
-                        }
-                    case type::PrimitiveType::Int32:
-                        switch (op) {
-                            case BinaryOperationKind::Eq:
-                                return cc().irBuilder().CreateICmpEQ(lValue, rValue);
-                            case BinaryOperationKind::Add:
-                                return cc().irBuilder().CreateAdd(lValue, rValue);
-                            case BinaryOperationKind::Sub:
-                                return cc().irBuilder().CreateSub(lValue, rValue);
-                            case BinaryOperationKind::Mul:
-                                return cc().irBuilder().CreateMul(lValue, rValue);
-                            case BinaryOperationKind::Div:
-                                return cc().irBuilder().CreateSDiv(lValue, rValue);
-                            default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind");
-                        }
-                    case type::PrimitiveType::Float:
-                        switch (op) {
-                            case BinaryOperationKind::Eq:
-                                return cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
-                            case BinaryOperationKind::Add:
-                                return cc().irBuilder().CreateFAdd(lValue, rValue);
-                            case BinaryOperationKind::Sub:
-                                return cc().irBuilder().CreateFSub(lValue, rValue);
-                            case BinaryOperationKind::Mul:
-                                return cc().irBuilder().CreateFMul(lValue, rValue);
-                            case BinaryOperationKind::Div:
-                                return cc().irBuilder().CreateFDiv(lValue, rValue);
-                            default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind");
-                        }
                     default:
                         ASSERT_FAIL("Unhandled PrimitiveType");
                 }

@@ -1,5 +1,5 @@
-#include "type.h"
-#include "exception.h"
+#include "../include/lwnn/front/type.h"
+#include "../include/lwnn/exception.h"
 #include <unordered_map>
 
 namespace lwnn {

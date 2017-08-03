@@ -1,5 +1,5 @@
-#include "visualize.h"
-#include "string.h"
+#include "../include/lwnn/front/visualize.h"
+#include "../include/lwnn/string.h"
 
 #include <iostream>
 #include <algorithm>

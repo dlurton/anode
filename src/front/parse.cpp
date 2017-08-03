@@ -1,5 +1,5 @@
-#include "ast.h"
-#include "error.h"
+#include "../include/lwnn/front/ast.h"
+#include "../include/lwnn/front/error.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"

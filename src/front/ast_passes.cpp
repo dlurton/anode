@@ -1,6 +1,6 @@
 #include "ast_passes.h"
 #include "scope.h"
-#include "error.h"
+#include "../include/lwnn/front/error.h"
 
 namespace lwnn {
     namespace ast_passes {

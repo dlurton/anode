@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ast.h"
+#include "../front/ast.h"
 
 #include <functional>
 
