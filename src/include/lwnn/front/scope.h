@@ -1,8 +1,8 @@
 
 #pragma once
 
-#include "../include/lwnn/exception.h"
-#include "../include/lwnn/front/type.h"
+#include "common/exception.h"
+#include "type.h"
 
 #include <string>
 #include <memory>

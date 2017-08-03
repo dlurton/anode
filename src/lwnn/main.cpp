@@ -1,9 +1,10 @@
-#include "../include/lwnn/front/parse.h"
+
+#include "front/parse.h"
 #include "front/ast_passes.h"
-#include "../include/lwnn/execute/execute.h"
-#include "../include/lwnn/front/visualize.h"
-#include "../include/lwnn/front/error.h"
-#include "string_format.h"
+#include "front/visualize.h"
+#include "front/error.h"
+#include "common/string_format.h"
+#include "execute/execute.h"
 
 #include <unistd.h>
 

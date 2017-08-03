@@ -1,5 +1,5 @@
 
-#include "../include/lwnn/front/ast.h"
+#include "front/ast.h"
 
 
 namespace lwnn {

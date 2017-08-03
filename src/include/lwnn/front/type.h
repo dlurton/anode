@@ -2,7 +2,7 @@
 #pragma once
 
 #include <string>
-#include "../exception.h"
+#include "common/exception.h"
 
 namespace lwnn {
     namespace type {

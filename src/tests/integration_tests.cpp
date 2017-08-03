@@ -10,8 +10,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <chrono>
-
 using namespace lwnn;
 using namespace lwnn::test_util;
 

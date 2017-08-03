@@ -3,7 +3,9 @@
 setup_llvm()
 
 set(COMPILE_SOURCE_FILES
-        ${LWNN_INCLUDE_DIR}/back/compile.h
+        ${LWNN_INCLUDE_DIR}/common
+        ${LWNN_INCLUDE_DIR}/back
+
         ModuleAstVisitor.cpp
         CompileContext.h
         llvm.h

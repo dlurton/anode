@@ -35,20 +35,12 @@ add_custom_command(
 ##############################################################
 set(FRONT_SRC_FILES
         ${GENERATED_FRONT_SRC_FILES}
-        ${CMAKE_SOURCE_DIR}/src/include/lwnn/string_format.h      #there's got to be a better way of handling these guys other than listing them all in every CMakeLists.txt that uses them.
-        ${CMAKE_SOURCE_DIR}/src/include/lwnn/exception.h
+        ${LWNN_INCLUDE_DIR}/common
+        ${LWNN_INCLUDE_DIR}/front
         ast.cpp
         parse.cpp
         visualize.cpp
-        ../include/lwnn/front/ast.h
-        ../include/lwnn/front/visualize.h
-        ../include/lwnn/front/parse.h
-        ../include/lwnn/front/type.h
-        ../include/lwnn/front/ast_passes.h
-        ../include/lwnn/front/error.h
-        ../include/lwnn/front/source.h
         type.cpp
-        scope.h
         ast_passes.cpp
         source.cpp
         )

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "type.h"
-#include "../../../front/scope.h"
+#include "scope.h"
 #include "source.h"
 
 #include <string>

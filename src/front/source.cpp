@@ -1,6 +1,6 @@
 
 
-#include "../include/lwnn/front/source.h"
+#include "front/source.h"
 
 namespace lwnn {
     namespace source {
