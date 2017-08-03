@@ -1,48 +1,16 @@
-#include "execute/execute.h"
-#include "back/compile.h"
-#include "front/ast_passes.h"
-#include "front/visualize.h"
 
+#pragma once
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wall"
-#pragma GCC diagnostic ignored "-Wextra"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+#include "llvm.h"
 
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Mangler.h"
-
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/DynamicLibrary.h"
-
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/RuntimeDyld.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
-
-#include "llvm/IR/LegacyPassManager.h"
-
-#include "llvm/ExecutionEngine/Orc/CompileUtils.h"
-#include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
-#include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
-#include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
-#include "llvm/ExecutionEngine/Orc/IndirectionUtils.h"
-#include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
-
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Scalar/GVN.h"
-
-#pragma GCC diagnostic pop
-
-#include <stack>
-#include <vector>
-
+#include <unordered_map>
 
 namespace lwnn {
     namespace execute {
-        /** This function is called by the JITd code to deliver the result of an expression */
-        extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr);
 
-        //The llvm::orc::createResolver(...) version of this doesn't seem to work for some reason...
+        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDeclStmt &FnAST, const std::string &Suffix);
+
+        //The original version of this (llvm::orc::createResolver(...)) doesn't seem to want to compile no matter what I do.
         template<typename DylibLookupFtorT, typename ExternalLookupFtorT>
         std::unique_ptr<llvm::orc::LambdaResolver<DylibLookupFtorT, ExternalLookupFtorT>>
         createLambdaResolver2(DylibLookupFtorT DylibLookupFtor, ExternalLookupFtorT ExternalLookupFtor) {
@@ -50,13 +18,11 @@ namespace lwnn {
             return std::make_unique<LR>(DylibLookupFtor, ExternalLookupFtor);
         }
 
-        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDeclStmt &FnAST, const std::string &Suffix);
-
         /** This class originally taken from:
          * https://github.com/llvm-mirror/llvm/tree/master/examples/Kaleidoscope/BuildingAJIT/Chapter4
          * http://llvm.org/docs/tutorial/BuildingAJIT4.html
          */
-        class SimpleJIT {
+        class LwnnJit {
         private:
             std::unique_ptr<llvm::TargetMachine> TM;
             const llvm::DataLayout DL;
@@ -75,7 +41,7 @@ namespace lwnn {
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
-            SimpleJIT()
+            LwnnJit()
                 : TM(llvm::EngineBuilder().selectTarget()),
                   DL(TM->createDataLayout()),
                   ObjectLayer([]() { return std::make_shared<llvm::SectionMemoryManager>(); }),
@@ -90,8 +56,6 @@ namespace lwnn {
                     llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple());
                 IndirectStubsMgr = IndirectStubsMgrBuilder();
                 llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
-
-                putExport(back::RECEIVE_RESULT_FUNC_NAME, (uint64_t)receiveReplResult);
             }
 
             /** Adds a symbol to be exported to the JIT'd modules, overwriting any previously added values.*/
@@ -236,104 +200,5 @@ namespace lwnn {
             }
         }; //SimpleJIT
 
-        class ExecutionContextImpl : public ExecutionContext {
-            llvm::LLVMContext context_;
-            std::unique_ptr<SimpleJIT> jit_ = std::make_unique<SimpleJIT>();
-            bool dumpIROnModuleLoad_ = false;
-            bool setPrettyPrintAst_ = false;
-            std::vector<std::shared_ptr<ast::GlobalExportSymbol>> exportedSymbols_;
-            ResultCallbackFunctor resultFunctor_ = nullptr;
-        public:
-            ExecutionContextImpl() {
-                jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
-                jit_->setEnableOptimization(false);
-            }
-
-            void dispatchResult(type::PrimitiveType primitiveType, uint64_t valuePtr) {
-                if(resultFunctor_)
-                    resultFunctor_(this, primitiveType, valuePtr);
-            }
-
-            uint64_t getSymbolAddress(const std::string &name) override {
-                llvm::JITSymbol symbol = jit_->findSymbol(name);
-
-                if (!symbol)
-                    return 0;
-
-                uint64_t retval = llvm::cantFail(symbol.getAddress());
-                return retval;
-            }
-
-            virtual void setDumpIROnLoad(bool value) override {
-                dumpIROnModuleLoad_ = value;
-            }
-
-            virtual void setPrettyPrintAst(bool value) override {
-                setPrettyPrintAst_ = value;
-            }
-
-            virtual void setResultCallback(ResultCallbackFunctor functor)  {
-                resultFunctor_ = functor;
-            }
-
-            virtual void prepareModule(ast::Module *module) override {
-
-                for(auto symbolToImport : exportedSymbols_) {
-                    module->scope()->addSymbol(symbolToImport.get());
-                }
-
-                error::ErrorStream errorStream {std::cerr};
-                ast_passes::runAllPasses(module, errorStream);
-
-                if(errorStream.errorCount() > 0) {
-                    throw ExecutionException(
-                        string::format("There were %d compilation errors.  See stderr for details.", errorStream.errorCount()));
-                }
-
-                for(auto symbolToExport : module->scope()->symbols()) {
-                    if(dynamic_cast<ast::GlobalExportSymbol*>(symbolToExport) == nullptr) {
-                        exportedSymbols_.emplace_back(
-                            std::make_shared<ast::GlobalExportSymbol>(symbolToExport->name(), symbolToExport->type()));
-                    }
-                }
-
-                if(setPrettyPrintAst_) {
-                    visualize::prettyPrint(module);
-                }
-            }
-
-        protected:
-            virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) override {
-                ASSERT(module);
-
-                std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module.get(), context_, jit_->getTargetMachine());
-
-                if(dumpIROnModuleLoad_) {
-                    llvm::outs() << "LLVM IR:\n";
-                    llvmModule->print(llvm::outs(), nullptr);
-                }
-
-                jit_->addModule(move(llvmModule));
-
-                if(auto moduleInitSymbol = jit_->findSymbol(module->name() + back::MODULE_INIT_SUFFIX))
-                    return llvm::cantFail(moduleInitSymbol.getAddress());
-
-                return 0;
-            }
-        }; //ExecutionContextImpl
-
-        extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr) {
-            ExecutionContextImpl *ec = reinterpret_cast<ExecutionContextImpl*>(ecPtr);
-            ec->dispatchResult(primitiveType, valuePtr);
-        }
-
-        std::unique_ptr<ExecutionContext> createExecutionContext() {
-
-            llvm::InitializeNativeTarget();
-            llvm::InitializeNativeTargetAsmPrinter();
-            llvm::InitializeNativeTargetAsmParser();
-
-            return std::make_unique<ExecutionContextImpl>();
-        }
-    } //namespace execute
-} //namespace lwnn
+    }
+}
