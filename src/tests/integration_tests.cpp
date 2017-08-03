@@ -5,6 +5,7 @@
 #include "execute/execute.h"
 #include "front/parse.h"
 #include "back/compile.h"
+#include "test_util.h"
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
@@ -12,113 +13,7 @@
 #include <chrono>
 
 using namespace lwnn;
-
-int testCount = 0;
-
-union ResultStorage {
-    bool boolResult;
-    int int32Result;
-    float floatReslt;
-    double doubleResult;
-};
-
-struct StmtResult {
-    type::PrimitiveType primitiveType;
-    ResultStorage storage;
-    
-    template<typename T>
-    T get() {
-        if (typeid(T) == typeid(bool)) {
-            ASSERT(primitiveType == type::PrimitiveType::Bool);
-            return storage.boolResult;
-        }
-        if(typeid(T) == typeid(int)) {
-            ASSERT(primitiveType == type::PrimitiveType::Int32);
-            return storage.int32Result;
-        }
-        if(typeid(T) == typeid(float)) {
-            ASSERT(primitiveType == type::PrimitiveType::Float);
-            return storage.floatReslt;
-        }
-        if(typeid(T) == typeid(double)) {
-            ASSERT(primitiveType == type::PrimitiveType::Double);
-            return storage.doubleResult;
-        }
-
-        ASSERT_FAIL("T may be only bool, int, float or double");
-    }
-};
-
-
-std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
-    std::cout << "Executing:  " << source << "\n";
-    auto testStartTime = std::chrono::high_resolution_clock::now();
-
-    std::string module_name = string::format("test_%d", ++testCount);
-
-    std::unique_ptr<ast::Module> module = parse::parseModule(source, module_name);
-    ASSERT(module && "If module is null, a syntax error probably occurred!");
-    executionContext->prepareModule(module.get());
-
-#ifdef VISUALIZE_AST
-    executionContext->setPrettyPrintAst(true);
-#endif
-
-#ifdef DUMP_IR
-    executionContext->setDumpIROnLoad(true);
-#endif
-
-    std::vector<StmtResult> results;
-
-    executionContext->setResultCallback(
-        [&](execute::ExecutionContext*, type::PrimitiveType primitiveType, uint64_t valuePtr) {
-            StmtResult result;
-            result.primitiveType = primitiveType;
-            switch (primitiveType) {
-                case type::PrimitiveType::Bool:
-                    result.storage.boolResult = *reinterpret_cast<bool*>(valuePtr);
-                    break;
-                case type::PrimitiveType::Int32:
-                    result.storage.int32Result = *reinterpret_cast<int*>(valuePtr);
-                    break;
-                case type::PrimitiveType::Float:
-                    result.storage.floatReslt = *reinterpret_cast<float*>(valuePtr);
-                    break;
-                case type::PrimitiveType::Double:
-                    result.storage.doubleResult = *reinterpret_cast<double*>(valuePtr);
-                    break;
-                default:
-                    ASSERT_FAIL("Unhandled PrimitiveType");
-            }
-            results.push_back(result);
-        });
-
-    executionContext->executeModule(std::move(module));
-    auto elapsed = std::chrono::high_resolution_clock::now() - testStartTime;
-    long long microseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-    std::cout << microseconds << "ms\n";
-
-    return results;
-}
-
-void exec(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
-    testWithResults(executionContext, source);
-}
-
-/** This variant expects there to be only one result */
-template<typename T>
-T test(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
-    std::vector<StmtResult> results = testWithResults(executionContext, source);
-    ASSERT(results.size() == 1);
-    return results[0].get<T>();
-}
-
-template<typename T>
-T test(std::string source) {
-    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    T result = test<T>(ec, source);
-    return result;
-}
+using namespace lwnn::test_util;
 
 TEST_CASE("basic bool expressions") {
     SECTION("literals") {
