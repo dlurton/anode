@@ -31,7 +31,7 @@ and up-to-date picture of supported syntax and features, however, here's a short
     ```
     someInt:int = { 1; 2; 3; };
     ``` 
-    The last expression within the compound expression becomes the value of the Returns a value of `3`.
+    The last expression within the compound expression (`3`) is the value assigned to `someInt`.
     This isn't very significant or useful right now but will become important later when more of lwnn's branching functionality becomes 
     available.    
  - Ternary expressions: `(? condition, trueValue, falseValue )`
