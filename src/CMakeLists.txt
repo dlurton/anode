@@ -13,6 +13,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
+include_directories(${LWNN_INCLUDE_DIR})
 
 ###########################################################################################################
 # Setup LLVM.  This function is provided so that components which need to link with LLVM may easily do so.
@@ -36,11 +37,10 @@ function(setup_llvm)
 endfunction()
 
 
+add_subdirectory(front)
 add_subdirectory(back)
 add_subdirectory(execute)
-add_subdirectory(front)
 add_subdirectory(lwnn)
-#add_subdirectory(include)
 add_subdirectory(tests)
 
 

@@ -1,4 +1,4 @@
-#include "ast_passes.h"
+#include "front/ast_passes.h"
 #include "scope.h"
 #include "../include/lwnn/front/error.h"
 

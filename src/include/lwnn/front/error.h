@@ -1,7 +1,7 @@
 
 #include "source.h"
 #include "../exception.h"
-#include "../string.h"
+#include "string_format.h"
 
 #include <ostream>
 #include <memory>

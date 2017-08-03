@@ -1,5 +1,5 @@
 #include "../include/lwnn/front/visualize.h"
-#include "../include/lwnn/string.h"
+#include "string_format.h"
 
 #include <iostream>
 #include <algorithm>

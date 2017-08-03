@@ -1,8 +1,8 @@
 
 #pragma once
 
-#include "../include/lwnn/front/ast.h"
-#include "../include/lwnn/front/error.h"
+#include "ast.h"
+#include "error.h"
 
 #include <deque>
 

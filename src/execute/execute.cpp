@@ -1,15 +1,13 @@
-#include "../include/lwnn/execute/execute.h"
-#include "../include/lwnn/back/compile.h"
-#include "../front/ast_passes.h"
+#include "execute/execute.h"
+#include "back/compile.h"
+#include "front/ast_passes.h"
+#include "front/visualize.h"
 
-#include <stack>
-#include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
-
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Mangler.h"
@@ -32,9 +30,12 @@
 
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
-#include "../include/lwnn/front/visualize.h"
 
 #pragma GCC diagnostic pop
+
+#include <stack>
+#include <vector>
+
 
 namespace lwnn {
     namespace execute {
@@ -90,7 +91,7 @@ namespace lwnn {
                 IndirectStubsMgr = IndirectStubsMgrBuilder();
                 llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 
-                putExport(compile::RECEIVE_RESULT_FUNC_NAME, (uint64_t)receiveReplResult);
+                putExport(back::RECEIVE_RESULT_FUNC_NAME, (uint64_t)receiveReplResult);
             }
 
             /** Adds a symbol to be exported to the JIT'd modules, overwriting any previously added values.*/
@@ -244,7 +245,7 @@ namespace lwnn {
             ResultCallbackFunctor resultFunctor_ = nullptr;
         public:
             ExecutionContextImpl() {
-                jit_->putExport(compile::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
+                jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
                 jit_->setEnableOptimization(false);
             }
 
@@ -305,7 +306,7 @@ namespace lwnn {
             virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) override {
                 ASSERT(module);
 
-                std::unique_ptr<llvm::Module> llvmModule = compile::compileModule(module.get(), context_, jit_->getTargetMachine());
+                std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module.get(), context_, jit_->getTargetMachine());
 
                 if(dumpIROnModuleLoad_) {
                     llvm::outs() << "LLVM IR:\n";
@@ -314,7 +315,7 @@ namespace lwnn {
 
                 jit_->addModule(move(llvmModule));
 
-                if(auto moduleInitSymbol = jit_->findSymbol(module->name() + compile::MODULE_INIT_SUFFIX))
+                if(auto moduleInitSymbol = jit_->findSymbol(module->name() + back::MODULE_INIT_SUFFIX))
                     return llvm::cantFail(moduleInitSymbol.getAddress());
 
                 return 0;
@@ -335,4 +336,4 @@ namespace lwnn {
             return std::make_unique<ExecutionContextImpl>();
         }
     } //namespace execute
-} //namespace float
+} //namespace lwnn
