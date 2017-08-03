@@ -8,7 +8,7 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  - If all passes against the AST succeed LLVM IR will be generated and displayed.
  - The statement will be executed and the result will be displayed.
  
-There's only a very limited set of functionality that works right now.  Examination of [tests.cpp](https://github.com/dlurton/lwnn/blob/master/src/tests/integration_tests.cpp) will give a more complete
+There's only a very limited set of functionality that works right now.  Examination of [integration_tests.cpp](https://github.com/dlurton/lwnn/blob/master/src/tests/integration_tests.cpp) will give a more complete
 and up-to-date picture of supported syntax and features, however, here's a short summary:
 
 - Data types: `bool`, `int` and `float`.
