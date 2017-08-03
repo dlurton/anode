@@ -245,7 +245,7 @@ namespace lwnn {
                 valueStack_.push(result);
             }
 
-            virtual bool visitingIfExpr(IfExpr *ifExpr) override {
+            virtual bool visitingIfExpr(IfExprStmt *ifExpr) override {
                 //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
                 //Emit the condition
                 llvm::Value *condValue = emitExpr(ifExpr->condition(), cc());
@@ -295,7 +295,7 @@ namespace lwnn {
             }
 
 
-            virtual bool visitingCompoundExpr(CompoundExpr *expr) override {
+            virtual bool visitingCompoundExpr(CompoundExprStmt *expr) override {
 
                 llvm::Value *lastValue = nullptr;
                 for(ast::ExprStmt *expr : expr->statements()) {
@@ -406,7 +406,7 @@ namespace lwnn {
             llvm::Function *resultFunc_;
             llvm::Value *executionContextPtrValue_;
 
-            ast::CompoundExpr *rootCompoundExpr_ = nullptr;
+            ast::CompoundExprStmt *rootCompoundExpr_ = nullptr;
         public:
             ModuleAstVisitor(CompileContext &cc, llvm::TargetMachine &targetMachine)
                 : CompileAstVisitor{cc},

@@ -15,15 +15,15 @@ namespace lwnn {
         public:
             PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-            virtual bool visitingCompoundExpr(CompoundExpr *expr) override {
-                writer_.write("CompoundExpr: ");
+            virtual bool visitingCompoundExpr(CompoundExprStmt *expr) override {
+                writer_.write("CompoundExprStmt: ");
                 writeScopeVariables(expr->scope());
                 writer_.writeln();
                 writer_.incIndent();
                 return true;
             }
 
-            virtual void visitedCompoundExpr(CompoundExpr *) override {
+            virtual void visitedCompoundExpr(CompoundExprStmt *) override {
                 writer_.decIndent();
             }
 
@@ -86,13 +86,13 @@ namespace lwnn {
                 writer_.writeln("VariableRefExpr: " + expr->name());
             }
 
-            virtual bool visitingIfExpr(IfExpr *) override {
-                writer_.writeln("Select:");
+            virtual bool visitingIfExpr(IfExprStmt *) override {
+                writer_.writeln("IfExprStmt:");
                 writer_.incIndent();
                 return true;
             }
 
-            virtual void visitedIfExpr(IfExpr *) override {
+            virtual void visitedIfExpr(IfExprStmt *) override {
                 writer_.decIndent();
             }
 

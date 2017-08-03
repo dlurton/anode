@@ -13,7 +13,7 @@ namespace lwnn {
                 funcDeclStmt->parameterScope()->setParent(topScope());
             }
 
-            virtual bool visitingCompoundExpr(ast::CompoundExpr *compoundStmt) override {
+            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
                 ast::ScopeFollowingVisitor::visitingCompoundExpr(compoundStmt);
                 compoundStmt->scope()->setParent(topScope());
                 return true;
@@ -118,7 +118,7 @@ namespace lwnn {
                 }
             }
 
-            virtual void visitedIfExpr(ast::IfExpr *ifExpr) {
+            virtual void visitedIfExpr(ast::IfExprStmt *ifExpr) {
 
                 if(ifExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
                     if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {

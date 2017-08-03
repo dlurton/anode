@@ -8,9 +8,9 @@ module
 
 // continue following this:  https://github.com/antlr/grammars-v4/blob/master/java/Java.g4#L407
 statement
-    : expr ';'                                                          # exprStmt
-    | '{' (stmts=statement )* '}'                                     # compoundExpr
-    | KW_IF '(' cond=expr ')' thenExprStmt=statement ('else' elseExprStmt=statement)?  # ifExpr
+    : expr ';'                                                                 # exprStmt
+    | compoundExprStmt                                                         # compoundStmt
+    | KW_IF '(' cond=expr ')' thenStmt=statement ('else' elseStmt=statement)?  # ifStmt
     ;
 
 expr
@@ -30,8 +30,14 @@ expr
     | var=ID                                                          # variableRefExpr
     | 'cast' '<' type=ID '>' '(' expr ')'                             # castExpr
     | '(?' cond=expr ',' thenExpr=expr ',' elseExpr=expr ')'          # ternaryExpr
+    | compoundExprStmt                                                # compoundExpr
+    | KW_IF '(' cond=expr ')' thenExpr=expr ('else' elseExpr=expr)?   # ifExpr
     ;
 
+//compoundExprStmt can be an expression or a statement, depending on the context
+compoundExprStmt
+    : '{' (stmts=statement )* '}'
+    ;
 
 
 litBool

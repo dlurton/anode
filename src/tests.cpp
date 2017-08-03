@@ -276,6 +276,27 @@ TEST_CASE("if with value") {
     REQUIRE(test<int>("if (false) { 1; 2; } else { 3; 4; }") == 4);
 }
 
+TEST_CASE("if as rvalue") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int;");
+
+    exec(ec, "a = if (true) 1 else 2;");
+    REQUIRE(test<int>(ec, "a;") == 1);
+    exec(ec, "a = if (false) 1 else 2;");
+    REQUIRE(test<int>(ec, "a;") == 2);
+
+    exec(ec, "a = if (true) { 1; } else { 2; };");
+    REQUIRE(test<int>(ec, "a;") == 1);
+    exec(ec, "a = if (false) { 1; } else { 2; };");
+    REQUIRE(test<int>(ec, "a;") == 2);
+
+    exec(ec, "a = if (true) { 1; 2; } else { 3; 4; };");
+    REQUIRE(test<int>(ec, "a;") == 2);
+    exec(ec, "a = if (false) { 1; 2; } else { 3; 4; };");
+    REQUIRE(test<int>(ec, "a;" ) == 4);
+}
+
+
 TEST_CASE("nested if and else if with values") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "a:int; b:int;");

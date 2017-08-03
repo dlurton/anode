@@ -43,7 +43,7 @@ namespace lwnn {
         std::string to_string(ExprKind kind) {
             switch (kind) {
                 case ExprKind::CompoundExpr:
-                    return "CompoundExpr";
+                    return "CompoundExprStmt";
                 case ExprKind::VariableDeclExpr:
                     return "VariableDeclExpr";
                 case ExprKind::LiteralInt32Expr:

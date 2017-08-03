@@ -54,10 +54,10 @@ namespace lwnn {
         class Stmt;
         class ReturnStmt;
         class ExprStmt;
-        class CompoundExpr;
+        class CompoundExprStmt;
         class FuncDeclStmt;
         class ReturnStmt;
-        class IfExpr;
+        class IfExprStmt;
         class LiteralBoolExpr;
         class LiteralInt32Expr;
         class LiteralFloatExpr;
@@ -80,8 +80,8 @@ namespace lwnn {
             virtual void visitingFuncDeclStmt(FuncDeclStmt *) { }
             virtual void visitedFuncDeclStmt(FuncDeclStmt *) { }
 
-            virtual bool visitingCompoundExpr(CompoundExpr *) { return true;}
-            virtual void visitedCompoundExpr(CompoundExpr *) { }
+            virtual bool visitingCompoundExpr(CompoundExprStmt *) { return true;}
+            virtual void visitedCompoundExpr(CompoundExprStmt *) { }
 
             virtual void visitingReturnStmt(ReturnStmt *) { }
             virtual void visitedReturnStmt(ReturnStmt *) { }
@@ -95,8 +95,8 @@ namespace lwnn {
             virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
             virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-            virtual bool visitingIfExpr(IfExpr *) { return true; }
-            virtual void visitedIfExpr(IfExpr *) { }
+            virtual bool visitingIfExpr(IfExprStmt *) { return true; }
+            virtual void visitedIfExpr(IfExprStmt *) { }
 
             virtual void visitingBinaryExpr(BinaryExpr *) { }
             virtual void visitedBinaryExpr(BinaryExpr *) { }
@@ -503,13 +503,13 @@ namespace lwnn {
         };
 
         /** Contains a series of expressions, i.e. those contained within { and }. */
-        class CompoundExpr : public ExprStmt {
+        class CompoundExprStmt : public ExprStmt {
             scope::SymbolTable scope_;
         protected:
             std::vector<std::unique_ptr<ExprStmt>> statements_;
         public:
-            CompoundExpr(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan) { }
-            virtual ~CompoundExpr() {}
+            CompoundExprStmt(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan) { }
+            virtual ~CompoundExprStmt() {}
             scope::SymbolTable *scope() { return &scope_; }
 
             virtual ExprKind exprKind() const { return ExprKind::CompoundExpr; };
@@ -567,14 +567,14 @@ namespace lwnn {
         };
 
         /** Can be the basis of an if-then-else or ternary operator. */
-        class IfExpr : public ExprStmt {
+        class IfExprStmt : public ExprStmt {
             std::unique_ptr<ExprStmt> condition_;
             std::unique_ptr<ExprStmt> thenExpr_;
             std::unique_ptr<ExprStmt> elseExpr_;
         public:
 
             /** Note:  assumes ownership of condition, truePart and falsePart.  */
-            IfExpr(source::SourceSpan sourceSpan,
+            IfExprStmt(source::SourceSpan sourceSpan,
                             std::unique_ptr<ExprStmt> condition,
                             std::unique_ptr<ExprStmt> trueExpr,
                             std::unique_ptr<ExprStmt> elseExpr)
@@ -697,9 +697,9 @@ namespace lwnn {
 
         class Module {
             std::string name_;
-            std::unique_ptr<CompoundExpr> body_;
+            std::unique_ptr<CompoundExprStmt> body_;
         public:
-            Module(std::string name, std::unique_ptr<CompoundExpr> body)
+            Module(std::string name, std::unique_ptr<CompoundExprStmt> body)
                 : name_{name}, body_{std::move(body)} {
             }
 
@@ -707,7 +707,7 @@ namespace lwnn {
 
             scope::SymbolTable *scope() { return body_->scope(); }
 
-            CompoundExpr *body() { return body_.get(); }
+            CompoundExprStmt *body() { return body_.get(); }
 
             void accept(AstVisitor *visitor) {
                 if(visitor->visitingModule(this)) {
@@ -740,14 +740,14 @@ namespace lwnn {
                 symbolTableStack_.pop_back();
             }
 
-            virtual bool visitingCompoundExpr(ast::CompoundExpr *compoundStmt) override {
+            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
                 if(symbolTableStack_.size() > 0) {
                     compoundStmt->scope()->setParent(topScope());
                 }
                 symbolTableStack_.push_back(compoundStmt->scope());
                 return true;
             }
-            virtual void visitedCompoundExpr(ast::CompoundExpr *compoundStmt) override {
+            virtual void visitedCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
                 ASSERT(compoundStmt->scope() == symbolTableStack_.back());
                 symbolTableStack_.pop_back();
             }
