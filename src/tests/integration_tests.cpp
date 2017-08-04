@@ -18,8 +18,6 @@ TEST_CASE("basic bool expressions") {
         REQUIRE(test<bool>("true;"));
         REQUIRE(!test<bool>("false;"));
     }
-
-    //TO DO:  boolean operators
 }
 
 TEST_CASE("basic integer expressions") {
@@ -43,6 +41,30 @@ TEST_CASE("basic integer expressions") {
         REQUIRE(test<int>("6 + 10 / 2;") == 11);
         REQUIRE(test<int>("(1 + 2) * 3;") == 9);
         REQUIRE(test<int>("(5 + 10) / 3;") == 5);
+    }
+}
+
+TEST_CASE("basic float expressions") {
+    SECTION("literal floats") {
+        REQUIRE(test<float>("1.0;") == 1.0);
+        REQUIRE(test<float>("-1.0;") == -1.0);
+        REQUIRE(test<float>("2.0;") == 2.0);
+
+        REQUIRE(test<float>("234.0;") == 234.0);
+        REQUIRE(test<float>("-2.0;") == -2);
+    }
+    SECTION("basic binary expressions for each operator") {
+        REQUIRE(test<float>("2.0 + 3.0;") == 5.0);
+        REQUIRE(test<float>("2.0 - 3.0;") == -1.0);
+        REQUIRE(test<float>("2.0 * 3.0;") == 6.0);
+        REQUIRE(test<float>("6.0 / 2.0;") == 3.0);
+    }
+
+    SECTION("Order of operations") {
+        REQUIRE(test<float>("1.0 + 2.0 * 3.0;") == 7.0);
+        REQUIRE(test<float>("6.0 + 10.0 / 2.0;") == 11.0);
+        REQUIRE(test<float>("(1.0 + 2.0) * 3.0;") == 9.0);
+        REQUIRE(test<float>("(5.0 + 10.0) / 3.0;") == 5.0);
     }
 }
 
@@ -73,28 +95,88 @@ TEST_CASE("equality") {
 
 }
 
-TEST_CASE("basic float expressions") {
-    SECTION("literal floats") {
-        REQUIRE(test<float>("1.0;") == 1.0);
-        REQUIRE(test<float>("-1.0;") == -1.0);
-        REQUIRE(test<float>("2.0;") == 2.0);
+TEST_CASE("logical and") {
+    REQUIRE(test<bool>("true && true;"));
+    REQUIRE(!test<bool>("true && false;"));
+    REQUIRE(!test<bool>("false && true;"));
+    REQUIRE(!test<bool>("false && false;"));
 
-        REQUIRE(test<float>("234.0;") == 234.0);
-        REQUIRE(test<float>("-2.0;") == -2);
-    }
-    SECTION("basic binary expressions for each operator") {
-        REQUIRE(test<float>("2.0 + 3.0;") == 5.0);
-        REQUIRE(test<float>("2.0 - 3.0;") == -1.0);
-        REQUIRE(test<float>("2.0 * 3.0;") == 6.0);
-        REQUIRE(test<float>("6.0 / 2.0;") == 3.0);
+
+    SECTION("logical and with boolean variables") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "t:bool = true; f:bool = false;");
+        REQUIRE(test<bool>(ec, "t && t;"));
+        REQUIRE(!test<bool>(ec, "t && f;"));
+        REQUIRE(!test<bool>(ec, "f && t;"));
+        REQUIRE(!test<bool>(ec, "f && f;"));
     }
 
-    SECTION("Order of operations") {
-        REQUIRE(test<float>("1.0 + 2.0 * 3.0;") == 7.0);
-        REQUIRE(test<float>("6.0 + 10.0 / 2.0;") == 11.0);
-        REQUIRE(test<float>("(1.0 + 2.0) * 3.0;") == 9.0);
-        REQUIRE(test<float>("(5.0 + 10.0) / 3.0;") == 5.0);
+    SECTION("logical and with implicit cast from int") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "t:int = 1; f:int = 0;");
+        REQUIRE(test<bool>(ec, "t && t;"));
+        REQUIRE(!test<bool>(ec, "t && f;"));
+        REQUIRE(!test<bool>(ec, "f && t;"));
+        REQUIRE(!test<bool>(ec, "f && f;"));
     }
+
+    SECTION("logical and with equality comparison") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "a:int = 1; ");
+        REQUIRE(!test<bool>(ec, "a == 0 && a == 0;"));
+        REQUIRE(!test<bool>(ec, "a == 0 && a == 1;"));
+        REQUIRE(!test<bool>(ec, "a == 1 && a == 0;"));
+        REQUIRE(test<bool>(ec, "a == 1 && a == 1;"));
+    }
+
+    SECTION("logical and with compound expressions short-circuits") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "a:int = 0;b:int = 0;");
+        REQUIRE(!test<bool>(ec, "{ a = 1; false; } && { b = 1; a; };"));
+        REQUIRE(test<int>(ec, "a;") == 1); // a = 1; should have executed
+        REQUIRE(test<int>(ec, "b;") == 0); // b = 1; should not have executed
+
+        ec = execute::createExecutionContext();
+        exec(ec, "a:int = 0;b:int = 0;");
+        REQUIRE(test<bool>(ec, "{ a = 1; true; } && { b = 1; a; };"));
+        REQUIRE(test<int>(ec, "a;") == 1); // a = 1; should have executed
+        REQUIRE(test<int>(ec, "b;") == 1); // b = 1; should have executed
+    }
+}
+
+TEST_CASE("logical or") {
+    REQUIRE(test<bool>("true || true;"));
+    REQUIRE(test<bool>("true || false;"));
+    REQUIRE(test<bool>("false || true;"));
+    REQUIRE(!test<bool>("false || false;"));
+
+
+    SECTION("logical or with boolean variables") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "t:bool = true; f:bool = false;");
+        REQUIRE(test<bool>(ec, "t || t;"));
+        REQUIRE(test<bool>(ec, "t || f;"));
+        REQUIRE(test<bool>(ec, "f || t;"));
+        REQUIRE(!test<bool>(ec, "f || f;"));
+    }
+
+    SECTION("logical or with implicit cast from int") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "t:int = 1; f:int = 0;");
+        REQUIRE(test<bool>(ec, "t || t;"));
+        REQUIRE(test<bool>(ec, "t || f;"));
+        REQUIRE(test<bool>(ec, "f || t;"));
+        REQUIRE(!test<bool>(ec, "f || f;"));
+    }
+
+    SECTION("logical or with equality comparison") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "a:int = 1; ");
+        REQUIRE(!test<bool>(ec, "a == 0 || a == 0;"));
+        REQUIRE(test<bool>(ec, "a == 0 || a == 1;"));
+        REQUIRE(test<bool>(ec, "a == 1 || a == 0;"));
+        REQUIRE(test<bool>(ec, "a == 1 || a == 1;"));
+    }    
 }
 
 TEST_CASE("compound expressions") {
@@ -113,6 +195,15 @@ TEST_CASE("compound expressions") {
     REQUIRE(test<float>("{ 2.0; }") == 2.0);
     REQUIRE(test<float>("{ 2.0; 3.0; }") == 3.0);
     REQUIRE(test<float>("{ 2.0; 3.0; 4.0; }") == 4.0);
+
+    SECTION("compound expressions with variables") {
+        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+        exec(ec, "a:int = 1; b:int = 2; c:int = 3; d:int = 4;");
+        REQUIRE(test<int>(ec, "{ a; }") == 1);
+        REQUIRE(test<int>(ec, "{ b; }") == 2);
+        REQUIRE(test<int>(ec, "{ b; c; }") == 3);
+        REQUIRE(test<int>(ec, "{ b; c; d; }") == 4);
+    }
 }
 
 TEST_CASE("conditional expressions") {

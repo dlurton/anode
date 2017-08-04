@@ -20,11 +20,12 @@ namespace lwnn {
         };
 
         class SymbolTable {
-            SymbolTable *parent_;
+            SymbolTable *parent_ = nullptr;
             std::unordered_map<std::string, Symbol*> symbols_;
         public:
 
             void setParent(SymbolTable *parent) {
+                ASSERT(parent != this && "What, are you trying to cause an infinite loop?");
                 parent_ = parent;
             }
 

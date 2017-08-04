@@ -5,22 +5,60 @@
 namespace lwnn {
     namespace ast_passes {
 
-        /** Sets each SymbolTable's parent scope. */
-        class SetSymbolTableParentsAstVisitor : public ast::ScopeFollowingVisitor {
+        class ScopeFollowingVisitor : public ast::AstVisitor {
+
+            //We use this only as a stack but it has to be a deque so we can iterate over its contents.
+            std::deque<scope::SymbolTable*> symbolTableStack_;
+        protected:
+            scope::SymbolTable *topScope() {
+                ASSERT(symbolTableStack_.size());
+                return symbolTableStack_.back();
+            }
+
+            size_t scopeDepth() { return symbolTableStack_.size(); }
+
         public:
             virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
-                ast::ScopeFollowingVisitor::visitedFuncDeclStmt(funcDeclStmt);
+                funcDeclStmt->parameterScope()->setParent(topScope());
+                symbolTableStack_.push_back(funcDeclStmt->parameterScope());
+            }
+
+            virtual void visitedFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+                ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
+                symbolTableStack_.pop_back();
+            }
+
+            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
+                symbolTableStack_.push_back(compoundStmt->scope());
+                return true;
+            }
+
+            virtual void visitedCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
+                ASSERT(compoundStmt->scope() == symbolTableStack_.back());
+                symbolTableStack_.pop_back();
+            }
+        };
+
+
+        /** Sets each SymbolTable's parent scope. */
+        class SetSymbolTableParentsAstVisitor : public ScopeFollowingVisitor {
+        public:
+            virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+                ScopeFollowingVisitor::visitedFuncDeclStmt(funcDeclStmt);
                 funcDeclStmt->parameterScope()->setParent(topScope());
             }
 
             virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
-                ast::ScopeFollowingVisitor::visitingCompoundExpr(compoundStmt);
-                compoundStmt->scope()->setParent(topScope());
+                //The first entry on the stack would be the global scope which has no parent
+                if(scopeDepth()) {
+                    compoundStmt->scope()->setParent(topScope());
+                }
+                ScopeFollowingVisitor::visitingCompoundExpr(compoundStmt);
                 return true;
             }
         };
 
-        class PopulateSymbolTablesVisitor : public ast::ScopeFollowingVisitor {
+        class PopulateSymbolTablesVisitor : public ScopeFollowingVisitor {
             error::ErrorStream &errorStream_;
         public:
 
@@ -38,7 +76,7 @@ namespace lwnn {
             }
         };
 
-        class SymbolResolvingVisitor : public ast::ScopeFollowingVisitor {
+        class SymbolResolvingVisitor : public ScopeFollowingVisitor {
             error::ErrorStream &errorStream_;
         public:
             SymbolResolvingVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
@@ -46,17 +84,17 @@ namespace lwnn {
             virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) {
                 if(expr->symbol()) return;
 
-                scope::Symbol *found = topScope()->findSymbol(expr->name());
+                scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name());
                 if(!found) {
                     errorStream_.error(expr->sourceSpan(), "Variable '%s' was not defined in this scope.",
                         expr->name().c_str());
                 } else {
                     expr->setSymbol(found);
                 }
-
             }
         };
-        class TypeResolvingVisitor : public ast::ScopeFollowingVisitor {
+
+        class TypeResolvingVisitor : public ScopeFollowingVisitor {
             error::ErrorStream &errorStream_;
         public:
             TypeResolvingVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) {
@@ -79,9 +117,32 @@ namespace lwnn {
             AddImplicitCastsVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
             virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
+                if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Logical) {
 
-                if(binaryExpr->lValue()->type() != binaryExpr->rValue()->type())
-                {
+                    if(binaryExpr->lValue()->type()->primitiveType() != type::PrimitiveType::Bool) {
+                        binaryExpr->graftLValue(
+                            [&](std::unique_ptr<ast::ExprStmt> oldLValue) {
+                                return std::make_unique<ast::CastExpr>(
+                                    oldLValue->sourceSpan(),
+                                    &type::Primitives::Bool,
+                                    std::move(oldLValue),
+                                    ast::CastKind::Implicit);
+                            });
+                    }
+
+                    if(binaryExpr->rValue()->type()->primitiveType() != type::PrimitiveType::Bool) {
+                        binaryExpr->graftRValue(
+                            [&](std::unique_ptr<ast::ExprStmt> oldRValue) {
+                                return std::make_unique<ast::CastExpr>(
+                                    oldRValue->sourceSpan(),
+                                    &type::Primitives::Bool,
+                                    std::move(oldRValue),
+                                    ast::CastKind::Implicit);
+                            });
+                    }
+                }
+                else if(binaryExpr->lValue()->type() != binaryExpr->rValue()->type()) {
+
                     //If we can implicitly cast the lvalue to same type as the rvalue, we should...
                     if(binaryExpr->lValue()->type()->canImplicitCastTo(binaryExpr->rValue()->type())
                        && binaryExpr->operation() != ast::BinaryOperationKind::Assign) {
@@ -123,11 +184,11 @@ namespace lwnn {
                 if(ifExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
                     if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
                         ifExpr->graftCondition(
-                            [&](std::unique_ptr<ast::ExprStmt> oldTruePart) {
+                            [&](std::unique_ptr<ast::ExprStmt> oldCondition) {
                                 return std::make_unique<ast::CastExpr>(
-                                    oldTruePart->sourceSpan(),
+                                    oldCondition->sourceSpan(),
                                     &type::Primitives::Bool,
-                                    std::move(oldTruePart),
+                                    std::move(oldCondition),
                                     ast::CastKind::Implicit);
                             });
                     } else {
@@ -201,15 +262,19 @@ namespace lwnn {
             BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
             virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
+                if(binaryExpr->operation() == ast::BinaryOperationKind::Eq) {
+                    return;
+                }
                 if(binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
                     if(!dynamic_cast<ast::VariableRefExpr*>(binaryExpr->lValue())) {
                         errorStream_.error(binaryExpr->operatorSpan(), "Invalid l-value for operator '='");
                     }
-                } else if(ast::isArithmeticOperation(binaryExpr->operation())) {
+                } else if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
                     if(!binaryExpr->type()->canDoArithmetic()) {
                         errorStream_.error(binaryExpr->operatorSpan(), "Operator '%s' cannot be used with type '%s'.",
                             ast::to_string(binaryExpr->operation()).c_str(), binaryExpr->type()->name().c_str());
                     }
+                    //TODO? if(!binaryExpr->type()->canDoLogic()) {
                 }
             }
         };

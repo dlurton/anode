@@ -42,13 +42,10 @@ namespace lwnn {
             Mul,
             Div,
             Eq,
-//            And,
-//            Or
+            LogicalAnd,
+            LogicalOr
         };
         std::string to_string(BinaryOperationKind type);
-
-        bool isArithmeticOperation(BinaryOperationKind kind);
-        bool isLogicalOperation(BinaryOperationKind kind);
 
         class AstNode;
         class Stmt;
@@ -98,7 +95,7 @@ namespace lwnn {
             virtual bool visitingIfExpr(IfExprStmt *) { return true; }
             virtual void visitedIfExpr(IfExprStmt *) { }
 
-            virtual void visitingBinaryExpr(BinaryExpr *) { }
+            virtual bool visitingBinaryExpr(BinaryExpr *) { return true; }
             virtual void visitedBinaryExpr(BinaryExpr *) { }
 
             virtual void visitLiteralBoolExpr(LiteralBoolExpr *) { }
@@ -299,6 +296,19 @@ namespace lwnn {
         };
 
 
+        /** Represents the type of binary operation.
+         * Distinction between these binary operation types are important because although they
+         * use the same data structure to represent them, how their code is emitted is very
+         * different.
+         */
+        enum class BinaryExprKind {
+            /** Both operands of an arithmetic binary expression are always evaluated. */
+            Arithmetic,
+            /** At least one operand of a logical operation is always evaluated and one
+             * may be skipped due to short-circuiting. */
+            Logical
+        };
+
         /** Represents a binary expression, i.e. 1 + 2 or foo + bar */
         class BinaryExpr : public ExprStmt {
             std::unique_ptr<ExprStmt> lValue_;
@@ -357,9 +367,26 @@ namespace lwnn {
 
             BinaryOperationKind operation() const { return operation_; }
 
+            BinaryExprKind binaryExprKind() {
+                switch(operation_) {
+                    case BinaryOperationKind::Assign:
+                    case BinaryOperationKind::Eq:
+                    case BinaryOperationKind::Mul:
+                    case BinaryOperationKind::Add:
+                    case BinaryOperationKind::Sub:
+                    case BinaryOperationKind::Div:
+                        return BinaryExprKind::Arithmetic;
+                    case BinaryOperationKind::LogicalOr:
+                    case BinaryOperationKind::LogicalAnd:
+                        return BinaryExprKind::Logical;
+                    default:
+                        ASSERT_FAIL("Unknown binary operation kind")
+                }
+            }
+
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingExprStmt(this);
-                visitor->visitingBinaryExpr(this);
+                visitChildren = visitor->visitingBinaryExpr(this) ? visitChildren : false;
 
                 if(visitChildren) {
                     lValue_->accept(visitor);
@@ -714,42 +741,6 @@ namespace lwnn {
                     body_->accept(visitor);
                 }
                 visitor->visitedModule(this);
-            }
-        };
-
-        /** Most visitors will inherit from this because it tracks symbol scopes through the AST.
-         * Note that all overrides in inheritors should the member functions they are overriding so that the scope is properly tracked. */
-        // TODO:  move this class back to compile.cpp since it's not being used outside of there anymore
-        class ScopeFollowingVisitor : public ast::AstVisitor {
-            //We use this only as a stack but it has to be a deque so we can iterate over its contents.
-            std::deque<scope::SymbolTable*> symbolTableStack_;
-        protected:
-            scope::SymbolTable *topScope() {
-                ASSERT(symbolTableStack_.size());
-                return symbolTableStack_.back();
-            }
-
-        public:
-            virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
-                funcDeclStmt->parameterScope()->setParent(topScope());
-                symbolTableStack_.push_back(funcDeclStmt->parameterScope());
-            }
-
-            virtual void visitedFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
-                ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
-                symbolTableStack_.pop_back();
-            }
-
-            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
-                if(symbolTableStack_.size() > 0) {
-                    compoundStmt->scope()->setParent(topScope());
-                }
-                symbolTableStack_.push_back(compoundStmt->scope());
-                return true;
-            }
-            virtual void visitedCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
-                ASSERT(compoundStmt->scope() == symbolTableStack_.back());
-                symbolTableStack_.pop_back();
             }
         };
 

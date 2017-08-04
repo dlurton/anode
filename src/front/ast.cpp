@@ -18,28 +18,6 @@ namespace lwnn {
             }
         }
 
-        bool isArithmeticOperation(BinaryOperationKind kind) {
-            switch(kind) {
-                case BinaryOperationKind::Mul:
-                case BinaryOperationKind::Add:
-                case BinaryOperationKind::Sub:
-                case BinaryOperationKind::Div:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-//        bool isLogicalOperation(BinaryOperationKind kind) {
-//            switch(kind) {
-//                case BinaryOperationKind::Or:
-//                case BinaryOperationKind::And:
-//                    return true;
-//                default:
-//                    return false;
-//            }
-//        }
-
         std::string to_string(ExprKind kind) {
             switch (kind) {
                 case ExprKind::CompoundExpr:
@@ -75,6 +53,10 @@ namespace lwnn {
                     return "/";
                 case BinaryOperationKind::Eq:
                     return "==";
+                case BinaryOperationKind::LogicalAnd:
+                    return "&&";
+                case BinaryOperationKind::LogicalOr:
+                    return "||";
                 default:
                     ASSERT_FAIL("Unhandled BinaryOperationKind");
             }

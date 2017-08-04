@@ -51,9 +51,10 @@ namespace lwnn {
                 }
             }
 
-            virtual void visitingBinaryExpr(BinaryExpr *expr) override {
-                writer_.writeln("BinaryExpr: " + to_string(expr->operation()));
+            virtual bool visitingBinaryExpr(BinaryExpr *expr) override {
+                writer_.writeln("BinaryExpr: " + to_string(expr->operation()) + ", " + expr->type()->name());
                 writer_.incIndent();
+                return true;
             }
 
             virtual void visitedBinaryExpr(BinaryExpr *) override {

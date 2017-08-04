@@ -131,10 +131,59 @@ namespace lwnn {
                 llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(globalVar);
                 loadInst->setAlignment(ALIGNMENT);
                 valueStack_.push(loadInst);
+            }
 
+            virtual bool visitingBinaryExpr(ast::BinaryExpr *expr) override {
+                if(expr->binaryExprKind() != ast::BinaryExprKind::Logical) {
+                    return true;
+                }
+
+                //Prepare the basic blocks
+                llvm::BasicBlock *lValueBlock = cc().irBuilder().GetInsertBlock();
+                llvm::Function *currentFunc = lValueBlock->getParent();
+                llvm::BasicBlock *rValueBlock = llvm::BasicBlock::Create(cc().llvmContext(), "rValueBlock");
+                llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "endBlock");
+
+                //Emit the lValue, which is always the first operand of a logical operation to be evaluated
+                llvm::Value *lValue = emitExpr(expr->lValue(), cc());
+
+                bool lValueConst;
+                switch(expr->operation()) {
+                    //For the && operator, only evaluate the lValue if the rValue is true
+                    case ast::BinaryOperationKind::LogicalAnd:
+                        cc().irBuilder().CreateCondBr(lValue, rValueBlock, endBlock);
+                        lValueConst = false;
+                        break;
+                    case ast::BinaryOperationKind::LogicalOr:
+                        cc().irBuilder().CreateCondBr(lValue, endBlock, rValueBlock);
+                        lValueConst = true;
+                        break;
+                    default:
+                        ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be a logical operator)")
+                }
+                currentFunc->getBasicBlockList().push_back(rValueBlock);
+                cc().irBuilder().SetInsertPoint(rValueBlock);
+                llvm::Value *rValue = emitExpr(expr->rValue(), cc());
+                cc().irBuilder().CreateBr(endBlock);
+
+                currentFunc->getBasicBlockList().push_back(endBlock);
+                cc().irBuilder().SetInsertPoint(endBlock);
+                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().toLlvmType(type::PrimitiveType::Bool), 2, "logical_tmp");
+
+                llvm::ConstantInt *shortCircuitLlvmValue
+                    = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));
+                phi->addIncoming(shortCircuitLlvmValue, lValueBlock);
+                phi->addIncoming(rValue, rValueBlock);
+
+                valueStack_.push(phi);
+                return false;
             }
 
             virtual void visitedBinaryExpr(ast::BinaryExpr *expr) override {
+                if(expr->binaryExprKind() != ast::BinaryExprKind::Arithmetic) {
+                    return;
+                }
+
                 ASSERT(expr->lValue()->type() == expr->rValue()->type() && "data types must match");
 
                 llvm::Value *rValue = valueStack_.top();
@@ -158,12 +207,6 @@ namespace lwnn {
                             case ast::BinaryOperationKind::Eq:
                                 resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
                                 break;
-//                            case BinaryOperationKind::And:
-//                                resultValue =  irBuilder_.CreateICmpEQ(lValue, rValue);
-//                                break;
-//                            case BinaryOperationKind::Or:
-//                                resultValue =  irBuilder_.CreateICmpEQ(lValue, rValue);
-//                                break;
                             default:
                                 ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type")
                         }
@@ -186,7 +229,7 @@ namespace lwnn {
                                 resultValue = cc().irBuilder().CreateSDiv(lValue, rValue);
                                 break;
                             default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind");
+                                ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
                         }
                         break;
                     case type::PrimitiveType::Float:
@@ -207,7 +250,7 @@ namespace lwnn {
                                 resultValue = cc().irBuilder().CreateFDiv(lValue, rValue);
                                 break;
                             default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind");
+                                ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
                         }
                         break;
                     default:
