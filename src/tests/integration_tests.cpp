@@ -68,7 +68,7 @@ TEST_CASE("basic float expressions") {
     }
 }
 
-TEST_CASE("equality") {
+TEST_CASE("== operator") {
     //Boolean
     REQUIRE(test<bool>("true == true;"));
     REQUIRE(test<bool>("false == false;"));
@@ -88,12 +88,93 @@ TEST_CASE("equality") {
     REQUIRE(!test<bool>("1 == 2.0;"));
     REQUIRE(test<bool>("1.0 == 1;"));
     REQUIRE(!test<bool>("1.0 == 2;"));
+}
 
-    //Integer-bool implict casts?
+TEST_CASE("!= operator") {
+    //Boolean
+    REQUIRE(!test<bool>("true != true;"));
+    REQUIRE(!test<bool>("false != false;"));
+    REQUIRE(test<bool>("false != true;"));
+    REQUIRE(test<bool>("true != false;"));
 
-    //Float-bool implict casts?
+    //Integer
+    REQUIRE(!test<bool>("1 != 1;"));
+    REQUIRE(test<bool>("1 != 2;"));
+
+    //Float
+    REQUIRE(!test<bool>("1.0 != 1.0;"));
+    REQUIRE(test<bool>("1.0 != 2.0;"));
+
+    //Integer-float implict casts
+    REQUIRE(!test<bool>("1 != 1.0;"));
+    REQUIRE(test<bool>("1 != 2.0;"));
+    REQUIRE(!test<bool>("1.0 != 1;"));
+    REQUIRE(test<bool>("1.0 != 2;"));
+}
+
+
+
+TEST_CASE("> operator") {
+    //Int
+    REQUIRE(!test<bool>("1 > 1;"));
+    REQUIRE(!test<bool>("1 > 2;"));
+    REQUIRE(test<bool>("1 > 0;"));
+    REQUIRE(test<bool>("-1 > -2;"));
+
+    //Float
+    REQUIRE(!test<bool>("1.0 > 1.0;"));
+    REQUIRE(!test<bool>("1.0 > 2.0;"));
+    REQUIRE(test<bool>("1.0 > 0.0;"));
+    REQUIRE(test<bool>("-1.0 > -2.0;"));
+}
+
+
+TEST_CASE(">= operator") {
+    //Int
+    REQUIRE(test<bool>("1 >= 1;"));
+    REQUIRE(!test<bool>("1 >= 2;"));
+    REQUIRE(test<bool>("1 >= 0;"));
+    REQUIRE(test<bool>("-1 >= -2;"));
+
+    //Float
+    REQUIRE(test<bool>("1.0 >= 1.0;"));
+    REQUIRE(!test<bool>("1.0 >= 2.0;"));
+    REQUIRE(test<bool>("1.0 >= 0.0;"));
+    REQUIRE(test<bool>("-1.0 >= -2.0;"));
+}
+
+
+TEST_CASE("< operator") {
+
+    //Int
+    REQUIRE(!test<bool>("1 < 1;"));
+    REQUIRE(test<bool>("1 < 2;"));
+    REQUIRE(!test<bool>("1 < 0;"));
+    REQUIRE(!test<bool>("-1 < -2;"));
+
+    //Float
+    REQUIRE(!test<bool>("1.0 < 1.0;"));
+    REQUIRE(test<bool>("1.0 < 2.0;"));
+    REQUIRE(!test<bool>("1.0 < 0.0;"));
+    REQUIRE(!test<bool>("-1.0 < -2.0;"));
 
 }
+
+
+TEST_CASE("<= operator") {
+    //Int
+    REQUIRE(test<bool>("1 <= 1;"));
+    REQUIRE(test<bool>("1 <= 2;"));
+    REQUIRE(!test<bool>("1 <= 0;"));
+    REQUIRE(!test<bool>("-1 <= -2;"));
+
+    //Float
+    REQUIRE(test<bool>("1.0 <= 1.0;"));
+    REQUIRE(test<bool>("1.0 <= 2.0;"));
+    REQUIRE(!test<bool>("1.0 <= 0.0;"));
+    REQUIRE(!test<bool>("-1.0 <= -2.0;"));
+}
+
 
 TEST_CASE("logical and") {
     REQUIRE(test<bool>("true && true;"));

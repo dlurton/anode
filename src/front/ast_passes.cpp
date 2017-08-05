@@ -262,7 +262,7 @@ namespace lwnn {
             BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
             virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
-                if(binaryExpr->operation() == ast::BinaryOperationKind::Eq) {
+                if(binaryExpr->isComparison()) {
                     return;
                 }
                 if(binaryExpr->operation() == ast::BinaryOperationKind::Assign) {

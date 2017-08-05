@@ -33,15 +33,14 @@ namespace lwnn {
                     case type::PrimitiveType::Int32:
                         switch (expr->type()->primitiveType()) {
                             //To bool
-                            case type::PrimitiveType::Bool: {
+                            case type::PrimitiveType::Bool:
                                 castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr->valueExpr()->type()));
                                 break;
-                            }
-                                //To int
+                            //To int
                             case type::PrimitiveType::Int32:
                                 castedValue = value;
                                 break;
-                                //to float
+                            //To float
                             case type::PrimitiveType::Float:
                                 castedValue = cc().irBuilder().CreateSIToFP(value, destLlvmType);
                                 break;
@@ -69,22 +68,6 @@ namespace lwnn {
                         //From bool
                     case type::PrimitiveType::Bool:
                         ASSERT_FAIL("cannot cast from bool to anything");
-//                        switch(expr->type()->primitiveType()) {
-//                            //To bool
-//                            case type::PrimitiveType::Bool:
-//                                castedValue = value;
-//                                break;
-//                            //To to int32
-//                            case type::PrimitiveType::Int32:
-//                                castedValue = irBuilder_.CreateSExt(value, destLlvmType);
-//                                break;
-//                                //to float
-//                            case type::PrimitiveType::Float:
-//                                castedValue = irBuilder_.CreateSIToFP(value, destLlvmType);
-//                                break;
-//                            default:
-//                                ASSERT_FAIL("Unknown cast from bool");
-//                        }
                         break;
                     default:
                         ASSERT_FAIL("Unhandled type::PrimitiveType")
@@ -207,6 +190,9 @@ namespace lwnn {
                             case ast::BinaryOperationKind::Eq:
                                 resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
                                 break;
+                            case ast::BinaryOperationKind::NotEq:
+                                resultValue = cc().irBuilder().CreateICmpNE(lValue, rValue);
+                                break;
                             default:
                                 ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type")
                         }
@@ -215,6 +201,9 @@ namespace lwnn {
                         switch (expr->operation()) {
                             case ast::BinaryOperationKind::Eq:
                                 resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::NotEq:
+                                resultValue = cc().irBuilder().CreateICmpNE(lValue, rValue);
                                 break;
                             case ast::BinaryOperationKind::Add:
                                 resultValue = cc().irBuilder().CreateAdd(lValue, rValue);
@@ -228,6 +217,18 @@ namespace lwnn {
                             case ast::BinaryOperationKind::Div:
                                 resultValue = cc().irBuilder().CreateSDiv(lValue, rValue);
                                 break;
+                            case ast::BinaryOperationKind::GreaterThan:
+                                resultValue = cc().irBuilder().CreateICmpSGT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThanOrEqual:
+                                resultValue = cc().irBuilder().CreateICmpSGE(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThan:
+                                resultValue = cc().irBuilder().CreateICmpSLT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThanOrEqual:
+                                resultValue = cc().irBuilder().CreateICmpSLE(lValue, rValue);
+                                break;
                             default:
                                 ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
                         }
@@ -236,6 +237,9 @@ namespace lwnn {
                         switch (expr->operation()) {
                             case ast::BinaryOperationKind::Eq:
                                 resultValue = cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::NotEq:
+                                resultValue = cc().irBuilder().CreateFCmpONE(lValue, rValue);
                                 break;
                             case ast::BinaryOperationKind::Add:
                                 resultValue = cc().irBuilder().CreateFAdd(lValue, rValue);
@@ -248,6 +252,18 @@ namespace lwnn {
                                 break;
                             case ast::BinaryOperationKind::Div:
                                 resultValue = cc().irBuilder().CreateFDiv(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThan:
+                                resultValue = cc().irBuilder().CreateFCmpOGT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThanOrEqual:
+                                resultValue = cc().irBuilder().CreateFCmpOGE(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThan:
+                                resultValue = cc().irBuilder().CreateFCmpOLT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThanOrEqual:
+                                resultValue = cc().irBuilder().CreateFCmpOLE(lValue, rValue);
                                 break;
                             default:
                                 ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
@@ -323,9 +339,6 @@ namespace lwnn {
 
                 return false;
             }
-
-        private:
-
         };
 
         llvm::Value *emitExpr(ast::ExprStmt *exprStmt, CompileContext &cc) {

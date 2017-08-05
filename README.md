@@ -18,6 +18,8 @@ and up-to-date picture of supported syntax and features, however, here's a short
     - Variables must be declared before use.
     - New variables are always initialized to 0.
     - Variables may have an initializer: 'someVariable:int = 1 + 2 * anyExpressionHere;'
+- Binary Operators:
+    - +, -, /, *, =, !=, ==, >, >=, <, <=, &&, ||
  - Casting:
     - Implicit casting happens when there is no precision loss between float and int:
     - For example in the expression:  `1.0 + 2` the `2` is cast to a `float` and the expression's result is a `float`.

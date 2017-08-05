@@ -42,8 +42,13 @@ namespace lwnn {
             Mul,
             Div,
             Eq,
+            NotEq,
             LogicalAnd,
-            LogicalOr
+            LogicalOr,
+            GreaterThan,
+            LessThan,
+            GreaterThanOrEqual,
+            LessThanOrEqual
         };
         std::string to_string(BinaryOperationKind type);
 
@@ -340,10 +345,24 @@ namespace lwnn {
             /** This is the type of the result, which may be different than the type of the operands depending on the operation type,
              * because some operation types (e.g. equality, logical and, or, etc) always yield boolean values.  */
             type::Type *type() const override {
-                if(operation_ == BinaryOperationKind::Eq /*|| isLogicalOperation(operation_)*/) {
+                if(isComparison()) {
                     return &type::Primitives::Bool;
                 }
                 return operandsType();
+            }
+
+            bool isComparison() const {
+                switch(operation_) {
+                    case BinaryOperationKind::Eq:
+                    case BinaryOperationKind::NotEq:
+                    case BinaryOperationKind::GreaterThan:
+                    case BinaryOperationKind::GreaterThanOrEqual:
+                    case BinaryOperationKind::LessThan:
+                    case BinaryOperationKind::LessThanOrEqual:
+                        return true;
+                    default:
+                        return false;
+                }
             }
 
             /** This is the type of the operands. */
@@ -371,10 +390,15 @@ namespace lwnn {
                 switch(operation_) {
                     case BinaryOperationKind::Assign:
                     case BinaryOperationKind::Eq:
+                    case BinaryOperationKind::NotEq:
                     case BinaryOperationKind::Mul:
                     case BinaryOperationKind::Add:
                     case BinaryOperationKind::Sub:
                     case BinaryOperationKind::Div:
+                    case BinaryOperationKind::LessThan:
+                    case BinaryOperationKind::LessThanOrEqual:
+                    case BinaryOperationKind::GreaterThan:
+                    case BinaryOperationKind::GreaterThanOrEqual:
                         return BinaryExprKind::Arithmetic;
                     case BinaryOperationKind::LogicalOr:
                     case BinaryOperationKind::LogicalAnd:

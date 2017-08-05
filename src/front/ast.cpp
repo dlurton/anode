@@ -53,10 +53,20 @@ namespace lwnn {
                     return "/";
                 case BinaryOperationKind::Eq:
                     return "==";
+                case BinaryOperationKind::NotEq:
+                    return "!=";
                 case BinaryOperationKind::LogicalAnd:
                     return "&&";
                 case BinaryOperationKind::LogicalOr:
                     return "||";
+                case BinaryOperationKind::GreaterThan:
+                    return ">";
+                case BinaryOperationKind::GreaterThanOrEqual:
+                    return ">=";
+                case BinaryOperationKind::LessThan:
+                    return "<";
+                case BinaryOperationKind::LessThanOrEqual:
+                    return "<=";
                 default:
                     ASSERT_FAIL("Unhandled BinaryOperationKind");
             }
