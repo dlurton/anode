@@ -228,6 +228,22 @@ namespace lwnn {
                                                  std::move(elseExprStmt)));
             }
 
+            //At least for now, the while statement will not be able to serve as an expression with a value.
+//            virtual void enterWhileExpr(LwnnParser::WhileExprContext * ctx) override {
+//                ASSERT(ctx->cond);
+//                ASSERT(ctx->body);
+//                std::unique_ptr<ExprStmt> condition = extractExpr(ctx->cond);
+//                std::unique_ptr<ExprStmt> body = extractExpr(ctx->body);
+//
+//                setResult(
+//                    std::make_unique<WhileExpr>(
+//                        getSourceSpan(ctx),
+//                        std::move(condition),
+//                        std::move(body)
+//                    )
+//                );
+//            }
+
             virtual void enterCompoundExpr(LwnnParser::CompoundExprContext * ctx) override {
                 setResult(extractCompoundExprStmt(ctx->compoundExprStmt()));
             }
@@ -264,6 +280,36 @@ namespace lwnn {
                                                  condListener.surrenderResult(),
                                                  std::move(thenExprStmt),
                                                  std::move(elseExprStmt)));
+            }
+
+            virtual void enterWhileStmt(LwnnParser::WhileStmtContext *ctx) override {
+                ASSERT(ctx->cond);
+                ASSERT(ctx->body);
+                std::unique_ptr<ExprStmt> condition = extractExpr(ctx->cond);
+                std::unique_ptr<ExprStmt> body = extractExpr(ctx->body);
+
+                setResult(
+                    std::make_unique<WhileExpr>(
+                        getSourceSpan(ctx),
+                        std::move(condition),
+                        std::move(body)
+                    )
+                );
+            }
+
+            virtual void enterWhileStmtCompound(LwnnParser::WhileStmtCompoundContext *ctx) override {
+                ASSERT(ctx->cond);
+                ASSERT(ctx->body);
+                std::unique_ptr<ExprStmt> condition = extractExpr(ctx->cond);
+                std::unique_ptr<ExprStmt> body = extractCompoundExprStmt(ctx->body);
+
+                setResult(
+                    std::make_unique<WhileExpr>(
+                        getSourceSpan(ctx),
+                        std::move(condition),
+                        std::move(body)
+                    )
+                );
             }
 
             virtual void enterCompoundStmt(LwnnParser::CompoundStmtContext *ctx) override {

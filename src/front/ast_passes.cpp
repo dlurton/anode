@@ -232,6 +232,30 @@ namespace lwnn {
                     }
                 }
             }
+
+            virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) {
+                //Can we deduplicate this code? (duplicate is in AddImplicitCastsVisitor::visitedIfExpr)
+                if(whileExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
+                    if (whileExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+                        whileExpr->graftCondition(
+                            [&](std::unique_ptr<ast::ExprStmt> oldCondition) {
+                                return std::make_unique<ast::CastExpr>(
+                                    oldCondition->sourceSpan(),
+                                    &type::Primitives::Bool,
+                                    std::move(oldCondition),
+                                    ast::CastKind::Implicit);
+                            });
+                    } else {
+                        errorStream_.error(
+                            whileExpr->condition()->sourceSpan(),
+                            "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
+                            whileExpr->condition()->type()->name().c_str());
+                    }
+                }
+
+                return true;
+            }
+
         };
 
         class CastExprSemanticPass : public ast::AstVisitor {

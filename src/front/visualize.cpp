@@ -97,6 +97,16 @@ namespace lwnn {
                 writer_.decIndent();
             }
 
+            virtual bool visitingWhileExpr(WhileExpr *) override {
+                writer_.writeln("WhileExpr:");
+                writer_.incIndent();
+                return true;
+            }
+
+            virtual void visitedWhileExpr(WhileExpr *) override {
+                writer_.decIndent();
+            }
+
             virtual void visitingCastExpr(CastExpr *expr) override {
                 writer_.writeln("Cast(%s, to %s):",
                                 expr->castKind() == CastKind::Implicit ? "implicit" : "explicit",

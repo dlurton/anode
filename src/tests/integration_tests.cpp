@@ -112,8 +112,6 @@ TEST_CASE("!= operator") {
     REQUIRE(test<bool>("1.0 != 2;"));
 }
 
-
-
 TEST_CASE("> operator") {
     //Int
     REQUIRE(!test<bool>("1 > 1;"));
@@ -128,7 +126,6 @@ TEST_CASE("> operator") {
     REQUIRE(test<bool>("-1.0 > -2.0;"));
 }
 
-
 TEST_CASE(">= operator") {
     //Int
     REQUIRE(test<bool>("1 >= 1;"));
@@ -142,7 +139,6 @@ TEST_CASE(">= operator") {
     REQUIRE(test<bool>("1.0 >= 0.0;"));
     REQUIRE(test<bool>("-1.0 >= -2.0;"));
 }
-
 
 TEST_CASE("< operator") {
 
@@ -160,7 +156,6 @@ TEST_CASE("< operator") {
 
 }
 
-
 TEST_CASE("<= operator") {
     //Int
     REQUIRE(test<bool>("1 <= 1;"));
@@ -174,7 +169,6 @@ TEST_CASE("<= operator") {
     REQUIRE(!test<bool>("1.0 <= 0.0;"));
     REQUIRE(!test<bool>("-1.0 <= -2.0;"));
 }
-
 
 TEST_CASE("logical and") {
     REQUIRE(test<bool>("true && true;"));
@@ -403,6 +397,22 @@ TEST_CASE("nested if and else if with effects") {
     exec(ec, TEST_SRC);
     REQUIRE(test<int>(ec, "c;") == 4);
 }
+
+TEST_CASE("while loop") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; while(a < 10) a = a + 1; ");
+    REQUIRE(test<int>(ec, "a;") == 10);
+}
+
+TEST_CASE("nested while loops") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; b:int; innerCount:int;");
+    exec(ec, "while(a < 3) { a = a + 1; b = 0; while (b < 5) { b = b + 1; innerCount = innerCount + 1; } }");
+    REQUIRE(test<int>(ec, "a;") == 3);
+    REQUIRE(test<int>(ec, "b;") == 5);
+    REQUIRE(test<int>(ec, "innerCount;") == 15);
+}
+
 
 TEST_CASE("casting") {
 

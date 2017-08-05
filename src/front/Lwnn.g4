@@ -11,6 +11,8 @@ statement
     : expr ';'                                                                 # exprStmt
     | compoundExprStmt                                                         # compoundStmt
     | KW_IF '(' cond=expr ')' thenStmt=statement ('else' elseStmt=statement)?  # ifStmt
+    | KW_WHILE '(' cond=expr ')' body=expr ';'                                 # whileStmt
+    | KW_WHILE '(' cond=expr ')' body=compoundExprStmt                         # whileStmtCompound
     ;
 
 // Generally, we are following this for operator precdence:
@@ -35,6 +37,7 @@ expr
     | '(?' cond=expr ',' thenExpr=expr ',' elseExpr=expr ')'          # ternaryExpr
     | compoundExprStmt                                                # compoundExpr
     | KW_IF '(' cond=expr ')' thenExpr=expr ('else' elseExpr=expr)?   # ifExpr
+//    | KW_WHILE '(' cond=expr ')' body=expr                            # whileExpr
     ;
 
 //compoundExprStmt can be an expression or a statement, depending on the context
@@ -63,6 +66,7 @@ OP_LTE: '<=';
 KW_TRUE: 'true';
 KW_FALSE: 'false';
 KW_IF: 'if';
+KW_WHILE: 'while';
 
 //NUM :   [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)?;
 LIT_INT:    '-'?[0-9]+;

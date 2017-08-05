@@ -60,6 +60,7 @@ namespace lwnn {
         class FuncDeclStmt;
         class ReturnStmt;
         class IfExprStmt;
+        class WhileExpr;
         class LiteralBoolExpr;
         class LiteralInt32Expr;
         class LiteralFloatExpr;
@@ -99,6 +100,9 @@ namespace lwnn {
 
             virtual bool visitingIfExpr(IfExprStmt *) { return true; }
             virtual void visitedIfExpr(IfExprStmt *) { }
+
+            virtual bool visitingWhileExpr(WhileExpr *) { return true; }
+            virtual void visitedWhileExpr(WhileExpr *) { }
 
             virtual bool visitingBinaryExpr(BinaryExpr *) { return true; }
             virtual void visitedBinaryExpr(BinaryExpr *) { }
@@ -634,6 +638,7 @@ namespace lwnn {
                   thenExpr_{ std::move(trueExpr) },
                   elseExpr_{ std::move(elseExpr) } {
                 ASSERT(condition_);
+                ASSERT(thenExpr_);
             }
 
             virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
@@ -689,6 +694,52 @@ namespace lwnn {
                 }
 
                 visitor->visitedIfExpr(this);
+                visitor->visitedExprStmt(this);
+            }
+        };
+
+        class WhileExpr : public ExprStmt {
+            std::unique_ptr<ExprStmt> condition_;
+            std::unique_ptr<ExprStmt> body_;
+        public:
+
+            /** Note:  assumes ownership of condition, truePart and falsePart.  */
+            WhileExpr(source::SourceSpan sourceSpan,
+                std::unique_ptr<ExprStmt> condition,
+                std::unique_ptr<ExprStmt> body)
+                : ExprStmt(sourceSpan),
+                    condition_{ std::move(condition) },
+                    body_{ std::move(body) } {
+                ASSERT(condition_);
+                ASSERT(body_)
+            }
+
+            virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
+
+            type::Type *type() const override {
+                //For now, while expressions will not return a value.
+                return &type::Primitives::Void;
+            }
+
+            ExprStmt *condition() const { return condition_.get(); }
+            ExprStmt *body() const { return body_.get(); }
+
+            virtual bool canWrite() const override { return false; };
+
+            void graftCondition(ExprGraftFunctor graftFunctor) {
+                condition_= std::move(graftFunctor(std::move(condition_)));
+            }
+
+            virtual void accept(AstVisitor *visitor) override {
+                bool visitChildren = visitor->visitingExprStmt(this);
+                visitChildren = visitor->visitingWhileExpr(this) ? visitChildren : false;
+
+                if(visitChildren) {
+                    condition_->accept(visitor);
+                    body_->accept(visitor);
+                }
+
+                visitor->visitedWhileExpr(this);
                 visitor->visitedExprStmt(this);
             }
         };

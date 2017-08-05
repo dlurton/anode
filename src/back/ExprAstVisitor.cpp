@@ -326,14 +326,47 @@ namespace lwnn {
                 return false;
             }
 
+            virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) {
+
+                //Prepare the BasicBlocks
+                llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
+                llvm::BasicBlock *conditionBlock = llvm::BasicBlock::Create(cc().llvmContext(), "whileCondition");
+                llvm::BasicBlock *bodyBlock = llvm::BasicBlock::Create(cc().llvmContext(), "whileBody");
+                llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "whileEnd");
+
+                cc().irBuilder().CreateBr(conditionBlock);
+                currentFunc->getBasicBlockList().push_back(conditionBlock);
+                cc().irBuilder().SetInsertPoint(conditionBlock);
+
+                //Emit the condition
+                llvm::Value *condValue = emitExpr(whileExpr->condition(), cc());
+
+                //If the condition is true branch to the body block, otherwise branch to the end block
+                cc().irBuilder().CreateCondBr(condValue, bodyBlock, endBlock);
+
+                //Emit the body block
+                currentFunc->getBasicBlockList().push_back(bodyBlock);
+                cc().irBuilder().SetInsertPoint(bodyBlock);
+                emitExpr(whileExpr->body(), cc());
+                //Loop back to the condition
+                cc().irBuilder().CreateBr(conditionBlock);
+
+                //Emit the end block
+                currentFunc->getBasicBlockList().push_back(endBlock);
+                cc().irBuilder().SetInsertPoint(endBlock);
+
+                return false;
+            }
+
             virtual bool visitingCompoundExpr(ast::CompoundExprStmt *expr) override {
 
                 llvm::Value *lastValue = nullptr;
                 for (ast::ExprStmt *expr : expr->statements()) {
                     ExprAstVisitor exprAstVisitor{cc()};
                     expr->accept(&exprAstVisitor);
-                    ASSERT(exprAstVisitor.hasValue());
-                    lastValue = exprAstVisitor.llvmValue();
+                    if(exprAstVisitor.hasValue()) {
+                        lastValue = exprAstVisitor.llvmValue();
+                    }
                 }
                 valueStack_.push(lastValue);
 

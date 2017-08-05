@@ -42,6 +42,8 @@ and up-to-date picture of supported syntax and features, however, here's a short
     - For example `a = if(a == b) 1; else 2;"` works just like ternary. 
     - Also note that due to how compound expressions return the last value, more complex logic can be used to determine the 
     `a = if(a == b) { 1; 2; } else { 3; 4; };"` works just like ternary.  In this case `a` will become `2` when `a == b` or `4` when `a != b`.
+ - While loops:
+    - `while(condition) expression;` or `while(condition) { expression1; expression2; ...}`
     
  
 
