@@ -15,15 +15,27 @@ namespace lwnn {
         public:
             PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-            virtual bool visitingCompoundExpr(CompoundExprStmt *expr) override {
-                writer_.write("CompoundExprStmt: ");
+            virtual bool visitingCompoundExpr(CompoundExpr *expr) override {
+                writer_.write("CompoundExpr: ");
                 writeScopeVariables(expr->scope());
                 writer_.writeln();
                 writer_.incIndent();
                 return true;
             }
 
-            virtual void visitedCompoundExpr(CompoundExprStmt *) override {
+            virtual void visitedCompoundExpr(CompoundExpr *) override {
+                writer_.decIndent();
+            }
+
+            virtual bool visitingCompoundStmt(CompoundStmt *expr) override {
+                writer_.write("CompoundStmt: ");
+                writeScopeVariables(expr->scope());
+                writer_.writeln();
+                writer_.incIndent();
+                return true;
+            }
+
+            virtual void visitedCompoundStmt(CompoundStmt *) override {
                 writer_.decIndent();
             }
 
@@ -136,11 +148,26 @@ namespace lwnn {
                 writer_.decIndent();
             }
 
+            virtual bool visitingClassDefinition(ClassDefinition *ClassDefinition) override {
+                writer_.writeln("ClassDefinition: " + ClassDefinition->name());
+                writer_.incIndent();
+
+                return true;
+            }
+
+            virtual void visitedClassDefinition(ClassDefinition *) override {
+                writer_.decIndent();
+            }
+            
             virtual bool visitingModule(Module *module) override {
                 writer_.writeln("Module: " + module->name());
                 writer_.incIndent();
 
                 return true;
+            }
+
+            virtual void visitedModule(Module *) override {
+                writer_.decIndent();
             }
         };
 

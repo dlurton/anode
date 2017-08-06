@@ -28,12 +28,22 @@ namespace lwnn {
                 symbolTableStack_.pop_back();
             }
 
-            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
+            virtual bool visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
+                symbolTableStack_.push_back(compoundExpr->scope());
+                return true;
+            }
+
+            virtual void visitedCompoundExpr(ast::CompoundExpr *compoundExpr) override {
+                ASSERT(compoundExpr->scope() == symbolTableStack_.back());
+                symbolTableStack_.pop_back();
+            }
+            
+            virtual bool visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
                 symbolTableStack_.push_back(compoundStmt->scope());
                 return true;
             }
 
-            virtual void visitedCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
+            virtual void visitedCompoundStmt(ast::CompoundStmt *compoundStmt) override {
                 ASSERT(compoundStmt->scope() == symbolTableStack_.back());
                 symbolTableStack_.pop_back();
             }
@@ -48,12 +58,18 @@ namespace lwnn {
                 funcDeclStmt->parameterScope()->setParent(topScope());
             }
 
-            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *compoundStmt) override {
+            virtual bool visitingCompoundStmt(ast::CompoundStmt *stmt) override {
                 //The first entry on the stack would be the global scope which has no parent
                 if(scopeDepth()) {
-                    compoundStmt->scope()->setParent(topScope());
+                    stmt->scope()->setParent(topScope());
                 }
-                ScopeFollowingVisitor::visitingCompoundExpr(compoundStmt);
+                ScopeFollowingVisitor::visitingCompoundStmt(stmt);
+                return true;
+            }
+
+            virtual bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
+                expr->scope()->setParent(topScope());
+                ScopeFollowingVisitor::visitingCompoundExpr(expr);
                 return true;
             }
         };

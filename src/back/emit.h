@@ -9,5 +9,6 @@ namespace lwnn {
         const int ALIGNMENT = 4;
 
         llvm::Value *emitExpr(lwnn::ast::ExprStmt *exprStmt, CompileContext &);
+
     }
 }

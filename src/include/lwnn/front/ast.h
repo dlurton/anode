@@ -18,7 +18,9 @@ namespace lwnn {
         enum class StmtKind {
             FunctionDeclStmt,
             ReturnStmt,
-            ExprStmt
+            ExprStmt,
+            CompoundStmt,
+            ClassDefinition
         };
         std::string to_string(StmtKind kind);
 
@@ -56,8 +58,10 @@ namespace lwnn {
         class Stmt;
         class ReturnStmt;
         class ExprStmt;
-        class CompoundExprStmt;
+        class CompoundStmt;
+        class CompoundExpr;
         class FuncDeclStmt;
+        class ClassDefinition;
         class ReturnStmt;
         class IfExprStmt;
         class WhileExpr;
@@ -83,11 +87,14 @@ namespace lwnn {
             virtual void visitingFuncDeclStmt(FuncDeclStmt *) { }
             virtual void visitedFuncDeclStmt(FuncDeclStmt *) { }
 
-            virtual bool visitingCompoundExpr(CompoundExprStmt *) { return true;}
-            virtual void visitedCompoundExpr(CompoundExprStmt *) { }
+            virtual bool visitingClassDefinition(ClassDefinition *) { return true; }
+            virtual void visitedClassDefinition(ClassDefinition *) {  }
 
             virtual void visitingReturnStmt(ReturnStmt *) { }
             virtual void visitedReturnStmt(ReturnStmt *) { }
+
+            virtual bool visitingCompoundStmt(CompoundStmt *) { return true;}
+            virtual void visitedCompoundStmt(CompoundStmt*) { }
 
             //////////// Expressions
             /** Executes before every ExprStmt is visited. Return false to prevent visitation of the node's descendants. */
@@ -118,11 +125,15 @@ namespace lwnn {
             virtual void visitingCastExpr(CastExpr *) { }
             virtual void visitedCastExpr(CastExpr *) { }
 
+            virtual bool visitingCompoundExpr(CompoundExpr *) { return true;}
+            virtual void visitedCompoundExpr(CompoundExpr *) { }
+
             //////////// Misc
             virtual void visitTypeRef(TypeRef *) { }
 
             virtual bool visitingModule(Module *) { return true; }
             virtual void visitedModule(Module *) { }
+
         };
 
 //
@@ -558,29 +569,30 @@ namespace lwnn {
         };
 
         /** Contains a series of expressions, i.e. those contained within { and }. */
-        class CompoundExprStmt : public ExprStmt {
+        class CompoundExpr : public ExprStmt {
             scope::SymbolTable scope_;
         protected:
-            std::vector<std::unique_ptr<ExprStmt>> statements_;
+            std::vector<std::unique_ptr<ExprStmt>> expressions_;
         public:
-            CompoundExprStmt(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan) { }
-            virtual ~CompoundExprStmt() {}
+            CompoundExpr(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan) { }
+            virtual ~CompoundExpr() {}
             scope::SymbolTable *scope() { return &scope_; }
 
             virtual ExprKind exprKind() const { return ExprKind::CompoundExpr; };
             virtual type::Type *type() const {
-                ASSERT(statements_.size() > 0);
-                return statements_.back()->type();
+                ASSERT(expressions_.size() > 0);
+                return expressions_.back()->type();
             };
             virtual bool canWrite() const { return false; };
 
-            void addStatement(std::unique_ptr<ExprStmt> stmt) {
-                statements_.push_back(std::move(stmt));
+            void addExpr(std::unique_ptr<ExprStmt> stmt) {
+                expressions_.push_back(std::move(stmt));
             }
 
-            std::vector<ExprStmt*> statements() const {
+            std::vector<ExprStmt*> expressions() const {
                 std::vector<ExprStmt*> retval;
-                for(auto &stmt : statements_) {
+                retval.reserve(expressions_.size());
+                for(auto &stmt : expressions_) {
                     retval.push_back(stmt.get());
                 }
                 return retval;
@@ -590,12 +602,53 @@ namespace lwnn {
                 bool visitChildren = visitor->visitingExprStmt(this);
                 visitChildren = visitor->visitingCompoundExpr(this) ? visitChildren : false;
                 if(visitChildren) {
-                    for (auto &stmt : statements_) {
+                    for (auto &stmt : expressions_) {
                         stmt->accept(visitor);
                     }
                 }
                 visitor->visitedCompoundExpr(this);
                 visitor->visitedExprStmt(this);
+            }
+        };
+
+        /** Contains a series of expressions, i.e. those contained within { and }. */
+        class CompoundStmt : public Stmt {
+            scope::SymbolTable scope_;
+        protected:
+            std::vector<std::unique_ptr<Stmt>> statements_;
+        public:
+            CompoundStmt(source::SourceSpan sourceSpan) : Stmt(sourceSpan) { }
+            virtual ~CompoundStmt() {}
+
+            StmtKind stmtKind() const override {
+                return StmtKind::CompoundStmt;
+            }
+
+            scope::SymbolTable *scope() { return &scope_; }
+
+            void addStmt(std::unique_ptr<Stmt> stmt) {
+                statements_.push_back(std::move(stmt));
+            }
+
+            std::vector<Stmt*> statements() const {
+                std::vector<Stmt*> retval;
+                retval.reserve(statements_.size());
+                for(auto &stmt : statements_) {
+                    retval.push_back(stmt.get());
+                }
+                return retval;
+            }
+
+            virtual void accept(AstVisitor *visitor) override {
+                bool visitChildren = visitor->visitingStmt(this);
+                visitChildren = visitor->visitingCompoundStmt(this) ? visitChildren : false;
+                if(visitChildren) {
+                    for (auto &stmt : statements_) {
+                        stmt->accept(visitor);
+                    }
+                }
+                visitor->visitedCompoundStmt(this);
+                visitor->visitedStmt(this);
             }
         };
 
@@ -797,11 +850,42 @@ namespace lwnn {
             }
         };
 
+        class ClassDefinition : public Stmt {
+            scope::SymbolTable scope_;
+            std::string name_;
+            std::unique_ptr<CompoundStmt> body_;
+        public:
+            ClassDefinition(source::SourceSpan span, std::string name, std::unique_ptr<CompoundStmt> body)
+                : Stmt(span), name_{name}, body_{std::move(body)} {
+
+            }
+
+            StmtKind stmtKind() const override { return StmtKind::ClassDefinition; }
+
+            scope::SymbolTable &scope() {
+                return scope_;
+            }
+
+            CompoundStmt *body() { return body_.get(); }
+
+            std::string name() { return name_; }
+
+            virtual void accept(AstVisitor *visitor) override {
+                bool visitChildren = visitor->visitingStmt(this);
+                visitChildren = visitor->visitingClassDefinition(this) ? visitChildren : false;
+                if(visitChildren) {
+                    body_->accept(visitor);
+                }
+                visitor->visitedClassDefinition(this);
+                visitor->visitedStmt(this);
+            }
+        };
+
         class Module {
             std::string name_;
-            std::unique_ptr<CompoundExprStmt> body_;
+            std::unique_ptr<CompoundStmt> body_;
         public:
-            Module(std::string name, std::unique_ptr<CompoundExprStmt> body)
+            Module(std::string name, std::unique_ptr<CompoundStmt> body)
                 : name_{name}, body_{std::move(body)} {
             }
 
@@ -809,7 +893,7 @@ namespace lwnn {
 
             scope::SymbolTable *scope() { return body_->scope(); }
 
-            CompoundExprStmt *body() { return body_.get(); }
+            CompoundStmt *body() { return body_.get(); }
 
             void accept(AstVisitor *visitor) {
                 if(visitor->visitingModule(this)) {

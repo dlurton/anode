@@ -358,10 +358,10 @@ namespace lwnn {
                 return false;
             }
 
-            virtual bool visitingCompoundExpr(ast::CompoundExprStmt *expr) override {
+            virtual bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
 
                 llvm::Value *lastValue = nullptr;
-                for (ast::ExprStmt *expr : expr->statements()) {
+                for (ast::ExprStmt *expr : expr->expressions()) {
                     ExprAstVisitor exprAstVisitor{cc()};
                     expr->accept(&exprAstVisitor);
                     if(exprAstVisitor.hasValue()) {

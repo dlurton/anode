@@ -22,10 +22,11 @@ namespace lwnn {
         class SymbolTable {
             SymbolTable *parent_ = nullptr;
             std::unordered_map<std::string, Symbol*> symbols_;
+            std::vector<Symbol*> orderedSymbols_;
         public:
 
             void setParent(SymbolTable *parent) {
-                ASSERT(parent != this && "What, are you trying to cause an infinite loop?");
+                ASSERT(parent != this && "Hello? Are you trying to cause an infinite loop?");
                 parent_ = parent;
             }
 
@@ -57,13 +58,14 @@ namespace lwnn {
                        && "The symbol being added must not already exist in the current scope.");
 
                 symbols_.emplace(variable->name(), variable);
+                orderedSymbols_.emplace_back(variable);
             }
 
             std::vector<Symbol*> symbols() const {
                 std::vector<Symbol*> symbols;
-
-                for (auto &v : symbols_) {
-                    symbols.push_back(v.second);
+                symbols.reserve(orderedSymbols_.size());
+                for (Symbol *symbol : orderedSymbols_) {
+                    symbols.push_back(symbol);
                 }
 
                 return symbols;

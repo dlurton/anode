@@ -20,9 +20,10 @@ namespace lwnn {
      */
     namespace parse {
 
+        std::unique_ptr<ast::Stmt> extractStmt(LwnnParser::ExprStmtContext *ctx);
         std::unique_ptr<ast::ExprStmt> extractExpr(LwnnParser::ExprContext *ctx);
-        std::unique_ptr<ast::ExprStmt> extractStatement(LwnnParser::StatementContext *ctx);
-        std::unique_ptr<ast::CompoundExprStmt> extractCompoundExprStmt(LwnnParser::CompoundExprStmtContext *ctx);
+        std::unique_ptr<ast::ExprStmt> extractExprStmt(LwnnParser::ExprStmtContext *ctx);
+        std::unique_ptr<ast::CompoundExpr> extractCompoundExpr(LwnnParser::CompoundExprStmtContext *ctx);
 
         /** Extracts a SourceRange from values specified in token. */
         static source::SourceSpan getSourceSpan(antlr4::Token *token) {
@@ -245,7 +246,7 @@ namespace lwnn {
 //            }
 
             virtual void enterCompoundExpr(LwnnParser::CompoundExprContext * ctx) override {
-                setResult(extractCompoundExprStmt(ctx->compoundExprStmt()));
+                setResult(extractCompoundExpr(ctx->compoundExprStmt()));
             }
         };
 
@@ -257,10 +258,10 @@ namespace lwnn {
         }
 
         /*******************************************/
-        class StatementListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
+        class ExprStmtListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
         public:
 
-            virtual void enterExprStmt(LwnnParser::ExprStmtContext *ctx) override {
+            virtual void enterSimpleExpr(LwnnParser::SimpleExprContext *ctx) override {
                 ExprListener listener;
                 ctx->expr()->enterRule(&listener);
                 if(!listener.hasResult()) return;
@@ -272,8 +273,8 @@ namespace lwnn {
                 ctx->cond->enterRule(&condListener);
                 if(!condListener.hasResult()) return;
 
-                std::unique_ptr<ast::ExprStmt> thenExprStmt = extractStatement(ctx->thenStmt);
-                std::unique_ptr<ast::ExprStmt> elseExprStmt = extractStatement(ctx->elseStmt);
+                std::unique_ptr<ast::ExprStmt> thenExprStmt = extractExprStmt(ctx->thenStmt);
+                std::unique_ptr<ast::ExprStmt> elseExprStmt = extractExprStmt(ctx->elseStmt);
 
                 setResult(
                     std::make_unique<IfExprStmt>(getSourceSpan(ctx),
@@ -301,7 +302,7 @@ namespace lwnn {
                 ASSERT(ctx->cond);
                 ASSERT(ctx->body);
                 std::unique_ptr<ExprStmt> condition = extractExpr(ctx->cond);
-                std::unique_ptr<ExprStmt> body = extractCompoundExprStmt(ctx->body);
+                std::unique_ptr<ExprStmt> body = extractCompoundExpr(ctx->body);
 
                 setResult(
                     std::make_unique<WhileExpr>(
@@ -313,56 +314,84 @@ namespace lwnn {
             }
 
             virtual void enterCompoundStmt(LwnnParser::CompoundStmtContext *ctx) override {
-                setResult(extractCompoundExprStmt(ctx->compoundExprStmt()));
+                setResult(extractCompoundExpr(ctx->compoundExprStmt()));
             }
+
         };
 
-        std::unique_ptr<ast::ExprStmt> extractStatement(LwnnParser::StatementContext *ctx) {
+        std::unique_ptr<ast::ExprStmt> extractExprStmt(LwnnParser::ExprStmtContext *ctx) {
             if(!ctx) return nullptr;
 
-            StatementListener listener;
+            ExprStmtListener listener;
             ctx->enterRule(&listener);
             return listener.hasResult() ? listener.surrenderResult() : nullptr;
         }
 
         /*******************************************/
-        class CompoundExprStmtListener : public LwnnBaseListenerHelper<ast::CompoundExprStmt> {
+        class CompoundExprListener : public LwnnBaseListenerHelper<ast::CompoundExpr> {
         public:
             virtual void enterCompoundExprStmt(LwnnParser::CompoundExprStmtContext * ctx) override {
-                std::vector<LwnnParser::StatementContext*> expressions = ctx->statement();
-                auto compoundExpr = std::make_unique<ast::CompoundExprStmt>(getSourceSpan(ctx));
-                for (LwnnParser::StatementContext *expr : expressions) {
-                    std::unique_ptr<ExprStmt> exprStmt = extractStatement(expr);
+                std::vector<LwnnParser::ExprStmtContext*> expressions = ctx->exprStmt();
+                auto compoundExpr = std::make_unique<ast::CompoundExpr>(getSourceSpan(ctx));
+                for (LwnnParser::ExprStmtContext *expr : expressions) {
+                    std::unique_ptr<ExprStmt> exprStmt = extractExprStmt(expr);
                     if(exprStmt) {
-                        compoundExpr->addStatement(std::move(exprStmt));
+                        compoundExpr->addExpr(std::move(exprStmt));
                     }
                 }
                 setResult(std::move(compoundExpr));
             }
         };
 
-        std::unique_ptr<ast::CompoundExprStmt> extractCompoundExprStmt(LwnnParser::CompoundExprStmtContext *ctx) {
+        std::unique_ptr<ast::CompoundExpr> extractCompoundExpr(LwnnParser::CompoundExprStmtContext *ctx) {
             if(!ctx) return nullptr;
-            CompoundExprStmtListener listener;
+            CompoundExprListener listener;
             ctx->enterRule(&listener);
             return listener.hasResult() ? listener.surrenderResult() : nullptr;
         }
+
+
+        class StmtListener : public LwnnBaseListenerHelper<ast::Stmt> {
+        public:
+            virtual void enterExpressionStatement(LwnnParser::ExpressionStatementContext *ctx) override {
+                setResult(extractExprStmt(ctx->exprStmt()));
+            }
+
+            virtual void enterClassDefinition(LwnnParser::ClassDefinitionContext *ctx) override {
+                std::unique_ptr<CompoundStmt> compoundStmt = std::make_unique<CompoundStmt>(getSourceSpan(ctx));
+                if(!ctx->classDef()) return;
+                if(!ctx->classDef()->classBody()) return;
+                for (LwnnParser::StmtContext *stmt : ctx->classDef()->classBody()->stmt()) {
+                    if(stmt == nullptr) continue;
+                    StmtListener listener;
+                    stmt->enterRule(&listener);
+                    if (!listener.hasResult()) continue;
+                    compoundStmt->addStmt(listener.surrenderResult());
+                }
+
+                auto classDef = std::make_unique<ast::ClassDefinition>(
+                    getSourceSpan(ctx), ctx->classDef()->name->getText(), std::move(compoundStmt));
+
+                setResult(std::move(classDef));
+            }
+        };
+
         /*******************************************/
         class ModuleListener : public LwnnBaseListenerHelper<ast::Module> {
             std::string moduleName_;
 
         public:
-            ModuleListener(const std::string &moduleName_) : moduleName_(moduleName_) {}
+            ModuleListener(const std::string &moduleName_) : moduleName_(moduleName_) { }
 
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
-                std::vector<LwnnParser::StatementContext*> statements = ctx->statement();
-                auto compoundExpr = std::make_unique<ast::CompoundExprStmt>(getSourceSpan(ctx));
-                auto module = std::make_unique<ast::Module>( moduleName_, std::move(compoundExpr));;
-                for (LwnnParser::StatementContext *stmt: statements) {
-                    StatementListener listener;
+                std::vector<LwnnParser::StmtContext*> statements = ctx->stmt();
+                auto compoundStmt = std::make_unique<ast::CompoundStmt>(getSourceSpan(ctx));
+                auto module = std::make_unique<ast::Module>( moduleName_, std::move(compoundStmt));;
+                for (LwnnParser::StmtContext *stmt: statements) {
+                    StmtListener listener;
                     stmt->enterRule(&listener);
                     if(!listener.hasResult()) return;
-                    module->body()->addStatement(listener.surrenderResult());
+                    module->body()->addStmt(listener.surrenderResult());
                 }
                 setResult(std::move(module));
             }

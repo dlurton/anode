@@ -3,8 +3,6 @@
 
 #include <chrono>
 
-
-
 namespace lwnn {
     namespace test_util {
         int testCount = 0;

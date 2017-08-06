@@ -45,9 +45,20 @@ and up-to-date picture of supported syntax and features, however, here's a short
     when `a == b` or `4` when `a != b`.
  - While loops:
     - `while(condition) expression;` or `while(condition) { expression1; expression2; ...}`
-    
- 
 
+## Tenets
+
+These ideas are to be kept in mind while designing the LWNN language: 
+
+ 1. Be opinionated about not being too opinionated - there are many ways to do the same thing, most of which are *not* objectively better than the others.
+ 1. Use objective and rational arguments for proposals to change the status quo.  Subjective arguments are given little precedence.
+ 1. Don't try to think for other developers.
+ 1. Don't introduce unnecessary complexity.  The K.I.S.S. method is preferred.
+ 1. "Best practices" are not best practices if they don't provide objectively measurable benefit.  This is especially true for "best practices" that require significant time investment.
+ 1. No [bikeshedding](https://blog.codinghorror.com/procrastination-and-the-bikeshed-effect/).  Focus on important details and learn to compromise on trivialities.
+ 1. Be pragmatic.
+ 1. And most important of all:  **get stuff done**. 
+ 
 ## Building
 
 ### Dependencies First

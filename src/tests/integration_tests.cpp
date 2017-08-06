@@ -206,7 +206,7 @@ TEST_CASE("logical and") {
 
     SECTION("logical and with compound expressions short-circuits") {
         std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-        exec(ec, "a:int = 0;b:int = 0;");
+        exec(ec, "a:int = 0; b:int = 0;");
         REQUIRE(!test<bool>(ec, "{ a = 1; false; } && { b = 1; a; };"));
         REQUIRE(test<int>(ec, "a;") == 1); // a = 1; should have executed
         REQUIRE(test<int>(ec, "b;") == 0); // b = 1; should not have executed
@@ -271,14 +271,15 @@ TEST_CASE("compound expressions") {
     REQUIRE(test<float>("{ 2.0; 3.0; }") == 3.0);
     REQUIRE(test<float>("{ 2.0; 3.0; 4.0; }") == 4.0);
 
-    SECTION("compound expressions with variables") {
-        std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-        exec(ec, "a:int = 1; b:int = 2; c:int = 3; d:int = 4;");
-        REQUIRE(test<int>(ec, "{ a; }") == 1);
-        REQUIRE(test<int>(ec, "{ b; }") == 2);
-        REQUIRE(test<int>(ec, "{ b; c; }") == 3);
-        REQUIRE(test<int>(ec, "{ b; c; d; }") == 4);
-    }
+}
+
+TEST_CASE("compound expressions with variables") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int = 1; b:int = 2; c:int = 3; d:int = 4;");
+    REQUIRE(test<int>(ec, "{ a; }") == 1);
+    REQUIRE(test<int>(ec, "{ b; }") == 2);
+    REQUIRE(test<int>(ec, "{ b; c; }") == 3);
+    REQUIRE(test<int>(ec, "{ b; c; d; }") == 4);
 }
 
 TEST_CASE("conditional expressions") {

@@ -3,14 +3,18 @@
 grammar Lwnn;
 
 module
-    : (statements_=statement)* EOF
+    : (statements_=stmt)* EOF
     ;
 
-// continue following this:  https://github.com/antlr/grammars-v4/blob/master/java/Java.g4#L407
-statement
-    : expr ';'                                                                 # exprStmt
+stmt
+    : exprStmt          # expressionStatement
+    | classDef          # classDefinition
+    ;
+
+ exprStmt
+    : expr ';'                                                                 # simpleExpr
     | compoundExprStmt                                                         # compoundStmt
-    | KW_IF '(' cond=expr ')' thenStmt=statement ('else' elseStmt=statement)?  # ifStmt
+    | KW_IF '(' cond=expr ')' thenStmt=exprStmt ('else' elseStmt=exprStmt)?    # ifStmt
     | KW_WHILE '(' cond=expr ')' body=expr ';'                                 # whileStmt
     | KW_WHILE '(' cond=expr ')' body=compoundExprStmt                         # whileStmtCompound
     ;
@@ -18,7 +22,7 @@ statement
 // Generally, we are following this for operator precdence:
 // http://en.cppreference.com/w/cpp/language/operator_precedence
 expr
-    : name=ID ':' type=ID                                             # varDeclExpr
+    : name=ID ':' type=typeRef                                        # varDeclExpr
     | '(' expr ')'                                                    # parensExpr
 //  | op=('+'|'-') expr                                               # unaryExpr
     | left=expr op=(OP_MUL | OP_DIV) right=expr                       # binaryExpr
@@ -42,7 +46,19 @@ expr
 
 //compoundExprStmt can be an expression or a statement, depending on the context
 compoundExprStmt
-    : '{' (stmts=statement )* '}'
+    : '{' (exprStmt)* '}'
+    ;
+
+classDef
+    : 'class' name=ID classBody
+    ;
+
+classBody
+    : '{' statements=stmt* '}'
+    ;
+
+typeRef
+    : ID //Note (this will one day be more complicated than just a single identifier.
     ;
 
 litBool

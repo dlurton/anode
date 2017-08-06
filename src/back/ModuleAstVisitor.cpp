@@ -29,16 +29,14 @@ namespace lwnn {
             llvm::Function *resultFunc_;
             llvm::Value *executionContextPtrValue_;
 
-            ast::CompoundExprStmt *rootCompoundExpr_ = nullptr;
+            ast::CompoundStmt *rootCompoundStmt_ = nullptr;
         public:
             ModuleAstVisitor(CompileContext &cc, llvm::TargetMachine &targetMachine)
                 : CompileAstVisitor{cc},
                   targetMachine_{targetMachine} { }
 
             virtual bool visitingExprStmt(ExprStmt *expr) override {
-                if(rootCompoundExpr_ == expr) return true;
 
-                //opeFollowingVisitor::visitingExprStmt(expr);
                 llvm::Value *llvmValue = emitExpr(expr, cc());
                 if(llvmValue) {
                     resultExprStmtCount_++;
@@ -64,8 +62,28 @@ namespace lwnn {
                 return false;
             }
 
+
+            virtual bool visitingClassDefinition(ClassDefinition *cd) {
+                std::vector<scope::Symbol*> symbols = cd->body()->scope()->symbols();
+                std::vector<llvm::Type*> memberTypes;
+
+                memberTypes.reserve(symbols.size());
+                for(auto s : symbols) {
+                    //TODO: store field indexes for later reference...
+                    memberTypes.push_back(cc().toLlvmType(s->type()));
+                }
+
+                llvm::StructType* structType = llvm::StructType::create(cc().llvmContext(), memberTypes, cd->name(), false);
+
+                //LLVM will not emit an unused struct so create a dummy variable...
+                cc().llvmModule().getOrInsertGlobal(string::format("use_%s", cd->name().c_str()), structType);
+
+                //TODO:  store structType for later reference...
+                return false;
+            }
+
             virtual bool visitingModule(Module *module) override {
-                rootCompoundExpr_ = module->body();
+                rootCompoundStmt_ = module->body();
                 cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
                 declareResultFunction();
