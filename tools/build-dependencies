@@ -9,5 +9,7 @@ say "Building LLVM"
 $SCRIPT_DIR/build-llvm
 say "Building linenoise-ng"
 $SCRIPT_DIR/build-linenoise-ng
+say "Building bdwgc"
+$SCRIPT_DIR/build-bdwgc
 
 

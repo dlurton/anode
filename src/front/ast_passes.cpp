@@ -47,6 +47,16 @@ namespace lwnn {
                 ASSERT(compoundStmt->scope() == symbolTableStack_.back());
                 symbolTableStack_.pop_back();
             }
+
+            virtual bool visitingClassDefinition(ast::ClassDefinition *classDef) {
+                symbolTableStack_.push_back(classDef->scope());
+                return true;
+            }
+            virtual void visitedClassDefinition(ast::ClassDefinition *classDef) {
+                ASSERT(classDef->scope() == symbolTableStack_.back());
+                symbolTableStack_.pop_back();
+            }
+
         };
 
 
@@ -82,12 +92,20 @@ namespace lwnn {
 
             }
 
+            virtual bool visitingClassDefinition(ast::ClassDefinition *cd) {
+                topScope()->addSymbol(new scope::ClassSymbol(cd->classType()));
+                return true;
+            }
+
             virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
                 if(topScope()->findSymbol(expr->name())) {
                     errorStream_.error(expr->sourceSpan(), "Symbol '%s' is already defined in this scope.",
                                        expr->name().c_str());
                 } else {
-                    topScope()->addSymbol(expr);
+                    auto symbol = new scope::GlobalVariableSymbol(expr->name());
+                    topScope()->addSymbol(symbol);
+                    expr->setSymbol(symbol);
+                    expr->typeRef()->addSymbolToNotify(symbol);
                 }
             }
         };
@@ -96,6 +114,8 @@ namespace lwnn {
             error::ErrorStream &errorStream_;
         public:
             SymbolResolvingVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+
+
 
             virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) {
                 if(expr->symbol()) return;
@@ -120,8 +140,21 @@ namespace lwnn {
             virtual void visitTypeRef(ast::TypeRef *typeRef) {
                 //This will eventually be a lot more sophisticated than this
                 type::Type* type = type::Primitives::fromKeyword(typeRef->name());
+                //If it wasn't a primitive type...
+                if(type == nullptr) {
+                    scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
+                    scope::ClassSymbol *classSymbol = dynamic_cast<scope::ClassSymbol*>(maybeType);
+
+                    if(classSymbol == nullptr) {
+                        errorStream_.error(typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
+                        return;
+                    }
+
+                    typeRef->setType(classSymbol->type());
+                }
+
                 if(!type) {
-                    errorStream_.error(typeRef->sourceSpan(), "Undefined type: '%s'", typeRef->name().c_str());
+                    errorStream_.error(typeRef->sourceSpan(), "Undefined type '%s'.", typeRef->name().c_str());
                 }
                 typeRef->setType(type);
             }

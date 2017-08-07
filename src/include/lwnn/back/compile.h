@@ -1,6 +1,6 @@
 
 #pragma once
-
+#include "lwnn.h"
 #include "front/ast.h"
 
 #pragma GCC diagnostic push

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "lwnn.h"
+
 #include "type.h"
 #include "scope.h"
 #include "source.h"
@@ -76,7 +78,7 @@ namespace lwnn {
         class TypeRef;
         class Module;
 
-        class AstVisitor {
+        class AstVisitor : public gc {
         public:
             //////////// Statements
             /** Executes before every Stmt is visited. */
@@ -185,7 +187,7 @@ namespace lwnn {
         typedef std::function<std::unique_ptr<ExprStmt>(std::unique_ptr<ExprStmt>)> ExprGraftFunctor;
 
         /** Base class for all nodes */
-        class AstNode {
+        class AstNode : public gc {
         public:
             virtual ~AstNode() {}
             virtual void accept(AstVisitor *visitor) = 0;
@@ -210,10 +212,11 @@ namespace lwnn {
         /* Refers to a data type, i.e. "int", or "WidgetFactory."
          * Initially, type references will be unresolved (i.e. referencedType_ is null) but this is resolved
          * during an AST pass. */
-        class TypeRef : AstNode {
+        class TypeRef : public AstNode {
             source::SourceSpan sourceSpan_;
             const std::string name_;
             type::Type *referencedType_;
+            std::vector<scope::DelayedTypeResolutionSymbol*> symbolsToNotify_;
         public:
             /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
             TypeRef(source::SourceSpan sourceSpan, std::string name)
@@ -236,6 +239,12 @@ namespace lwnn {
 
             void setType(type::Type *referencedType) {
                 referencedType_ = referencedType;
+                for(auto symbol : symbolsToNotify_)
+                    symbol->setType(referencedType_);
+            }
+
+            void addSymbolToNotify(scope::DelayedTypeResolutionSymbol *symbol) {
+                symbolsToNotify_.push_back(symbol);
             }
 
             virtual void accept(AstVisitor *visitor) override {
@@ -479,7 +488,7 @@ namespace lwnn {
 
 
         /** Defines a variable and references it. */
-        class VariableDeclExpr : public VariableRefExpr, public scope::Symbol {
+        class VariableDeclExpr : public VariableRefExpr {
             const std::unique_ptr<TypeRef> typeRef_;
         public:
             VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name,
@@ -487,8 +496,6 @@ namespace lwnn {
                 : VariableRefExpr(sourceSpan, name),
                   typeRef_(std::move(typeRef))
             {
-                //I am my own symbol.
-                setSymbol(this);
             }
 
             virtual std::string name() const override { return VariableRefExpr::name(); }
@@ -497,7 +504,7 @@ namespace lwnn {
             TypeRef *typeRef() { return typeRef_.get(); }
             virtual type::Type *type() const override { return typeRef_->type(); }
 
-            virtual std::string toString() const override {  return this->name() + ":" + typeRef_->name(); }
+            //virtual std::string toString() const override {  return this->name() + ":" + typeRef_->name(); }
 
             virtual bool canWrite() const override { return false; };
 
@@ -703,18 +710,6 @@ namespace lwnn {
                 }
 
                 return thenExpr_->type();
-
-//                ASSERT(thenExpr_->type() == elseExpr_->type());
-//
-//                if (thenExpr_ != nullptr) {
-//                    return thenExpr_->type();
-//                } else {
-//                    if (elseExpr_ == nullptr) {
-//                        return &type::Primitives::Void;
-//                    } else {
-//                        return elseExpr_->type();
-//                    }
-//                }
             }
 
             ExprStmt *condition() const { return condition_.get(); }
@@ -830,45 +825,27 @@ namespace lwnn {
             }
         };
 
-        class GlobalExportSymbol : public scope::Symbol {
-        private:
-            std::string name_;
-            type::Type *type_;
-        public:
-            GlobalExportSymbol(const std::string &name_, type::Type *type_) : name_(name_), type_(type_) { }
-
-            virtual std::string name() const override {
-                return name_;
-            }
-
-            virtual std::string toString() const override {
-                return name_ + ":" + type_->name();
-            }
-
-            virtual type::Type *type() const override {
-                return type_;
-            }
-        };
-
         class ClassDefinition : public Stmt {
             scope::SymbolTable scope_;
             std::string name_;
             std::unique_ptr<CompoundStmt> body_;
+
+            type::ClassType *classType_;
         public:
             ClassDefinition(source::SourceSpan span, std::string name, std::unique_ptr<CompoundStmt> body)
-                : Stmt(span), name_{name}, body_{std::move(body)} {
-
-            }
+                : Stmt{span}, name_{name}, body_{std::move(body)}, classType_{new type::ClassType(name)} { }
 
             StmtKind stmtKind() const override { return StmtKind::ClassDefinition; }
 
-            scope::SymbolTable &scope() {
-                return scope_;
+            scope::SymbolTable *scope() {
+                return &scope_;
             }
 
             CompoundStmt *body() { return body_.get(); }
 
             std::string name() { return name_; }
+
+            type::ClassType *classType() { return classType_; }
 
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingStmt(this);
@@ -881,7 +858,7 @@ namespace lwnn {
             }
         };
 
-        class Module {
+        class Module : public gc {
             std::string name_;
             std::unique_ptr<CompoundStmt> body_;
         public:

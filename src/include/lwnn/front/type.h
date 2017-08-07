@@ -24,59 +24,87 @@ namespace lwnn {
         };
         std::string to_string(PrimitiveType dataType);
 
-        class Type;
+        class ScalarType;
 
         namespace Primitives {
-            extern Type Int32;
-            extern Type Float;
-            extern Type Double;
-            extern Type Bool;
-            extern Type Void;
+            extern ScalarType Int32;
+            extern ScalarType Float;
+            extern ScalarType Double;
+            extern ScalarType Bool;
+            extern ScalarType Void;
 
-            Type *fromKeyword(const std::string &keyword);
+            ScalarType *fromKeyword(const std::string &keyword);
         }
 
-        class Type {
+        class Type : public gc {
             std::string name_;
+        public:
+            Type(const std::string &name) : name_(name) {}
+
+            virtual std::string name() const { return name_; }
+            virtual bool isPrimitive() const = 0;
+            virtual PrimitiveType primitiveType() const = 0;
+            virtual bool canDoArithmetic() const = 0;
+            virtual bool canImplicitCastTo(Type *other) const = 0;
+            virtual bool canExplicitCastTo(Type *other) const = 0;
+        };
+
+        class ScalarType : public Type {
             PrimitiveType primitiveType_;
             bool canDoArithmetic_;
         public:
-            Type(const std::string &name_, PrimitiveType primitiveType_, bool canDoArithmetic)
-                : name_(name_), primitiveType_(primitiveType_), canDoArithmetic_(canDoArithmetic) {}
+            ScalarType(const std::string &name, PrimitiveType primitiveType_, bool canDoArithmetic)
+                : Type(name), primitiveType_(primitiveType_), canDoArithmetic_(canDoArithmetic) {}
 
-            bool isPrimitive() const { return primitiveType() != PrimitiveType::NotAPrimitive; }
-
-            bool canDoArithmetic() { return canDoArithmetic_; }
-
-            std::string name() const { return name_; }
+            virtual bool isPrimitive() const override { return primitiveType() != PrimitiveType::NotAPrimitive; }
+            bool canDoArithmetic() const override { return canDoArithmetic_; }
             PrimitiveType primitiveType() const { return primitiveType_; }
-
             int operandPriority() const { return (int) primitiveType(); }
 
             /** Returns true when a value of the specified type can be implicitly cast to this type.
              * Returns false if the other type is the same as this type (as this does not require casting). */
-            bool canImplicitCastTo(Type *other) const {
-                if(primitiveType_ == other->primitiveType()) return false;
+            bool canImplicitCastTo(Type *other) const override  {
+                ScalarType *otherScalar = dynamic_cast<ScalarType*>(other);
+                if(otherScalar == nullptr) return false;
+
+                if(primitiveType_ == otherScalar->primitiveType()) return false;
 
                 if(primitiveType_ == type::PrimitiveType::Bool)
                     return false;
 
-                if(isPrimitive() && other->primitiveType() == type::PrimitiveType::Bool)
+                if(isPrimitive() && otherScalar->primitiveType() == type::PrimitiveType::Bool)
                     return true;
 
-                return operandPriority() <= other->operandPriority();
+                return operandPriority() <= otherScalar->operandPriority();
             }
 
             /** Returns true when a value of the specified type may be be explicitly cast to this type.
              * Returns false if the other type is the same as this type (as this does not require casting). */
-            bool canExplicitCastTo(Type *other) const {
-                if(primitiveType_ == other->primitiveType()) return false;
+            bool canExplicitCastTo(Type *other) const override {
+                ScalarType *otherScalar = dynamic_cast<ScalarType*>(other);
+
+                if(otherScalar == nullptr) return false;
+
+                if(primitiveType_ == otherScalar->primitiveType()) return false;
 
                 if(primitiveType_ == type::PrimitiveType::Bool) return false;
 
-                return operandPriority() >= other->operandPriority();
+                return operandPriority() >= otherScalar->operandPriority();
             };
         };
 
+        class ClassType : public Type {
+        public:
+            ClassType(const std::string &name) : Type(name) {
+
+            }
+
+            bool isPrimitive() const { return false; }
+            PrimitiveType primitiveType() const { return PrimitiveType::NotAPrimitive; }
+
+            bool canDoArithmetic() const { return false; };
+            bool canImplicitCastTo(Type *) const { return false; };
+            bool canExplicitCastTo(Type *) const { return false; };
+        };
     }
 }

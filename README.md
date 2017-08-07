@@ -8,6 +8,9 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  - If all passes against the AST succeed LLVM IR will be generated and displayed.
  - The statement will be executed and the result will be displayed.
  
+The compiler uses the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/) and eventually, the compiled code 
+will too. 
+ 
 There's only a very limited set of functionality that works right now.  Examination of [integration_tests.cpp](https://github.com/dlurton/lwnn/blob/master/src/tests/integration_tests.cpp) will give a more complete
 and up-to-date picture of supported syntax and features, however, here's a short summary:
 
@@ -46,13 +49,14 @@ and up-to-date picture of supported syntax and features, however, here's a short
  - While loops:
     - `while(condition) expression;` or `while(condition) { expression1; expression2; ...}`
 
+
 ## Tenets
 
 These ideas are to be kept in mind while designing the LWNN language: 
 
- 1. Be opinionated about not being too opinionated - there are many ways to do the same thing, most of which are *not* objectively better than the others.
+ 1. Be opinionated about not being too opinionated - there are many ways to do the same thing, most of which are *not* objectively better than the others.  If you think your ways is better than everyone else's be prepared with objective arguments.
  1. Use objective and rational arguments for proposals to change the status quo.  Subjective arguments are given little precedence.
- 1. Don't try to think for other developers.
+ 1. Don't try to think for the users of the language.
  1. Don't introduce unnecessary complexity.  The K.I.S.S. method is preferred.
  1. "Best practices" are not best practices if they don't provide objectively measurable benefit.  This is especially true for "best practices" that require significant time investment.
  1. No [bikeshedding](https://blog.codinghorror.com/procrastination-and-the-bikeshed-effect/).  Focus on important details and learn to compromise on trivialities.

@@ -5,13 +5,13 @@
 namespace lwnn {
     namespace type {
         namespace Primitives {
-            Type Int32("int", PrimitiveType::Int32, true);
-            Type Float("float", PrimitiveType::Float, true);
-            Type Double("double", PrimitiveType::Double, true);
-            Type Bool("bool", PrimitiveType::Bool, false);
-            Type Void("void", PrimitiveType::Void, false);
+            ScalarType Int32("int", PrimitiveType::Int32, true);
+            ScalarType Float("float", PrimitiveType::Float, true);
+            ScalarType Double("double", PrimitiveType::Double, true);
+            ScalarType Bool("bool", PrimitiveType::Bool, false);
+            ScalarType Void("void", PrimitiveType::Void, false);
 
-            Type *fromKeyword(const std::string &keyword) {
+            ScalarType *fromKeyword(const std::string &keyword) {
                 if(keyword == "int") {
                     return &Int32;
                 } else if(keyword == "float") {
@@ -43,5 +43,7 @@ namespace lwnn {
                     ASSERT_FAIL("Unhandled PrimitiveType");
             }
         }
-   }
+
+
+    }
 }

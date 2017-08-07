@@ -1,3 +1,6 @@
+//#define VISUALIZE_AST
+//#define DUMP_IR
+
 
 #pragma once
 #include "front/type.h"

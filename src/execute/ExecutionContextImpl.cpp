@@ -19,7 +19,7 @@ namespace lwnn {
             std::unique_ptr<LwnnJit> jit_ = std::make_unique<LwnnJit>();
             bool dumpIROnModuleLoad_ = false;
             bool setPrettyPrintAst_ = false;
-            std::vector<std::shared_ptr<ast::GlobalExportSymbol>> exportedSymbols_;
+            std::unordered_map<std::string, scope::Symbol*> exportedSymbols_;
             ResultCallbackFunctor resultFunctor_ = nullptr;
         public:
             ExecutionContextImpl() {
@@ -59,7 +59,7 @@ namespace lwnn {
             virtual void prepareModule(ast::Module *module) override {
 
                 for(auto symbolToImport : exportedSymbols_) {
-                    module->scope()->addSymbol(symbolToImport.get());
+                    module->scope()->addSymbol(symbolToImport.second);
                 }
 
                 error::ErrorStream errorStream {std::cerr};
@@ -71,9 +71,9 @@ namespace lwnn {
                 }
 
                 for(auto symbolToExport : module->scope()->symbols()) {
-                    if(dynamic_cast<ast::GlobalExportSymbol*>(symbolToExport) == nullptr) {
-                        exportedSymbols_.emplace_back(
-                            std::make_shared<ast::GlobalExportSymbol>(symbolToExport->name(), symbolToExport->type()));
+                    auto found = exportedSymbols_.find(symbolToExport->name());
+                    if(found == exportedSymbols_.end()) {
+                        exportedSymbols_.emplace(symbolToExport->name(), symbolToExport);
                     }
                 }
 

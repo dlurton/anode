@@ -12,6 +12,6 @@ MSG=$@
 	echo -e "*$LIGHT_YELLOW $MSG"
 	echo -e "$LIGHT_GREEN**************************************************************************$NORMAL"
 
-    sleep 1 #give time for the human running this script to read it... 
+    #sleep 1 #give time for the human running this script to read it... 
 }
 

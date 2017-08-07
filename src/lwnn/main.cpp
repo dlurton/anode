@@ -1,10 +1,12 @@
-
+#include "lwnn.h"
 #include "front/parse.h"
 #include "front/ast_passes.h"
 #include "front/visualize.h"
 #include "front/error.h"
 #include "common/string_format.h"
 #include "execute/execute.h"
+
+#include "gc/gc.h"
 
 #include <unistd.h>
 
@@ -54,15 +56,49 @@ void help() {
     std::cout << "/exit             Exits the lwnn REPL.\n\n";
     std::cout << "Valid lwnn statements may also be entered.\n";
 }
+
 using namespace lwnn;
 
+volatile int destructionCount = 0;
+class SomeGarbage : public gc_cleanup
+{
+public:
+    ~SomeGarbage() {
+        destructionCount++;
+    }
+    int randomWahteverIdoncare;
+
+    void foo() { randomWahteverIdoncare++; }
+};
+
+void generateSomeGarbage() {
+
+    for(int i = 0; i < 100000; ++i) {
+        SomeGarbage *garbage = new SomeGarbage();
+        garbage->foo();
+    }
+}
+
 int main(int argc, char **argv) {
+    GC_INIT();
+    generateSomeGarbage();
+    while(GC_collect_a_little());
+
+    //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
+    std::cout << "destructionCount: " << destructionCount << std::endl;
+    if(destructionCount > 0) {
+        std::cout << "Yay!  libgc appears to be working!\n";
+    } else {
+        std::cout << "**************************************************************************\n";
+        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
+        std::cout << "**************************************************************************\n";
+    }
 
     if(!isatty(fileno(stdin))) {
         std::cout << "stdin is not a terminal\n";
         return -1;
     }
-        
+
     //lwnn::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();
 
@@ -148,6 +184,8 @@ int main(int argc, char **argv) {
     }
 
     linenoiseHistoryFree();
+    std::cout << "destructionCount: " << destructionCount << std::endl;
+    std::cout << "destructionCount: " << destructionCount << std::endl;
     return 0;
 }
 
