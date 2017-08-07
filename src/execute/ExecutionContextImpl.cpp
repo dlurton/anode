@@ -63,7 +63,7 @@ namespace lwnn {
                 }
 
                 error::ErrorStream errorStream {std::cerr};
-                ast_passes::runAllPasses(module, errorStream);
+                lwnn::front::passes::runAllPasses(module, errorStream);
 
                 if(errorStream.errorCount() > 0) {
                     throw ExecutionException(
@@ -83,10 +83,10 @@ namespace lwnn {
             }
 
         protected:
-            virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) override {
+            virtual uint64_t loadModule(ast::Module *module) override {
                 ASSERT(module);
 
-                std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module.get(), context_, jit_->getTargetMachine());
+                std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module, context_, jit_->getTargetMachine());
 
                 if(dumpIROnModuleLoad_) {
                     llvm::outs() << "LLVM IR:\n";

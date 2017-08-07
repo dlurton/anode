@@ -13,9 +13,9 @@ namespace lwnn {
 
             std::string module_name = string::format("test_%d", ++testCount);
 
-            std::unique_ptr<ast::Module> module = parse::parseModule(source, module_name);
+            ast::Module *module = parse::parseModule(source, module_name);
             ASSERT(module && "If module is null, a syntax error probably occurred!");
-            executionContext->prepareModule(module.get());
+            executionContext->prepareModule(module);
 
 #ifdef VISUALIZE_AST
             executionContext->setPrettyPrintAst(true);
@@ -50,7 +50,7 @@ namespace lwnn {
                     results.push_back(result);
                 });
 
-            executionContext->executeModule(std::move(module));
+            executionContext->executeModule(module);
             auto elapsed = std::chrono::high_resolution_clock::now() - testStartTime;
             long long microseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
             std::cout << microseconds << "ms\n";

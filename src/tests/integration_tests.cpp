@@ -4,11 +4,20 @@
 #include "back/compile.h"
 #include "test_util.h"
 
-#define CATCH_CONFIG_MAIN
-#include "../../externs/catch/catch.hpp"
+#define CATCH_CONFIG_RUNNER
+#include "catch.hpp"
 
 using namespace lwnn;
 using namespace lwnn::test_util;
+
+int main( int argc, char* argv[] )
+{
+    GC_INIT();
+    int result = Catch::Session().run( argc, argv );
+
+    return ( result < 0xff ? result : 0xff );
+}
+
 
 TEST_CASE("basic bool expressions") {
     SECTION("literals") {
@@ -596,3 +605,4 @@ TEST_CASE("casting") {
 //    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
 //    exec(ec, "class Widget { a:int; } someWidget:Widget;");
 //}
+

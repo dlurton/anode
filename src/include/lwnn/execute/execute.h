@@ -21,7 +21,7 @@ namespace lwnn {
         class ExecutionContext {
         protected:
             /** JIT compiles a module and returns its global initialization function.*/
-            virtual uint64_t loadModule(std::unique_ptr<ast::Module> module) = 0;
+            virtual uint64_t loadModule(ast::Module *module) = 0;
         public:
             virtual ~ExecutionContext() { }
 
@@ -50,9 +50,9 @@ namespace lwnn {
 //            };
 
             /** Loads the specified module and executes its initialization function. */
-            void executeModule(std::unique_ptr<ast::Module> module) {
+            void executeModule(ast::Module *module) {
                 ASSERT(module);
-                uint64_t funcPtr = loadModule(std::move(module));
+                uint64_t funcPtr = loadModule(module);
                 //void (*func)() = reinterpret_cast<__attribute__((cdecl)) void (*)(void)>(funcPtr);
                 void (*func)() = reinterpret_cast<void (*)(void)>(funcPtr);
                 func();

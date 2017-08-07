@@ -190,22 +190,22 @@ int main(int argc, char **argv) {
 }
 
 namespace lwnn {
-    void runModule(std::shared_ptr<execute::ExecutionContext> executionContext, std::unique_ptr<ast::Module> lwnnModule) {
+    void runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast::Module *lwnnModule) {
         ASSERT(executionContext);
         ASSERT(lwnnModule);
         executionContext->setPrettyPrintAst(true);
         executionContext->setDumpIROnLoad(true);
 
         try {
-            executionContext->prepareModule(lwnnModule.get());
+            executionContext->prepareModule(lwnnModule);
         } catch (execute::ExecutionException &e) {
             return; //Don't try to compile a module that doesn't even pass semantics checks.
         }
-        executionContext->executeModule(std::move(lwnnModule));
+        executionContext->executeModule(lwnnModule);
     }
 
     void evaluateLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName, bool shouldExecute) {
-        std::unique_ptr<lwnn::ast::Module> module = lwnn::parse::parseModule(lineOfCode, moduleName);
+        lwnn::ast::Module *module = lwnn::parse::parseModule(lineOfCode, moduleName);
 
         //If no Module returned, parsing failed.
         if(!module) {
@@ -215,7 +215,7 @@ namespace lwnn {
 //        visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
-            runModule(executionContext, std::move(module));
+            runModule(executionContext, module);
         }
     } // evaluateLine
 } //namespace lwnn

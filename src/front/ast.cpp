@@ -72,5 +72,13 @@ namespace lwnn {
             }
         }
 
+        CastExpr *CastExpr::createImplicit(ExprStmt *valueExpr, type::Type *toType) {
+            return new CastExpr(valueExpr->sourceSpan(), toType, valueExpr, CastKind::Implicit);
+        }
+
+        CastExpr *createImplicit(ExprStmt* valueExpr, ast::TypeRef *toTypeRef) {
+            return new CastExpr(valueExpr->sourceSpan(), toTypeRef, valueExpr, CastKind::Implicit);
+        }
+
     } //namespace ast
 } //namespace lwnn
