@@ -8,8 +8,7 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  - If all passes against the AST succeed LLVM IR will be generated and displayed.
  - The statement will be executed and the result will be displayed.
  
-The compiler uses the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/) and eventually, the compiled code 
-will too. 
+The compiler uses the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/) and eventually, the compiled code will too. 
  
 There's only a very limited set of functionality that works right now.  Examination of [integration_tests.cpp](https://github.com/dlurton/lwnn/blob/master/src/tests/integration_tests.cpp) will give a more complete
 and up-to-date picture of supported syntax and features, however, here's a short summary:
@@ -20,7 +19,7 @@ and up-to-date picture of supported syntax and features, however, here's a short
     - Variables are strongly typed.
     - Variables must be declared before use.
     - New variables are always initialized to 0.
-    - Variables may have an initializer: 'someVariable:int = 1 + 2 * anyExpressionHere;'
+    - Variables may have an initializer: `someVariable:int = 1 + 2 * anyExpressionHere;`
 - Binary Operators:
     - +, -, /, *, =, !=, ==, >, >=, <, <=, &&, ||
  - Casting:
