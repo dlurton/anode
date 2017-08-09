@@ -14,7 +14,7 @@ namespace lwnn {
         extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr);
 
 
-        class ExecutionContextImpl : public ExecutionContext {
+        class ExecutionContextImpl : public ExecutionContext, no_copy, no_assign {
             llvm::LLVMContext context_;
             std::unique_ptr<LwnnJit> jit_ = std::make_unique<LwnnJit>();
             bool dumpIROnModuleLoad_ = false;
@@ -58,7 +58,7 @@ namespace lwnn {
 
             virtual void prepareModule(ast::Module *module) override {
 
-                for(auto symbolToImport : exportedSymbols_) {
+                for(auto &symbolToImport : exportedSymbols_) {
                     module->scope()->addSymbol(symbolToImport.second);
                 }
 

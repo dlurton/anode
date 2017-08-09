@@ -5,7 +5,7 @@
 namespace lwnn {
     namespace back {
         class CompileAstVisitor : public ast::AstVisitor {
-            CompileContext cc_;
+            CompileContext &cc_;
         protected:
             CompileContext &cc() { return cc_; }
         public:

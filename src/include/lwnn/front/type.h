@@ -1,8 +1,12 @@
 
 #pragma once
 
-#include <string>
 #include "common/exception.h"
+
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <bits/unordered_map.h>
 
 namespace lwnn {
     namespace type {
@@ -49,6 +53,11 @@ namespace lwnn {
             virtual bool canExplicitCastTo(Type *other) const = 0;
         };
 
+        class TypeResolutionListener {
+        public:
+            virtual void notifyTypeResolved(type::Type *type) = 0;
+        };
+
         class ScalarType : public Type {
             PrimitiveType primitiveType_;
             bool canDoArithmetic_;
@@ -93,7 +102,24 @@ namespace lwnn {
             };
         };
 
+        class ClassField : public type::TypeResolutionListener {
+            type::Type * type_;
+            std::string name_;
+            int const ordinal_;
+        public:
+            ClassField(const std::string &name, type::Type *type, int ordinal) : type_{type}, name_{name}, ordinal_{ordinal} { }
+
+            type::Type *type() const { ASSERT(type_ && "Type must be resolved first."); return type_; }
+            void notifyTypeResolved(type::Type *type) override  { type_ = type; }
+
+            std::string name() const { return name_; }
+
+            int ordinal() const { return ordinal_; }
+        };
+
         class ClassType : public Type {
+            std::vector<type::ClassField*> orderedFields_;
+            std::unordered_map<std::string, type::ClassField*> fields_;
         public:
             ClassType(const std::string &name) : Type(name) {
 
@@ -105,6 +131,24 @@ namespace lwnn {
             bool canDoArithmetic() const { return false; };
             bool canImplicitCastTo(Type *) const { return false; };
             bool canExplicitCastTo(Type *) const { return false; };
+
+            ClassField *findField(const std::string &name) {
+                auto found = fields_.find(name);
+                return found == fields_.end() ? nullptr : found->second;
+            }
+
+            ClassField &addField(const std::string &name) {
+                return addField(name, nullptr);
+            }
+
+            ClassField &addField(const std::string &name, type::Type *type) {
+                auto field = new ClassField(name, type, orderedFields_.size());
+
+                fields_.emplace(name, field);
+                orderedFields_.emplace_back(field);
+
+                return *field;
+            }
         };
     }
 }

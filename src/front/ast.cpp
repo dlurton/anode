@@ -4,6 +4,7 @@
 
 namespace lwnn {
     namespace ast {
+        unsigned long astNodesDestroyedCount = 0;
 
         std::string to_string(StmtKind kind) {
             switch (kind) {

@@ -44,7 +44,7 @@ and up-to-date picture of supported syntax and features, however, here's a short
     - Like ternary expressions but more powerful because they also serve as traditional if statements.  
     - For example `a = if(a == b) 1; else 2;"` works just like ternary. 
     - Also note that due to how compound expressions return the last value, more complex logic can be used to determine the 
-    values returned by each branch.  For example:  `a = if(a == b) { 1; 2; } else { 3; 4; };"` In this case `a` will become `2` 
+    values returned by each branch.  For example:  `a = if(a == b) { 1; 2; } else { 3; 4; };` In this case `a` will become `2` 
     when `a == b` or `4` when `a != b`.
  - While loops:
     - `while(condition) expression;` or `while(condition) { expression1; expression2; ...}`
@@ -55,13 +55,15 @@ and up-to-date picture of supported syntax and features, however, here's a short
 These ideas are to be kept in mind while designing the LWNN language: 
 
  1. Be opinionated about not being too opinionated - there are many ways to do the same thing, most of which are *not* objectively better than the others.  If you think your ways is better than everyone else's be prepared with objective arguments.
- 1. Use objective and rational arguments for proposals to change the status quo.  Subjective arguments are given little precedence.
+ 1. Use objective and rational arguments for proposals to change the status quo.  Except in rare circumstances, subjective arguments are given little precedence.
  1. Don't try to think for the users of the language.
- 1. Don't introduce unnecessary complexity.  The K.I.S.S. method is preferred.
+ 1. Don't introduce unnecessary complexity.  The K.I.S.S. method is preferred.  However, complexity is tolerated if simplicity doesn't suffice.
  1. "Best practices" are not best practices if they don't provide objectively measurable benefit.  This is especially true for "best practices" that require significant time investment.
  1. No [bikeshedding](https://blog.codinghorror.com/procrastination-and-the-bikeshed-effect/).  Focus on important details and learn to compromise on trivialities.
  1. Be pragmatic.
- 1. And most important of all:  **get stuff done**. 
+ 1. And most important of all: **get stuff done**.
+ 1. Iterate.  
+   
  
 ## Building
 

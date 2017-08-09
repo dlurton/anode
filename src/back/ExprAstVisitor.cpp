@@ -82,7 +82,9 @@ namespace lwnn {
                 llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->name());
                 ASSERT(globalVariable);
                 globalVariable->setAlignment(ALIGNMENT);
-                globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
+                if(expr->type()->isPrimitive()) {
+                    globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
+                }
 
                 visitVariableRefExpr(expr);
             }
@@ -151,7 +153,7 @@ namespace lwnn {
 
                 currentFunc->getBasicBlockList().push_back(endBlock);
                 cc().irBuilder().SetInsertPoint(endBlock);
-                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().toLlvmType(type::PrimitiveType::Bool), 2, "logical_tmp");
+                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().toLlvmType(&type::Primitives::Bool), 2, "logical_tmp");
 
                 llvm::ConstantInt *shortCircuitLlvmValue
                     = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));

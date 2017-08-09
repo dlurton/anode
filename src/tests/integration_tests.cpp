@@ -15,6 +15,9 @@ int main( int argc, char* argv[] )
     GC_INIT();
     int result = Catch::Session().run( argc, argv );
 
+    //Really should leave this here until we're certain libgc is going to work.
+    std::cout << "Number of AstNodes collected by our garbage collector: " << lwnn::ast::astNodesDestroyedCount << "\n";
+
     return ( result < 0xff ? result : 0xff );
 }
 
@@ -599,10 +602,10 @@ TEST_CASE("casting") {
     }
 }
 
-//
-//
-//TEST_CASE("class, stack allocated") {
-//    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-//    exec(ec, "class Widget { a:int; } someWidget:Widget;");
-//}
+TEST_CASE("class, stack allocated") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "class Widget { a:int; } someWidget:Widget;");
+
+    //Assertion, for the moment, has to be done by examining the LLVM-IR.
+}
 

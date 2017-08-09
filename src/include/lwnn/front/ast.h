@@ -139,12 +139,14 @@ namespace lwnn {
 
         };
 
-        typedef std::function<ExprStmt* (ExprStmt*)> ExprGraftFunctor;
+        extern unsigned long astNodesDestroyedCount;
 
         /** Base class for all nodes */
-        class AstNode : public gc {
+        class AstNode : public gc_cleanup, no_copy, no_assign {
         public:
-            virtual ~AstNode() {}
+            virtual ~AstNode() {
+                astNodesDestroyedCount++;
+            }
             virtual void accept(AstVisitor *visitor) = 0;
         };
 
@@ -171,7 +173,7 @@ namespace lwnn {
             source::SourceSpan sourceSpan_;
             const std::string name_;
             type::Type *referencedType_;
-            std::vector<scope::DelayedTypeResolutionSymbol*> symbolsToNotify_;
+            std::vector<type::TypeResolutionListener*> listeners_;
         public:
             /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
             TypeRef(source::SourceSpan sourceSpan, std::string name)
@@ -194,12 +196,13 @@ namespace lwnn {
 
             void setType(type::Type *referencedType) {
                 referencedType_ = referencedType;
-                for(auto symbol : symbolsToNotify_)
-                    symbol->setType(referencedType_);
+                for(auto listener : listeners_) {
+                    listener->notifyTypeResolved(referencedType_);
+                }
             }
 
-            void addSymbolToNotify(scope::DelayedTypeResolutionSymbol *symbol) {
-                symbolsToNotify_.push_back(symbol);
+            void addTypeResolutionListener(type::TypeResolutionListener *symbol) {
+                listeners_.push_back(symbol);
             }
 
             virtual void accept(AstVisitor *visitor) override {
@@ -758,26 +761,33 @@ namespace lwnn {
         };
 
         class ClassDefinition : public Stmt {
-            scope::SymbolTable scope_;
             std::string name_;
             CompoundStmt *body_;
 
             type::ClassType *classType_;
         public:
             ClassDefinition(source::SourceSpan span, std::string name, CompoundStmt *body)
-                : Stmt{span}, name_{name}, body_{body}, classType_{new type::ClassType(name)} { }
+                : Stmt{span}, name_{name}, body_{body}, classType_{new type::ClassType(name)} {
+            }
 
             StmtKind stmtKind() const override { return StmtKind::ClassDefinition; }
-
-            scope::SymbolTable *scope() {
-                return &scope_;
-            }
 
             CompoundStmt *body() { return body_; }
 
             std::string name() { return name_; }
 
             type::ClassType *classType() { return classType_; }
+
+            void populateClassType() {
+                for(auto variable : this->body()->scope()->variables()) {
+                    type::Type *type = variable->maybeUnresolvedType();
+                    type::ClassField &field = classType_->addField(variable->name(), type);
+                    if(!type) {
+                        //Add the newly created field
+                        variable->addTypeResolutionListener(&field);
+                    }
+                }
+            }
 
             virtual void accept(AstVisitor *visitor) override {
                 bool visitChildren = visitor->visitingStmt(this);

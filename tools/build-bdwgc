@@ -23,7 +23,6 @@ echo "NUM_CORES         " $NUM_CORES
 
 mkdir -p $SCRATCH_DIR
 
-# this part of the script, as crazy as it is, comes from the instructions on the bdwgc site: http://www.hboehm.info/gc/
 cd $SCRATCH_DIR
 
 say "Cloning or pulling github bdwgc"
@@ -34,17 +33,6 @@ else
     cd $SRC_DIR
     git pull
 fi
-
-#say "Cloning or pulling github libatomic_ops"
-#if [! -d ./libatomic_ops ]; then 
-#    git clone git://github.com/ivmai/libatomic_ops.git
-#    cd $SRC_DIR
-#else
-#    cd $SRC_DIR
-#    git pull
-#fi
-
-
 
 
 say "Running autoreconf -vif"

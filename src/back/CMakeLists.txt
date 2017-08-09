@@ -10,7 +10,7 @@ set(COMPILE_SOURCE_FILES
         llvm.h
         CompileAstVisitor.h
         emit.h
-        ExprAstVisitor.cpp)
+        ExprAstVisitor.cpp CreateStructsAstVisitor.h)
 
 add_library(lwnn-back ${COMPILE_SOURCE_FILES})
 target_link_libraries(lwnn-back lwnn-front ${LLVM_LIBS})

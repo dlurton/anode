@@ -6,6 +6,7 @@
 
 namespace lwnn { namespace front  { namespace passes {
 
+
     class ScopeFollowingVisitor : public ast::AstVisitor {
 
         //We use this only as a stack but it has to be a deque so we can iterate over its contents.
@@ -48,16 +49,6 @@ namespace lwnn { namespace front  { namespace passes {
             ASSERT(compoundStmt->scope() == symbolTableStack_.back());
             symbolTableStack_.pop_back();
         }
-
-        virtual bool visitingClassDefinition(ast::ClassDefinition *classDef) {
-            symbolTableStack_.push_back(classDef->scope());
-            return true;
-        }
-        virtual void visitedClassDefinition(ast::ClassDefinition *classDef) {
-            ASSERT(classDef->scope() == symbolTableStack_.back());
-            symbolTableStack_.pop_back();
-        }
-
     };
 
 
@@ -85,17 +76,21 @@ namespace lwnn { namespace front  { namespace passes {
         }
     };
 
-    class PopulateSymbolTablesVisitor : public ScopeFollowingVisitor {
+
+    class PopulateSymbolTablesAstVisitor : public ScopeFollowingVisitor {
         error::ErrorStream &errorStream_;
     public:
 
-        PopulateSymbolTablesVisitor(error::ErrorStream &errorStream) : errorStream_(errorStream) {
+        PopulateSymbolTablesAstVisitor(error::ErrorStream &errorStream) : errorStream_(errorStream) {
 
         }
 
         virtual bool visitingClassDefinition(ast::ClassDefinition *cd) {
-            topScope()->addSymbol(new scope::ClassSymbol(cd->classType()));
-            return true;
+            scope::TypeSymbol *classSymbol = new scope::TypeSymbol(cd->classType());
+
+            topScope()->addSymbol(classSymbol);
+
+            return ScopeFollowingVisitor::visitingClassDefinition(cd);
         }
 
         virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
@@ -103,20 +98,27 @@ namespace lwnn { namespace front  { namespace passes {
                 errorStream_.error(expr->sourceSpan(), "Symbol '%s' is already defined in this scope.",
                                    expr->name().c_str());
             } else {
-                auto symbol = new scope::GlobalVariableSymbol(expr->name());
+                auto symbol = new scope::VariableSymbol(expr->name());
                 topScope()->addSymbol(symbol);
                 expr->setSymbol(symbol);
-                expr->typeRef()->addSymbolToNotify(symbol);
+                expr->typeRef()->addTypeResolutionListener(symbol);
             }
         }
     };
 
-    class SymbolResolvingVisitor : public ScopeFollowingVisitor {
+
+    class PopulateClassTypesAstVisitor : public ScopeFollowingVisitor {
+        bool visitingClassDefinition(ast::ClassDefinition *cd) override {
+            cd->populateClassType();
+            return true;
+        }
+    };
+
+
+    class SymbolResolvingAstVisitor : public ScopeFollowingVisitor {
         error::ErrorStream &errorStream_;
     public:
-        SymbolResolvingVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
-
-
+        SymbolResolvingAstVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
         virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) {
             if(expr->symbol()) return;
@@ -131,6 +133,8 @@ namespace lwnn { namespace front  { namespace passes {
         }
     };
 
+
+
     class TypeResolvingVisitor : public ScopeFollowingVisitor {
         error::ErrorStream &errorStream_;
     public:
@@ -144,14 +148,15 @@ namespace lwnn { namespace front  { namespace passes {
             //If it wasn't a primitive type...
             if(type == nullptr) {
                 scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
-                scope::ClassSymbol *classSymbol = dynamic_cast<scope::ClassSymbol*>(maybeType);
+                scope::TypeSymbol *classSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
 
                 if(classSymbol == nullptr) {
                     errorStream_.error(typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
                     return;
                 }
 
-                typeRef->setType(classSymbol->type());
+                type = classSymbol->type();
+                typeRef->setType(type);
             }
 
             if(!type) {
@@ -160,8 +165,6 @@ namespace lwnn { namespace front  { namespace passes {
             typeRef->setType(type);
         }
     };
-
-
 
     class CastExprSemanticPass : public ast::AstVisitor {
         error::ErrorStream &errorStream_;
@@ -180,8 +183,6 @@ namespace lwnn { namespace front  { namespace passes {
                     fromType->name().c_str(),
                     toType->name().c_str());
             }
-
-
         }
     };
 
@@ -203,7 +204,6 @@ namespace lwnn { namespace front  { namespace passes {
                     errorStream_.error(binaryExpr->operatorSpan(), "Operator '%s' cannot be used with type '%s'.",
                         ast::to_string(binaryExpr->operation()).c_str(), binaryExpr->type()->name().c_str());
                 }
-                //TODO? if(!binaryExpr->type()->canDoLogic()) {
             }
         }
     };
@@ -212,9 +212,10 @@ namespace lwnn { namespace front  { namespace passes {
 
         std::vector<ast::AstVisitor*> passes;
         passes.emplace_back(new SetSymbolTableParentsAstVisitor());
-        passes.emplace_back(new PopulateSymbolTablesVisitor(es));
+        passes.emplace_back(new PopulateSymbolTablesAstVisitor(es));
+        passes.emplace_back(new SymbolResolvingAstVisitor(es));
+        passes.emplace_back(new PopulateClassTypesAstVisitor());
         passes.emplace_back(new TypeResolvingVisitor(es));
-        passes.emplace_back(new SymbolResolvingVisitor(es));
         passes.emplace_back(new passes::AddImplicitCastsVisitor(es));
         passes.emplace_back(new BinaryExprSemanticsPass(es));
         passes.emplace_back(new CastExprSemanticPass(es));

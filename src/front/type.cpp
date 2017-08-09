@@ -4,6 +4,7 @@
 
 namespace lwnn {
     namespace type {
+
         namespace Primitives {
             ScalarType Int32("int", PrimitiveType::Int32, true);
             ScalarType Float("float", PrimitiveType::Float, true);
@@ -27,6 +28,7 @@ namespace lwnn {
                 }
             }
         }
+
         std::string to_string(PrimitiveType dataType) {
             switch (dataType) {
                 case PrimitiveType::Void:
@@ -43,7 +45,5 @@ namespace lwnn {
                     ASSERT_FAIL("Unhandled PrimitiveType");
             }
         }
-
-
     }
 }

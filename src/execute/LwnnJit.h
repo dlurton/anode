@@ -85,7 +85,7 @@ namespace lwnn {
                     [&](const std::string &Name) {
                         auto foundExport = exports_.find(Name);
                         if(foundExport != exports_.end()) {
-                            return llvm::JITSymbol(llvm::JITTargetAddress((*foundExport).second), llvm::JITSymbolFlags::Exported);
+                            return llvm::JITSymbol(llvm::JITTargetAddress(foundExport->second), llvm::JITSymbolFlags::Exported);
                         }
 
                         if (auto SymAddr =
