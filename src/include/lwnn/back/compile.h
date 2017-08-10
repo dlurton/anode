@@ -17,12 +17,40 @@
 //    class TargetMachine;
 //}
 
-namespace lwnn {
-    namespace back {
+namespace lwnn { namespace back {
         const char * const MODULE_INIT_SUFFIX = "__initModule__";
         const char * const RECEIVE_RESULT_FUNC_NAME = "__receive_result__";
         const char * const EXECUTION_CONTEXT_GLOBAL_NAME = "__execution__context__";
-        std::unique_ptr<llvm::Module> emitModule(lwnn::ast::Module *module, llvm::LLVMContext &llvmContext,
-                                                 llvm::TargetMachine *targetMachine);
-    }
-}
+
+    class TypeMap : no_assign, no_copy {
+        std::unordered_map<type::Type *, llvm::Type *> typeMap_;
+    public:
+        TypeMap(llvm::LLVMContext &llvmContext) {
+
+            mapTypes(&type::Primitives::Void, llvm::Type::getVoidTy(llvmContext));
+            mapTypes(&type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext));
+            mapTypes(&type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext));
+            mapTypes(&type::Primitives::Float, llvm::Type::getFloatTy(llvmContext));
+            mapTypes(&type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext));
+        }
+
+        void mapTypes(type::Type *lwnnType, llvm::Type *llvmType) {
+            typeMap_[lwnnType] = llvmType;
+        }
+
+        llvm::Type *toLlvmType(type::Type *lwnnType) {
+            ASSERT(lwnnType);
+            llvm::Type *foundType = typeMap_[lwnnType];
+
+            ASSERT(foundType && "LWNN type to LLVM type Mapping must exist!");
+            return foundType;
+        }
+    };
+
+    std::unique_ptr<llvm::Module> emitModule(
+        lwnn::ast::Module *module,
+        TypeMap &typeMap,
+        llvm::LLVMContext &llvmContext,
+        llvm::TargetMachine *targetMachine);
+
+}}

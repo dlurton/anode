@@ -21,8 +21,9 @@ namespace lwnn {
             bool setPrettyPrintAst_ = false;
             std::unordered_map<std::string, scope::Symbol*> exportedSymbols_;
             ResultCallbackFunctor resultFunctor_ = nullptr;
+            back::TypeMap typeMap_;
         public:
-            ExecutionContextImpl() {
+            ExecutionContextImpl() : typeMap_{context_} {
                 jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
                 jit_->setEnableOptimization(false);
                 jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, (uint64_t)receiveReplResult);
@@ -86,7 +87,7 @@ namespace lwnn {
             virtual uint64_t loadModule(ast::Module *module) override {
                 ASSERT(module);
 
-                std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module, context_, jit_->getTargetMachine());
+                std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module, typeMap_, context_, jit_->getTargetMachine());
 
                 if(dumpIROnModuleLoad_) {
                     llvm::outs() << "LLVM IR:\n";

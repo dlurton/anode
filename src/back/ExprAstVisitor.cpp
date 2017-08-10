@@ -27,7 +27,7 @@ namespace lwnn {
                 ASSERT(expr->valueExpr()->type()->isPrimitive());
 
                 llvm::Value *castedValue = nullptr;
-                llvm::Type *destLlvmType = cc().toLlvmType(expr->type());
+                llvm::Type *destLlvmType = cc().typeMap().toLlvmType(expr->type());
                 switch (expr->valueExpr()->type()->primitiveType()) {
                     //From int32
                     case type::PrimitiveType::Int32:
@@ -153,7 +153,7 @@ namespace lwnn {
 
                 currentFunc->getBasicBlockList().push_back(endBlock);
                 cc().irBuilder().SetInsertPoint(endBlock);
-                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().toLlvmType(&type::Primitives::Bool), 2, "logical_tmp");
+                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(&type::Primitives::Bool), 2, "logical_tmp");
 
                 llvm::ConstantInt *shortCircuitLlvmValue
                     = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));
@@ -317,7 +317,7 @@ namespace lwnn {
                 currentFunc->getBasicBlockList().push_back(endBlock);
                 cc().irBuilder().SetInsertPoint(endBlock);
                 if (ifExpr->type()->primitiveType() != type::PrimitiveType::Void) {
-                    llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().toLlvmType(ifExpr->type()),
+                    llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(ifExpr->type()),
                                                                     ifExpr->elseExpr() ? 2 : 1, "iftmp");
                     phi->addIncoming(thenValue, thenBlock);
                     if (ifExpr->elseExpr()) {

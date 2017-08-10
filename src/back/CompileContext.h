@@ -1,13 +1,15 @@
 
 #pragma once
 
+#include "back/compile.h"
+
 #include "llvm.h"
 
 #include <map>
 #include <unordered_map>
 
-namespace lwnn {
-namespace back {
+namespace lwnn { namespace back {
+
 
 class CompileContext : no_copy, no_assign {
     llvm::LLVMContext &llvmContext_;
@@ -15,22 +17,14 @@ class CompileContext : no_copy, no_assign {
     llvm::IRBuilder<> &irBuilder_;
     std::stack<scope::SymbolTable *> symbolTableStack_;
 
-    std::unordered_map<type::Type *, llvm::Type *> typeMap_;
+    TypeMap &typeMap_;
 public:
-    CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_)
-        : llvmContext_(llvmContext), llvmModule_(llvmModule), irBuilder_(irBuilder_) {
-
-        mapTypes(&type::Primitives::Void, llvm::Type::getVoidTy(llvmContext_));
-        mapTypes(&type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext_));
-        mapTypes(&type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext_));
-        mapTypes(&type::Primitives::Float, llvm::Type::getFloatTy(llvmContext_));
-        mapTypes(&type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext_));
+    CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_, TypeMap &typeMap)
+        : llvmContext_(llvmContext), llvmModule_(llvmModule), irBuilder_(irBuilder_), typeMap_{typeMap} {
     }
 
     llvm::LLVMContext &llvmContext() { return llvmContext_; };
-
     llvm::Module &llvmModule() { return llvmModule_; }
-
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; };
 
     void pushScope(scope::SymbolTable *scope) {
@@ -43,17 +37,7 @@ public:
         symbolTableStack_.pop();
     }
 
-    void mapTypes(type::Type *lwnnType, llvm::Type *llvmType) {
-        typeMap_[lwnnType] = llvmType;
-    }
-
-    llvm::Type *toLlvmType(type::Type *lwnnType) {
-        ASSERT(lwnnType);
-        llvm::Type *foundType = typeMap_[lwnnType];
-
-        ASSERT(foundType && "LWNN type to LLVM type Mapping must exist!");
-        return foundType;
-    }
+    TypeMap &typeMap() { return typeMap_; }
 
     llvm::Constant *getDefaultValueForType(type::Type *type) {
         ASSERT(type->isPrimitive());

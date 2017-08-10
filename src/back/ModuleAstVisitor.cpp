@@ -90,7 +90,7 @@ public:
         std::vector<scope::VariableSymbol *> globals = module->scope()->variables();
         for (scope::Symbol *symbol : globals) {
             //next step:  make this call to .toLlvmType() return the previously created llvm::StructType
-            cc().llvmModule().getOrInsertGlobal(symbol->name(), cc().toLlvmType(symbol->type()));
+            cc().llvmModule().getOrInsertGlobal(symbol->name(), cc().typeMap().toLlvmType(symbol->type()));
             llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol->name());
             globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
             globalVar->setAlignment(ALIGNMENT);
@@ -151,12 +151,12 @@ private:
     }
 };
 
-std::unique_ptr<llvm::Module> emitModule(lwnn::ast::Module *module, llvm::LLVMContext &llvmContext,
+std::unique_ptr<llvm::Module> emitModule(lwnn::ast::Module *module, lwnn::back::TypeMap &typeMap, llvm::LLVMContext &llvmContext,
                                          llvm::TargetMachine *targetMachine) {
     std::unique_ptr<llvm::Module> llvmModule = std::make_unique<llvm::Module>(module->name(), llvmContext);
     llvm::IRBuilder<> irBuilder{llvmContext};
 
-    CompileContext cc{llvmContext, *llvmModule.get(), irBuilder};
+    CompileContext cc{llvmContext, *llvmModule.get(), irBuilder, typeMap};
     ModuleAstVisitor visitor{cc, *targetMachine};
 
     module->accept(&visitor);
