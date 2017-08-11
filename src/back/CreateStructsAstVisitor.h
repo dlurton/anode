@@ -27,7 +27,7 @@ public:
         cc().typeMap().mapTypes(cd->classType(), structType);
 
         //LLVM will not emit an unused struct so create a dummy variable...
-        cc().llvmModule().getOrInsertGlobal(string::format("use_%s", cd->name().c_str()), structType);
+        //cc().llvmModule().getOrInsertGlobal(string::format("use_%s", cd->name().c_str()), structType);
 
         return false;
     }

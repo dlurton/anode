@@ -604,7 +604,19 @@ TEST_CASE("casting") {
 
 TEST_CASE("class, stack allocated") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    exec(ec, "class Widget { a:int; } someWidget:Widget;");
+    exec(ec, "class Widget { a:int; b:float; c:bool; }");
+    exec(ec, "someWidget:Widget;");
+    REQUIRE(test<int>(ec, "someWidget.a;") == 0);
+    REQUIRE(test<int>(ec, "someWidget.a = 234;") == 234);
+    REQUIRE(test<int>(ec, "someWidget.a;") == 234);
+
+    REQUIRE(test<float>(ec, "someWidget.b;") == 0.0);
+    REQUIRE(test<float>(ec, "someWidget.b = 234.0;") == 234.0);
+    REQUIRE(test<float>(ec, "someWidget.b;") == 234.0);
+
+    REQUIRE(!test<bool>(ec, "someWidget.c;"));
+    REQUIRE(test<bool>(ec, "someWidget.c = true;"));
+    REQUIRE(test<bool>(ec, "someWidget.c;"));
 
     //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }

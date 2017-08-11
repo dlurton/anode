@@ -47,6 +47,7 @@ namespace lwnn {
 
             virtual std::string name() const { return name_; }
             virtual bool isPrimitive() const = 0;
+            virtual bool isClass() const { return false; };
             virtual PrimitiveType primitiveType() const = 0;
             virtual bool canDoArithmetic() const = 0;
             virtual bool canImplicitCastTo(Type *other) const = 0;
@@ -105,16 +106,16 @@ namespace lwnn {
         class ClassField : public type::TypeResolutionListener {
             type::Type * type_;
             std::string name_;
-            int const ordinal_;
+            unsigned const ordinal_;
         public:
-            ClassField(const std::string &name, type::Type *type, int ordinal) : type_{type}, name_{name}, ordinal_{ordinal} { }
+            ClassField(const std::string &name, type::Type *type, unsigned ordinal) : type_{type}, name_{name}, ordinal_{ordinal} { }
 
             type::Type *type() const { ASSERT(type_ && "Type must be resolved first."); return type_; }
             void notifyTypeResolved(type::Type *type) override  { type_ = type; }
 
             std::string name() const { return name_; }
 
-            int ordinal() const { return ordinal_; }
+            unsigned ordinal() const { return ordinal_; }
         };
 
         class ClassType : public Type {
@@ -125,12 +126,13 @@ namespace lwnn {
 
             }
 
-            bool isPrimitive() const { return false; }
-            PrimitiveType primitiveType() const { return PrimitiveType::NotAPrimitive; }
+            bool isPrimitive() const override { return false; }
+            bool isClass() const override { return true; }
+            PrimitiveType primitiveType() const override { return PrimitiveType::NotAPrimitive; }
 
-            bool canDoArithmetic() const { return false; };
-            bool canImplicitCastTo(Type *) const { return false; };
-            bool canExplicitCastTo(Type *) const { return false; };
+            bool canDoArithmetic() const override { return false; };
+            bool canImplicitCastTo(Type *) const override { return false; };
+            bool canExplicitCastTo(Type *) const override { return false; };
 
             ClassField *findField(const std::string &name) {
                 auto found = fields_.find(name);
@@ -142,7 +144,7 @@ namespace lwnn {
             }
 
             ClassField &addField(const std::string &name, type::Type *type) {
-                auto field = new ClassField(name, type, orderedFields_.size());
+                auto field = new ClassField(name, type, (unsigned) orderedFields_.size());
 
                 fields_.emplace(name, field);
                 orderedFields_.emplace_back(field);

@@ -60,6 +60,7 @@ namespace lwnn {
             virtual void prepareModule(ast::Module *module) override {
 
                 for(auto &symbolToImport : exportedSymbols_) {
+                    symbolToImport.second->setIsExternal(true);
                     module->scope()->addSymbol(symbolToImport.second);
                 }
 

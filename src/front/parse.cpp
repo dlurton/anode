@@ -177,6 +177,10 @@ namespace lwnn {
                 setResult(node);
             }
 
+            virtual void enterDotExpr(LwnnParser::DotExprContext *ctx) override {
+                setResult(new DotExpr(getSourceSpan(ctx), extractExpr(ctx->left), ctx->right->getText()));
+            }
+
             virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext *ctx) override {
                 setResult(new VariableRefExpr(getSourceSpan(ctx), ctx->getText()));
             }

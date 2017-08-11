@@ -90,7 +90,15 @@ namespace lwnn {
             }
 
             virtual void visitLiteralInt32Expr(ast::LiteralInt32Expr *expr) override {
-                valueStack_.push(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t) expr->value(), true)));
+                valueStack_.push(getLiteralIntLlvmValue(expr->value()));
+            }
+
+            llvm::Value *getLiteralIntLlvmValue(int value) {
+                return llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t) value, true));
+            }
+
+            llvm::Value *getLiteralUIntLLvmValue(unsigned value) {
+                return llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t) value, false));
             }
 
             virtual void visitLiteralFloatExpr(ast::LiteralFloatExpr *expr) override {
@@ -113,9 +121,15 @@ namespace lwnn {
                     return;
                 }
 
-                llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(globalVar);
-                loadInst->setAlignment(ALIGNMENT);
-                valueStack_.push(loadInst);
+                if(expr->type()->isPrimitive()) {
+                    llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(globalVar);
+                    loadInst->setAlignment(ALIGNMENT);
+                    valueStack_.push(loadInst);
+                } else {
+                    llvm::Value* ptr = cc().llvmModule().getGlobalVariable(globalVar->getName());
+                    valueStack_.push(ptr);
+                }
+
             }
 
             virtual bool visitingBinaryExpr(ast::BinaryExpr *expr) override {
@@ -276,6 +290,23 @@ namespace lwnn {
                 }
                 ASSERT(resultValue);
                 valueStack_.push(resultValue);
+            }
+
+            virtual void visitedDotExpr(ast::DotExpr *expr) override {
+                llvm::Value *lvalue = valueStack_.top();
+                valueStack_.pop();
+                type::ClassType *classType = dynamic_cast<type::ClassType*>(expr->lValue()->type());
+                ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have fields.");
+                type::ClassField *classField = classType->findField(expr->memberName());
+                unsigned ordinal = classField->ordinal();
+
+                llvm::Value *ptrOrValue = cc().irBuilder().CreateStructGEP(nullptr, lvalue, ordinal, classField->name());
+
+                if(!expr->isWrite()) {
+                    ptrOrValue = cc().irBuilder().CreateLoad(ptrOrValue);
+                }
+
+                valueStack_.push(ptrOrValue);
             }
 
             virtual bool visitingIfExpr(ast::IfExprStmt *ifExpr) override {

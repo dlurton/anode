@@ -12,12 +12,18 @@ namespace lwnn {
     namespace scope {
 
         class Symbol : public gc {
+            bool isExternal_ = false;
         public:
             Symbol() {}
+            Symbol(bool isExternal) : isExternal_{isExternal} {}
             virtual ~Symbol() { }
             virtual std::string name() const = 0;
             virtual std::string toString() const = 0;
             virtual type::Type *type() const = 0;
+            /** True when the symbol is defined in a module other than the current module.
+             * Note:  this value is ignored for non-static class fields, function arguments and local variables. */
+            bool isExternal() const { return isExternal_; }
+            void setIsExternal(bool isExternal) { isExternal_ = isExternal; }
         };
 
         class VariableSymbol : public Symbol, public type::TypeResolutionListener {
@@ -27,6 +33,7 @@ namespace lwnn {
         public:
             VariableSymbol(const std::string &name) : name_(name) { }
             VariableSymbol(const std::string &name, type::Type *type) : type_(type), name_(name) { }
+
             virtual ~VariableSymbol() { }
 
             virtual type::Type *type() const override {

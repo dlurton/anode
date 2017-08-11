@@ -31,6 +31,7 @@ expr
     | left=expr op=(OP_EQ | OP_NEQ) right=expr                        # binaryExpr
     | left=expr op=OP_AND right=expr                                  # binaryExpr
     | left=expr op=OP_OR right=expr                                   # binaryExpr
+    | left=expr op=OP_DOT right=ID                                    # dotExpr
     | <assoc=right> left=expr op=OP_ASSIGN right=expr                 # binaryExpr
 //  | func=ID '(' expr ')'                                            # funcExpr
     | value=LIT_INT                                                   # literalInt32Expr
@@ -78,6 +79,7 @@ OP_GT: '>';
 OP_LT: '<';
 OP_GTE: '>=';
 OP_LTE: '<=';
+OP_DOT: '.';
 
 KW_TRUE: 'true';
 KW_FALSE: 'false';

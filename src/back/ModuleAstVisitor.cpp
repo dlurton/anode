@@ -90,9 +90,32 @@ public:
         std::vector<scope::VariableSymbol *> globals = module->scope()->variables();
         for (scope::Symbol *symbol : globals) {
             //next step:  make this call to .toLlvmType() return the previously created llvm::StructType
-            cc().llvmModule().getOrInsertGlobal(symbol->name(), cc().typeMap().toLlvmType(symbol->type()));
+            llvm::Type *llvmType = cc().typeMap().toLlvmType(symbol->type());
+            cc().llvmModule().getOrInsertGlobal(symbol->name(), llvmType);
             llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol->name());
-            globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
+
+            if(symbol->type()->isClass()) {
+
+                if (symbol->isExternal()) {
+                    //ExternalWeakLinkage defines a symbol in the current module that can be
+                    //overridden by a regular ExternalLinkage, it would seem from the LLVM language reference.
+                    //https://llvm.org/docs/LangRef.html#linkage-types
+                    //HOWEVER...  in my experience this acts *much* more like the C "extern" keyword,
+                    //meaning that LLVM seems to expect global variables with ExternalWeakLinkage to be defined
+                    //in another module, period.  I also note that ExternalWinkLinkage global variables
+                    //cannot have an initializer without causing assertion failure within the LLVM source.
+                    globalVar->setLinkage(llvm::GlobalValue::ExternalWeakLinkage);
+                } else {
+                    //Fills the struct instance with zeros
+                    globalVar->setInitializer(llvm::ConstantAggregateZero::get(llvmType));
+
+                    //ExternalLinkage as far as I can tell is not to be confused with the "extern" C keyword.
+                    //It seems to mean that the symbol is exposed to other modules, like when the "extern"
+                    //and "static" keywords are omitted in C.
+                    globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
+                }
+            }
+
             globalVar->setAlignment(ALIGNMENT);
         }
 
@@ -104,7 +127,7 @@ public:
         llvm::raw_ostream &os = llvm::errs();
         if (llvm::verifyModule(cc().llvmModule(), &os)) {
             cc().llvmModule().dump();
-            ASSERT_FAIL();
+            ASSERT_FAIL("Failed LLVM module verification.");
         }
     }
 

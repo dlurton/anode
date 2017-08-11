@@ -73,6 +73,16 @@ namespace lwnn {
                 writer_.decIndent();
             }
 
+            virtual void visitingDotExpr(DotExpr *expr) override {
+                writer_.writeln("DotExpr: " + expr->memberName());
+                writer_.incIndent();
+                //return true;
+            }
+
+            virtual void visitedDotExpr(DotExpr *) override {
+                writer_.decIndent();
+            }
+
             virtual void visitLiteralBoolExpr(LiteralBoolExpr *expr) override {
                 writer_.writeln("LiteralBoolExpr: %s", expr->value() ? "true" : "false");
             }
