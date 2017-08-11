@@ -45,7 +45,7 @@ say "Running make check -j"
 make check -j
 
 say "Running make install"
-make installl
+make install
 
 say "bdwgc built and installed successfully at" $INSTALL_DIR
 
