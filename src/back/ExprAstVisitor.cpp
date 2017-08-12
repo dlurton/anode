@@ -5,7 +5,7 @@ namespace lwnn {
     namespace back {
 
         class ExprAstVisitor : public CompileAstVisitor {
-            std::stack<llvm::Value *> valueStack_;
+            std::stack<llvm::Value*> valueStack_;
 
         public:
             ExprAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
@@ -300,13 +300,21 @@ namespace lwnn {
                 type::ClassField *classField = classType->findField(expr->memberName());
                 unsigned ordinal = classField->ordinal();
 
+                //First emit code to calculate the address of the member field
                 llvm::Value *ptrOrValue = cc().irBuilder().CreateStructGEP(nullptr, lvalue, ordinal, classField->name());
 
-                if(!expr->isWrite()) {
-                    ptrOrValue = cc().irBuilder().CreateLoad(ptrOrValue);
+                // The result of the DotExpr is a pointer if field is not being assigned to because the store instruction
+                // expects a pointer at which to store the value.
+                // We also do not attempt to load "values" of any classes because so far we lwnn only operates on class pointers or
+                // their fields, not entire classes.
+                if(expr->isWrite() || expr->type()->isClass()) {
+                    valueStack_.push(ptrOrValue);
+                    return;
                 }
 
+                ptrOrValue = cc().irBuilder().CreateLoad(ptrOrValue);
                 valueStack_.push(ptrOrValue);
+                return;
             }
 
             virtual bool visitingIfExpr(ast::IfExprStmt *ifExpr) override {
@@ -342,7 +350,6 @@ namespace lwnn {
                 }
                 cc().irBuilder().CreateBr(endBlock);
                 elseBlock = cc().irBuilder().GetInsertBlock();
-
 
                 //Emit the endBlock
                 currentFunc->getBasicBlockList().push_back(endBlock);

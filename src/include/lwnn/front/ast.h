@@ -861,8 +861,7 @@ public:
         }
         visitor->visitedModule(this);
     }
-
-};
+ };
 
 }}
 

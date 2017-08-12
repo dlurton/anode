@@ -621,3 +621,38 @@ TEST_CASE("class, stack allocated") {
     //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
+TEST_CASE("class, stack allocated, with another class inside it") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "class A { a:int; b:float; c:bool; }");
+    exec(ec, "class B { a1:A; a2:A; }");
+    exec(ec, "instance:B;");
+
+    REQUIRE(test<int>(ec, "instance.a1.a;") == 0);
+    REQUIRE(test<int>(ec, "instance.a1.a = 234;") == 234);
+    REQUIRE(test<int>(ec, "instance.a1.a;") == 234);
+
+    REQUIRE(test<float>(ec, "instance.a1.b;") == 0.0);
+    REQUIRE(test<float>(ec, "instance.a1.b = 234.0;") == 234.0);
+    REQUIRE(test<float>(ec, "instance.a1.b;") == 234.0);
+
+    REQUIRE(!test<bool>(ec, "instance.a1.c;"));
+    REQUIRE(test<bool>(ec, "instance.a1.c = true;"));
+    REQUIRE(test<bool>(ec, "instance.a1.c;"));
+
+    
+    REQUIRE(test<int>(ec, "instance.a2.a;") == 0);
+    REQUIRE(test<int>(ec, "instance.a2.a = 345;") == 345);
+    REQUIRE(test<int>(ec, "instance.a2.a;") == 345);
+
+    REQUIRE(test<float>(ec, "instance.a2.b;") == 0.0);
+    REQUIRE(test<float>(ec, "instance.a2.b = 345.0;") == 345.0);
+    REQUIRE(test<float>(ec, "instance.a2.b;") == 345.0);
+
+    REQUIRE(!test<bool>(ec, "instance.a2.c;"));
+    REQUIRE(test<bool>(ec, "instance.a2.c = true;"));
+    REQUIRE(test<bool>(ec, "instance.a2.c;"));
+
+    //Assertion, for the moment, has to be done by examining the LLVM-IR.
+}
+
+
