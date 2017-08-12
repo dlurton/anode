@@ -94,8 +94,12 @@ public:
 
     virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
         if(topScope()->findSymbol(expr->name())) {
-            errorStream_.error(expr->sourceSpan(), "Symbol '%s' is already defined in this scope.",
-                               expr->name().c_str());
+            errorStream_.error(
+                Error::SymbolAlreadyDefinedInScope,
+                expr->sourceSpan(),
+                "Symbol '%s' is already defined in this scope.",
+                expr->name().c_str());
+
         } else {
             auto symbol = new scope::VariableSymbol(expr->name());
             topScope()->addSymbol(symbol);
@@ -124,7 +128,7 @@ public:
 
         scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name());
         if(!found) {
-            errorStream_.error(expr->sourceSpan(), "Variable '%s' was not defined in this scope.",
+            errorStream_.error(Error::VariableNotDefined, expr->sourceSpan(),  "Variable '%s' was not defined in this scope.",
                 expr->name().c_str());
         } else {
             expr->setSymbol(found);
@@ -150,7 +154,7 @@ public:
             scope::TypeSymbol *classSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
 
             if(classSymbol == nullptr) {
-                errorStream_.error(typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
+                errorStream_.error(Error::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
                 return;
             }
 
@@ -159,7 +163,7 @@ public:
         }
 
         if(!type) {
-            errorStream_.error(typeRef->sourceSpan(), "Undefined type '%s'.", typeRef->name().c_str());
+            errorStream_.error(Error::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().c_str());
         }
         typeRef->setType(type);
     }
@@ -177,6 +181,7 @@ public:
 
         if(!fromType->canExplicitCastTo(toType)) {
             errorStream_.error(
+                Error::InvalidExplicitCast,
                 expr->sourceSpan(),
                 "Cannot cast from '%s' to '%s'",
                 fromType->name().c_str(),
@@ -196,12 +201,18 @@ public:
         }
         if(binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
             if(!binaryExpr->lValue()->canWrite()) {
-                errorStream_.error(binaryExpr->operatorSpan(), "Cannot assign a value to the expression left of '='");
+                errorStream_.error(
+                    Error::CannotAssignToLValue,
+                    binaryExpr->operatorSpan(), "Cannot assign a value to the expression left of '='");
             }
         } else if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
             if(!binaryExpr->type()->canDoArithmetic()) {
-                errorStream_.error(binaryExpr->operatorSpan(), "Operator '%s' cannot be used with type '%s'.",
-                    ast::to_string(binaryExpr->operation()).c_str(), binaryExpr->type()->name().c_str());
+                errorStream_.error(
+                    Error::OperatorCannotBeUsedWithType,
+                    binaryExpr->operatorSpan(),
+                    "Operator '%s' cannot be used with type '%s'.",
+                    ast::to_string(binaryExpr->operation()).c_str(),
+                    binaryExpr->type()->name().c_str());
             }
         }
     }

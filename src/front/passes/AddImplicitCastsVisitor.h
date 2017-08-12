@@ -46,6 +46,7 @@ public:
                                       : "Cannot implicitly convert '%s' to '%s' or vice-versa";
 
                 errorStream_.error(
+                    Error::InvalidImplicitCastInBinaryExpr,
                     binaryExpr->operatorSpan(),
                     message,
                     binaryExpr->rValue()->type()->name().c_str(),
@@ -63,6 +64,7 @@ public:
 
             } else {
                 errorStream_.error(
+                    Error::InvalidImplicitCastInIfCondition,
                     ifExpr->condition()->sourceSpan(),
                     "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
                     ifExpr->condition()->type()->name().c_str());
@@ -84,6 +86,7 @@ public:
             }
             else { // No implicit cast available...
                 errorStream_.error(
+                    Error::InvalidImplicitCastInIfBodies,
                     ifExpr->sourceSpan(),
                     "Cannot implicitly convert '%s' to '%s' or vice-versa",
                     ifExpr->thenExpr()->type()->name().c_str(),
@@ -101,6 +104,7 @@ public:
 
             } else {
                 errorStream_.error(
+                    Error::InvalidImplicitCastInInWhileCondition,
                     whileExpr->condition()->sourceSpan(),
                     "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
                     whileExpr->condition()->type()->name().c_str());

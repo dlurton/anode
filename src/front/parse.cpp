@@ -416,11 +416,11 @@ namespace lwnn {
                         source::SourceLocation { line, charPositionInLine },
                         source::SourceLocation { line, charPositionInLine + 1 }
                     };
-                    errorStream_.error(span, msg);
+                    errorStream_.error(Error::Syntax, span, msg);
                 } else {
                     //However if we do have the offendingSymbol we should use that because the span generated
                     //from it should have the span's full length.
-                    errorStream_.error(getSourceSpan(offendingSymbol), msg);
+                    errorStream_.error(Error::Syntax, getSourceSpan(offendingSymbol), msg);
                 }
             };
 
