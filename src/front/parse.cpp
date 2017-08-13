@@ -178,7 +178,12 @@ namespace lwnn {
             }
 
             virtual void enterDotExpr(LwnnParser::DotExprContext *ctx) override {
-                setResult(new DotExpr(getSourceSpan(ctx), extractExpr(ctx->left), ctx->right->getText()));
+                setResult(
+                    new DotExpr(
+                        getSourceSpan(ctx),
+                        getSourceSpan(ctx->op),
+                        extractExpr(ctx->left),
+                        ctx->right->getText()));
             }
 
             virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext *ctx) override {
@@ -416,11 +421,11 @@ namespace lwnn {
                         source::SourceLocation { line, charPositionInLine },
                         source::SourceLocation { line, charPositionInLine + 1 }
                     };
-                    errorStream_.error(Error::Syntax, span, msg);
+                    errorStream_.error(error::ErrorKind::Syntax, span, msg);
                 } else {
                     //However if we do have the offendingSymbol we should use that because the span generated
                     //from it should have the span's full length.
-                    errorStream_.error(Error::Syntax, getSourceSpan(offendingSymbol), msg);
+                    errorStream_.error(error::ErrorKind::Syntax, getSourceSpan(offendingSymbol), msg);
                 }
             };
 

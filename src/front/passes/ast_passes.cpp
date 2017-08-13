@@ -95,7 +95,7 @@ public:
     virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
         if(topScope()->findSymbol(expr->name())) {
             errorStream_.error(
-                Error::SymbolAlreadyDefinedInScope,
+                error::ErrorKind::SymbolAlreadyDefinedInScope,
                 expr->sourceSpan(),
                 "Symbol '%s' is already defined in this scope.",
                 expr->name().c_str());
@@ -128,7 +128,7 @@ public:
 
         scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name());
         if(!found) {
-            errorStream_.error(Error::VariableNotDefined, expr->sourceSpan(),  "Variable '%s' was not defined in this scope.",
+            errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Variable '%s' was not defined in this scope.",
                 expr->name().c_str());
         } else {
             expr->setSymbol(found);
@@ -154,7 +154,7 @@ public:
             scope::TypeSymbol *classSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
 
             if(classSymbol == nullptr) {
-                errorStream_.error(Error::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
+                errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
                 return;
             }
 
@@ -163,7 +163,7 @@ public:
         }
 
         if(!type) {
-            errorStream_.error(Error::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().c_str());
+            errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().c_str());
         }
         typeRef->setType(type);
     }
@@ -181,12 +181,40 @@ public:
 
         if(!fromType->canExplicitCastTo(toType)) {
             errorStream_.error(
-                Error::InvalidExplicitCast,
+                error::ErrorKind::InvalidExplicitCast,
                 expr->sourceSpan(),
                 "Cannot cast from '%s' to '%s'",
                 fromType->name().c_str(),
                 toType->name().c_str());
         }
+    }
+};
+
+class ResolveDotExprMemberPass : public ast::AstVisitor {
+    error::ErrorStream &errorStream_;
+public:
+    ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
+
+    virtual void visitingDotExpr(ast::DotExpr *expr) {
+        if(!expr->lValue()->type()->isClass()) {
+            errorStream_.error(
+                error::ErrorKind::LeftOfDotNotClass,
+                expr->dotSourceSpan(),
+                "Type of value on left side of '.' operator is not an instance of a class.");
+            return;
+        }
+        auto classType = static_cast<type::ClassType*>(expr->lValue()->type());
+        type::ClassField *field = classType->findField(expr->memberName());
+        if(!field) {
+            errorStream_.error(
+                error::ErrorKind::ClassMemberNotFound,
+                expr->dotSourceSpan(),
+                "Class '%s' does not have a member named '%s'",
+                classType->name().c_str(),
+                expr->memberName().c_str());
+            return;
+        }
+        expr->setField(field);
     }
 };
 
@@ -202,13 +230,13 @@ public:
         if(binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
             if(!binaryExpr->lValue()->canWrite()) {
                 errorStream_.error(
-                    Error::CannotAssignToLValue,
+                    error::ErrorKind::CannotAssignToLValue,
                     binaryExpr->operatorSpan(), "Cannot assign a value to the expression left of '='");
             }
         } else if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
             if(!binaryExpr->type()->canDoArithmetic()) {
                 errorStream_.error(
-                    Error::OperatorCannotBeUsedWithType,
+                    error::ErrorKind::OperatorCannotBeUsedWithType,
                     binaryExpr->operatorSpan(),
                     "Operator '%s' cannot be used with type '%s'.",
                     ast::to_string(binaryExpr->operation()).c_str(),
@@ -226,6 +254,12 @@ class MarkDotExprWritesPass : public ast::AstVisitor {
         }
     }
 };
+//
+//class DotExprSemanticsPass : public ast::AstVisitor {
+//    virtual void visitingDotExpr(ast::DotExpr *) {
+//
+//    }
+//};
 
 void runAllPasses(ast::Module *module, error::ErrorStream &es) {
 
@@ -250,6 +284,8 @@ void runAllPasses(ast::Module *module, error::ErrorStream &es) {
     passes.emplace_back(new SymbolResolvingAstVisitor(es));
     //Create type::ClassType and populate all the fields, for all classes
     passes.emplace_back(new PopulateClassTypesAstVisitor());
+    //Resolve all member references
+    passes.emplace_back(new ResolveDotExprMemberPass(es));
     //Resolve all type references here (i.e. variables, arguments, class fields, function arguments, etc)
     //will know to the type::Type after this phase
     passes.emplace_back(new TypeResolvingVisitor(es));

@@ -803,12 +803,16 @@ public:
 };
 
 class DotExpr : public ExprStmt {
+    source::SourceSpan dotSourceSpan_;
     ExprStmt *lValue_;
     std::string memberName_;
+    type::ClassField *field_ = nullptr;
     bool isWrite_ = false;
 public:
-    DotExpr(const source::SourceSpan &sourceSpan, ExprStmt *lValue, std::string memberName)
-        : ExprStmt(sourceSpan), lValue_{lValue}, memberName_{memberName} { }
+    DotExpr(const source::SourceSpan &sourceSpan, const source::SourceSpan &dotSourceSpan, ExprStmt *lValue, std::string memberName)
+        : ExprStmt(sourceSpan), dotSourceSpan_{dotSourceSpan}, lValue_{lValue}, memberName_{memberName} { }
+
+    source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
 
     virtual ExprKind exprKind() const override { return ExprKind::DotExpr; };
     virtual bool canWrite() const override { return true; };
@@ -822,14 +826,19 @@ public:
     ExprStmt *lValue() { return lValue_; }
     std::string memberName() { return memberName_; }
 
+    type::ClassField *field() { return field_; }
+    void setField(type::ClassField *field) { field_ = field; }
+
     type::Type *type() const override {
-        //TODO:  semantic check for this, not assertion
-        auto classType = dynamic_cast<type::ClassType*>(lValue_->type());
-        ASSERT(classType);
-        //Cache/resolve this maybe?
-        type::ClassField *field = classType->findField(memberName_);
-        ASSERT(field && "Couldn't find type member.");
-        return field->type();
+//        //TODO:  semantic check for this, not assertion
+//        auto classType = dynamic_cast<type::ClassType*>(lValue_->type());
+//        ASSERT(classType);
+//        //Cache/resolve this maybe?
+//        type::ClassField *field = classType->findField(memberName_);
+//        ASSERT(field && "Couldn't find type member.");
+//        return field->type();
+        ASSERT(field_ && "Field must be resolved first");
+        return field_->type();
     }
 
     virtual void accept(AstVisitor *visitor) override {
