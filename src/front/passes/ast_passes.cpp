@@ -230,18 +230,44 @@ class MarkDotExprWritesPass : public ast::AstVisitor {
 void runAllPasses(ast::Module *module, error::ErrorStream &es) {
 
     std::vector<ast::AstVisitor*> passes;
+
+    //Having so many visitors is probably not great for performance because each of these visits the
+    //entire tree but does very little in each individual pass. When/if it becomes an issue it should
+    //be possible to merge some of these passes together. For now, the modularity of the existing
+    //arrangement is highly desirable.
+
+    // Order is important below.  There is necessary "temporal coupling"  and a requirement of
+    // an at least partially mutable AST here but there's not an easy way around these as far as
+    // I can tell because it's impossible to know all the information needed at parse time.
+
+    //Symbol resolution works recursively, examining the current scope first and then
+    //searching each parent until the symbol is found.
     passes.emplace_back(new SetSymbolTableParentsAstVisitor());
+    //Build the symbol tables so that symbol resolution works
+    //Symbol tables are really just metadata generated from global definitions (i.e. class, func, etc.)
     passes.emplace_back(new PopulateSymbolTablesAstVisitor(es));
+    //Symbol references (i.e. variable, call sites, etc) find their corresponding symbols here.
     passes.emplace_back(new SymbolResolvingAstVisitor(es));
+    //Create type::ClassType and populate all the fields, for all classes
     passes.emplace_back(new PopulateClassTypesAstVisitor());
+    //Resolve all type references here (i.e. variables, arguments, class fields, function arguments, etc)
+    //will know to the type::Type after this phase
     passes.emplace_back(new TypeResolvingVisitor(es));
+    //Insert implicit casts where they are allowed
     passes.emplace_back(new AddImplicitCastsVisitor(es));
+    //Dot expressions immediately to the left of '=' should be properly marked as "writes" so the correct
+    //LLVM IR can be emitted for them.  (No way to know this at parse time.)
+    passes.emplace_back(new MarkDotExprWritesPass());
+
+    //Finally, on to some semantics checking:
+
     passes.emplace_back(new BinaryExprSemanticsPass(es));
     passes.emplace_back(new CastExprSemanticPass(es));
-    passes.emplace_back(new MarkDotExprWritesPass());
 
     for(auto & pass : passes) {
         module->accept(pass);
+        //If an error occurs during any pass, stop executing passes immediately because
+        //each pass depends on the success of previous passes.
         if(es.errorCount() > 0) {
             break;
         }
