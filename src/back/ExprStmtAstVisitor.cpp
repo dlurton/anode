@@ -1,14 +1,15 @@
 #include "emit.h"
 #include "CompileAstVisitor.h"
+#include "common/containers.h"
 
 namespace lwnn {
     namespace back {
 
-        class ExprAstVisitor : public CompileAstVisitor {
-            std::stack<llvm::Value*> valueStack_;
+        class ExprStmtAstVisitor : public CompileAstVisitor {
+            gc_stack<llvm::Value*> valueStack_;
 
         public:
-            ExprAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
+            ExprStmtAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
             bool hasValue() {
                 return valueStack_.size() > 0;
@@ -77,16 +78,45 @@ namespace lwnn {
             }
 
             virtual void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-                //For now assume global variables.
-                //llvm::AllocaInst *allocaInst = irBuilder_.CreateAlloca(type, nullptr, var->name());
-                llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->name());
-                ASSERT(globalVariable);
-                globalVariable->setAlignment(ALIGNMENT);
-                if(expr->type()->isPrimitive()) {
-                    globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
+                switch(expr->symbol()->storageKind()) {
+                    case scope::StorageKind::Global: {
+                        llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->name());
+                        ASSERT(globalVariable);
+                        globalVariable->setAlignment(ALIGNMENT);
+                        if (expr->type()->isPrimitive()) {
+                            globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
+                        }
+                        break;
+                    }
+                    case scope::StorageKind::Local: {
+                        llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr->type());
+                        llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr->name());
+                        cc().mapSymbolToValue(expr->symbol(), localVariable);
+                        break;
+                    }
+                    default:
+                        ASSERT_FAIL("Unhandled StorageKind");
+                }
+                visitVariableRefExpr(expr);
+            }
+
+            virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
+                llvm::Value *pointer = cc().getMappedVallue(expr->symbol());
+
+                ASSERT(pointer);
+
+                if (expr->variableAccess() == ast::VariableAccess::Write) {
+                    valueStack_.push(pointer);
+                    return;
                 }
 
-                visitVariableRefExpr(expr);
+                if(expr->type()->isPrimitive()) {
+                    llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(pointer);
+                    loadInst->setAlignment(ALIGNMENT);
+                    valueStack_.push(loadInst);
+                } else {
+                    valueStack_.push(pointer);
+                }
             }
 
             virtual void visitLiteralInt32Expr(ast::LiteralInt32Expr *expr) override {
@@ -107,29 +137,6 @@ namespace lwnn {
 
             virtual void visitLiteralBoolExpr(ast::LiteralBoolExpr *expr) {
                 valueStack_.push(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr->value(), true)));
-            }
-
-            virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
-                //We are assuming global variables for now
-                //llvm::Value *allocaInst = lookupVariable(expr->name());
-
-                llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(expr->name());
-                ASSERT(globalVar);
-
-                if (expr->variableAccess() == ast::VariableAccess::Write) {
-                    valueStack_.push(globalVar);
-                    return;
-                }
-
-                if(expr->type()->isPrimitive()) {
-                    llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(globalVar);
-                    loadInst->setAlignment(ALIGNMENT);
-                    valueStack_.push(loadInst);
-                } else {
-                    llvm::Value* ptr = cc().llvmModule().getGlobalVariable(globalVar->getName());
-                    valueStack_.push(ptr);
-                }
-
             }
 
             virtual bool visitingBinaryExpr(ast::BinaryExpr *expr) override {
@@ -402,7 +409,7 @@ namespace lwnn {
 
                 llvm::Value *lastValue = nullptr;
                 for (ast::ExprStmt *expr : expr->expressions()) {
-                    ExprAstVisitor exprAstVisitor{cc()};
+                    ExprStmtAstVisitor exprAstVisitor{cc()};
                     expr->accept(&exprAstVisitor);
                     if(exprAstVisitor.hasValue()) {
                         lastValue = exprAstVisitor.llvmValue();
@@ -415,7 +422,7 @@ namespace lwnn {
         };
 
         llvm::Value *emitExpr(ast::ExprStmt *exprStmt, CompileContext &cc) {
-            ExprAstVisitor visitor{cc};
+            ExprStmtAstVisitor visitor{cc};
             exprStmt->accept(&visitor);
 
             return visitor.hasValue() ? visitor.llvmValue() : nullptr;

@@ -2,11 +2,11 @@
 #pragma once
 
 #include "common/exception.h"
+#include "common/containers.h"
 
 #include <string>
-#include <vector>
-#include <unordered_map>
-#include <bits/unordered_map.h>
+
+
 
 namespace lwnn {
     namespace type {
@@ -103,7 +103,8 @@ namespace lwnn {
             };
         };
 
-        class ClassField : public type::TypeResolutionListener {
+
+        class ClassField : public type::TypeResolutionListener, public gc {
             type::Type * type_;
             std::string name_;
             unsigned const ordinal_;
@@ -119,8 +120,8 @@ namespace lwnn {
         };
 
         class ClassType : public Type {
-            std::vector<type::ClassField*> orderedFields_;
-            std::unordered_map<std::string, type::ClassField*> fields_;
+            gc_vector<ClassField*> orderedFields_;
+            gc_unordered_map<std::string, ClassField*> fields_;
         public:
             ClassType(const std::string &name) : Type(name) {
 
@@ -146,8 +147,8 @@ namespace lwnn {
             ClassField &addField(const std::string &name, type::Type *type) {
                 auto field = new ClassField(name, type, (unsigned) orderedFields_.size());
 
-                fields_.emplace(name, field);
                 orderedFields_.emplace_back(field);
+                fields_.emplace(name, field);
 
                 return *field;
             }

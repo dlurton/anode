@@ -6,7 +6,6 @@
 #include "front/type.h"
 #include "execute/execute.h"
 
-#include <vector>
 #include <execute/execute.h>
 
 namespace lwnn {

@@ -4,7 +4,6 @@
 #include "ast.h"
 #include "error.h"
 
-#include <deque>
 
 namespace lwnn { namespace front  { namespace passes {
 

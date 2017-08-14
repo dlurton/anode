@@ -23,7 +23,7 @@ namespace lwnn { namespace back {
         const char * const EXECUTION_CONTEXT_GLOBAL_NAME = "__execution__context__";
 
     class TypeMap : no_assign, no_copy {
-        std::unordered_map<type::Type *, llvm::Type *> typeMap_;
+        gc_unordered_map<type::Type *, llvm::Type *> typeMap_;
     public:
         TypeMap(llvm::LLVMContext &llvmContext) {
 

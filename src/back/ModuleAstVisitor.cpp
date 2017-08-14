@@ -93,6 +93,7 @@ public:
             llvm::Type *llvmType = cc().typeMap().toLlvmType(symbol->type());
             cc().llvmModule().getOrInsertGlobal(symbol->name(), llvmType);
             llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol->name());
+            cc().mapSymbolToValue(symbol, globalVar);
 
             if(symbol->type()->isClass()) {
 

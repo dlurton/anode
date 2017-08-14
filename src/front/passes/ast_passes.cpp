@@ -9,7 +9,7 @@ namespace lwnn { namespace front  { namespace passes {
 class ScopeFollowingVisitor : public ast::AstVisitor {
 
     //We use this only as a stack but it has to be a deque so we can iterate over its contents.
-    std::deque<scope::SymbolTable*> symbolTableStack_;
+    gc_deque<scope::SymbolTable*> symbolTableStack_;
 protected:
     scope::SymbolTable *topScope() {
         ASSERT(symbolTableStack_.size());
@@ -80,9 +80,7 @@ class PopulateSymbolTablesAstVisitor : public ScopeFollowingVisitor {
     error::ErrorStream &errorStream_;
 public:
 
-    PopulateSymbolTablesAstVisitor(error::ErrorStream &errorStream) : errorStream_(errorStream) {
-
-    }
+    PopulateSymbolTablesAstVisitor(error::ErrorStream &errorStream) : errorStream_(errorStream) {  }
 
     virtual bool visitingClassDefinition(ast::ClassDefinition *cd) {
         scope::TypeSymbol *classSymbol = new scope::TypeSymbol(cd->classType());
@@ -120,8 +118,15 @@ class PopulateClassTypesAstVisitor : public ScopeFollowingVisitor {
 
 class SymbolResolvingAstVisitor : public ScopeFollowingVisitor {
     error::ErrorStream &errorStream_;
+    gc_unordered_set<scope::Symbol*> definedSymbols_;
 public:
     SymbolResolvingAstVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+
+    virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) {
+        if(expr->symbol() && expr->symbol()->storageKind() == scope::StorageKind::Local) {
+            definedSymbols_.emplace(expr->symbol());
+        }
+    }
 
     virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) {
         if(expr->symbol()) return;
@@ -131,11 +136,17 @@ public:
             errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Variable '%s' was not defined in this scope.",
                 expr->name().c_str());
         } else {
+            if(found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
+                errorStream_.error(
+                    error::ErrorKind::VariableUsedBeforeDefinition, expr->sourceSpan(),  "Variable '%s' used before its definition.",
+                    expr->name().c_str());
+                return;
+            }
+
             expr->setSymbol(found);
         }
     }
 };
-
 
 
 class TypeResolvingVisitor : public ScopeFollowingVisitor {
@@ -195,7 +206,7 @@ class ResolveDotExprMemberPass : public ast::AstVisitor {
 public:
     ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
 
-    virtual void visitingDotExpr(ast::DotExpr *expr) {
+    virtual void visitedDotExpr(ast::DotExpr *expr) {
         if(!expr->lValue()->type()->isClass()) {
             errorStream_.error(
                 error::ErrorKind::LeftOfDotNotClass,
@@ -300,7 +311,7 @@ void runAllPasses(ast::Module *module, error::ErrorStream &es) {
     passes.emplace_back(new BinaryExprSemanticsPass(es));
     passes.emplace_back(new CastExprSemanticPass(es));
 
-    for(auto & pass : passes) {
+    for(ast::AstVisitor *pass : passes) {
         module->accept(pass);
         //If an error occurs during any pass, stop executing passes immediately because
         //each pass depends on the success of previous passes.

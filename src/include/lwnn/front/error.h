@@ -24,13 +24,14 @@ namespace lwnn {
             InvalidImplicitCastInInWhileCondition,
             SymbolAlreadyDefinedInScope,
             VariableNotDefined,
+            VariableUsedBeforeDefinition,
             TypeNotDefined,
             InvalidExplicitCast,
             CannotAssignToLValue,
             SymbolIsNotAType,
             OperatorCannotBeUsedWithType,
             LeftOfDotNotClass,
-            ClassMemberNotFound
+            ClassMemberNotFound,
         };
 
         class ErrorStream {

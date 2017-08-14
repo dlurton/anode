@@ -8,11 +8,8 @@
 #include "source.h"
 
 #include <string>
-#include <vector>
-#include <unordered_map>
 #include <functional>
 #include <memory>
-#include <deque>
 
 namespace lwnn { namespace ast {
 
@@ -145,7 +142,8 @@ public:
 extern unsigned long astNodesDestroyedCount;
 
 /** Base class for all nodes */
-class AstNode : public gc_cleanup, no_copy, no_assign {
+//class AstNode : public gc_cleanup, no_copy, no_assign {
+class AstNode : public gc , no_copy, no_assign {
 public:
     virtual ~AstNode() {
         astNodesDestroyedCount++;
@@ -168,7 +166,6 @@ public:
     }
 };
 
-
 /* Refers to a data type, i.e. "int", or "WidgetFactory."
  * Initially, type references will be unresolved (i.e. referencedType_ is null) but this is resolved
  * during an AST pass. */
@@ -176,7 +173,8 @@ class TypeRef : public AstNode {
     source::SourceSpan sourceSpan_;
     const std::string name_;
     type::Type *referencedType_;
-    std::vector<type::TypeResolutionListener*> listeners_;
+
+    gc_vector<type::TypeResolutionListener*> listeners_;
 public:
     /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
     TypeRef(source::SourceSpan sourceSpan, std::string name)
@@ -225,7 +223,6 @@ public:
     virtual type::Type *type() const  = 0;
     virtual bool canWrite() const = 0;
 };
-
 
 /** Represents a literal boolean */
 class LiteralBoolExpr : public ExprStmt {
@@ -525,9 +522,9 @@ public:
 class CompoundExpr : public ExprStmt {
     scope::SymbolTable scope_;
 protected:
-    std::vector<ExprStmt*> expressions_;
+    gc_vector<ExprStmt*> expressions_;
 public:
-    CompoundExpr(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan) { }
+    CompoundExpr(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan), scope_{scope::StorageKind::Local} { }
     virtual ~CompoundExpr() {}
     scope::SymbolTable *scope() { return &scope_; }
 
@@ -542,8 +539,8 @@ public:
         expressions_.push_back(stmt);
     }
 
-    std::vector<ExprStmt*> expressions() const {
-        std::vector<ExprStmt*> retval;
+    gc_vector<ExprStmt*> expressions() const {
+        gc_vector<ExprStmt*> retval;
         retval.reserve(expressions_.size());
         for(auto &stmt : expressions_) {
             retval.push_back(stmt);
@@ -568,9 +565,9 @@ public:
 class CompoundStmt : public Stmt {
     scope::SymbolTable scope_;
 protected:
-    std::vector<Stmt*> statements_;
+    gc_vector<Stmt*> statements_;
 public:
-    CompoundStmt(source::SourceSpan sourceSpan) : Stmt(sourceSpan) { }
+    CompoundStmt(source::SourceSpan sourceSpan, scope::StorageKind storageKind) : Stmt(sourceSpan), scope_{storageKind} { }
     virtual ~CompoundStmt() {}
 
     StmtKind stmtKind() const override {
@@ -583,8 +580,8 @@ public:
         statements_.push_back(stmt);
     }
 
-    std::vector<Stmt*> statements() const {
-        std::vector<Stmt*> retval;
+    gc_vector<Stmt*> statements() const {
+        gc_vector<Stmt*> retval;
         retval.reserve(statements_.size());
         for(auto &stmt : statements_) {
             retval.push_back(stmt);
@@ -596,7 +593,7 @@ public:
         bool visitChildren = visitor->visitingStmt(this);
         visitChildren = visitor->visitingCompoundStmt(this) ? visitChildren : false;
         if(visitChildren) {
-            for (auto &stmt : statements_) {
+            for (Stmt *stmt : statements_) {
                 stmt->accept(visitor);
             }
         }
@@ -830,13 +827,6 @@ public:
     void setField(type::ClassField *field) { field_ = field; }
 
     type::Type *type() const override {
-//        //TODO:  semantic check for this, not assertion
-//        auto classType = dynamic_cast<type::ClassType*>(lValue_->type());
-//        ASSERT(classType);
-//        //Cache/resolve this maybe?
-//        type::ClassField *field = classType->findField(memberName_);
-//        ASSERT(field && "Couldn't find type member.");
-//        return field->type();
         ASSERT(field_ && "Field must be resolved first");
         return field_->type();
     }

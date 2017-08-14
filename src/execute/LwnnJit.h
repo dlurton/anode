@@ -3,8 +3,6 @@
 
 #include "llvm.h"
 
-#include <unordered_map>
-
 namespace lwnn {
     namespace execute {
 

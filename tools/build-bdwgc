@@ -34,6 +34,9 @@ else
     git pull
 fi
 
+say "Switching to gc7_4_4 branch"
+git checkout tags/gc7_4_4
+
 
 say "Running autoreconf -vif"
 autoreconf -vif

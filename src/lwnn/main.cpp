@@ -80,7 +80,10 @@ void generateSomeGarbage() {
 }
 
 int main(int argc, char **argv) {
+    GC_set_all_interior_pointers(1);
+    //GC_enable_incremental();
     GC_INIT();
+
     generateSomeGarbage();
     while(GC_collect_a_little());
 

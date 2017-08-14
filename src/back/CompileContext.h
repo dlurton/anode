@@ -4,37 +4,39 @@
 #include "back/compile.h"
 
 #include "llvm.h"
+#include "common/containers.h"
 
-#include <map>
-#include <unordered_map>
 
 namespace lwnn { namespace back {
 
-
+/** CompileContext is a place to keep track of values that need to be shared among the AstVisitors that make up the
+ * IR generation phase.  A new CompileContext must be created for each module being compiled.
+ */
 class CompileContext : no_copy, no_assign {
     llvm::LLVMContext &llvmContext_;
     llvm::Module &llvmModule_;
     llvm::IRBuilder<> &irBuilder_;
-    std::stack<scope::SymbolTable *> symbolTableStack_;
-
     TypeMap &typeMap_;
+    std::unordered_map<scope::Symbol*, llvm::Value*> symbolValueMap_;
+
 public:
+
     CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_, TypeMap &typeMap)
         : llvmContext_(llvmContext), llvmModule_(llvmModule), irBuilder_(irBuilder_), typeMap_{typeMap} {
     }
 
-    llvm::LLVMContext &llvmContext() { return llvmContext_; };
+    llvm::LLVMContext &llvmContext() { return llvmContext_; }
     llvm::Module &llvmModule() { return llvmModule_; }
-    llvm::IRBuilder<> &irBuilder() { return irBuilder_; };
+    llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
 
-    void pushScope(scope::SymbolTable *scope) {
-        ASSERT(scope);
-        symbolTableStack_.push(scope);
+    void mapSymbolToValue(scope::Symbol *symbol, llvm::Value *value) {
+        symbolValueMap_[symbol] = value;
     }
 
-    void popScope() {
-        ASSERT(symbolTableStack_.size() > 0);
-        symbolTableStack_.pop();
+    llvm::Value *getMappedVallue(scope::Symbol *symbol) {
+        llvm::Value *found = symbolValueMap_[symbol];
+        ASSERT(found && "Symbol must be mapped to an LLVM value.");
+        return found;
     }
 
     TypeMap &typeMap() { return typeMap_; }

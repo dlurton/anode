@@ -7,7 +7,7 @@ set(LWNN_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include/lwnn")
 
 # NOTE:  I would also like to enable -Wpedantic here but some warnings come out of ANTLR4s generated header files
 # and it seems the "#pragma GCC diagnostic ignored \"-Wpedantic\"" does't work for pedantic warnings.  (Grrr...)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3 -Wall -Werror -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3 -Wall -Werror -Wextra -O0 ")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)

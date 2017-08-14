@@ -12,7 +12,10 @@ using namespace lwnn::test_util;
 
 int main( int argc, char* argv[] )
 {
+    //GC_set_all_interior_pointers(1);
     GC_INIT();
+
+    std::cout << "libgc " << GC_VERSION_MAJOR << "." << GC_VERSION_MINOR << "." << GC_VERSION_MICRO << "\n";
     int result = Catch::Session().run( argc, argv );
 
     //Really should leave this here until we're certain libgc is going to work.
@@ -20,7 +23,6 @@ int main( int argc, char* argv[] )
 
     return ( result < 0xff ? result : 0xff );
 }
-
 
 TEST_CASE("basic bool expressions") {
     SECTION("literals") {
@@ -433,6 +435,17 @@ TEST_CASE("compound expressions with variables") {
     REQUIRE(test<int>(ec, "{ b; c; d; }") == 4);
 }
 
+
+TEST_CASE("compound expressions with local variables") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int = 1; ");
+    REQUIRE(test<int>(ec, "{ a:int = 10; a; }") == 10); //Note: inner "a" shadows the global "a";
+    REQUIRE(test<int>(ec, "a;") == 1);
+    REQUIRE(test<int>(ec, "{ a:int = 10; a = 11; a; }") == 11); //Note: inner "a" shadows the global "a";
+    REQUIRE(test<int>(ec, "a;") == 1);
+}
+
+
 TEST_CASE("conditional expressions") {
     REQUIRE(test<int>("(? true, 1, 2);") == 1);
     REQUIRE(test<int>("(? false, 1, 2);") == 2);
@@ -532,6 +545,7 @@ TEST_CASE("if with effects") {
     REQUIRE(test<int>(ec, TEST_SRC) == 1); //Second execution should because a != 0;
 }
 
+
 TEST_CASE("nested if and else if with effects") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "a:int; b:int; c:int;");
@@ -549,22 +563,6 @@ TEST_CASE("nested if and else if with effects") {
     exec(ec, TEST_SRC);
     REQUIRE(test<int>(ec, "c;") == 4);
 }
-
-TEST_CASE("while loop") {
-    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    exec(ec, "a:int; while(a < 10) a = a + 1; ");
-    REQUIRE(test<int>(ec, "a;") == 10);
-}
-
-TEST_CASE("nested while loops") {
-    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    exec(ec, "a:int; b:int; innerCount:int;");
-    exec(ec, "while(a < 3) { a = a + 1; b = 0; while (b < 5) { b = b + 1; innerCount = innerCount + 1; } }");
-    REQUIRE(test<int>(ec, "a;") == 3);
-    REQUIRE(test<int>(ec, "b;") == 5);
-    REQUIRE(test<int>(ec, "innerCount;") == 15);
-}
-
 
 TEST_CASE("casting") {
 
@@ -601,6 +599,23 @@ TEST_CASE("casting") {
         REQUIRE(!test<bool>("cast<bool>(0.0);"));
     }
 }
+
+
+TEST_CASE("while loop") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; while(a < 10) a = a + 1; ");
+    REQUIRE(test<int>(ec, "a;") == 10);
+}
+
+TEST_CASE("nested while loops") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "a:int; b:int; innerCount:int;");
+    exec(ec, "while(a < 3) { a = a + 1; b = 0; while (b < 5) { b = b + 1; innerCount = innerCount + 1; } }");
+    REQUIRE(test<int>(ec, "a;") == 3);
+    REQUIRE(test<int>(ec, "b;") == 5);
+    REQUIRE(test<int>(ec, "innerCount;") == 15);
+}
+
 
 TEST_CASE("class, stack allocated") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();

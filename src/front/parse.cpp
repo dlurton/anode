@@ -32,8 +32,7 @@ namespace lwnn {
             //tokens since they don't span lines.  But if I ever decide to implement multi-line strings...
             return source::SourceSpan(startSource->getSourceName(),
                   source::SourceLocation(startSource->getLine(), startSource->getCharPositionInLine()),
-                  source::SourceLocation(startSource->getLine(),
-                  startSource->getCharPositionInLine() + token->getText().length()));
+                  source::SourceLocation(startSource->getLine(), startSource->getCharPositionInLine() + token->getText().length()));
         }
 
         /** Extracts a SourceRange from values specified in ctx. */
@@ -365,7 +364,7 @@ namespace lwnn {
                 if(!ctx->classDef()) return;
                 if(!ctx->classDef()->classBody()) return;
 
-                CompoundStmt *compoundStmt = new CompoundStmt(getSourceSpan(ctx));
+                CompoundStmt *compoundStmt = new CompoundStmt(getSourceSpan(ctx), scope::StorageKind::Instance);
                 for (LwnnParser::StmtContext *stmt : ctx->classDef()->classBody()->stmt()) {
                     if(stmt == nullptr) continue;
                     StmtListener listener;
@@ -390,7 +389,7 @@ namespace lwnn {
 
             virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
                 std::vector<LwnnParser::StmtContext*> statements = ctx->stmt();
-                auto compoundStmt = new ast::CompoundStmt(getSourceSpan(ctx));
+                auto compoundStmt = new ast::CompoundStmt(getSourceSpan(ctx), scope::StorageKind::Global);
                 auto module = new ast::Module(moduleName_, compoundStmt);
                 for (LwnnParser::StmtContext *stmt: statements) {
                     StmtListener listener;
