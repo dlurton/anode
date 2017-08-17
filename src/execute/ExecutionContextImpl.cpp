@@ -68,6 +68,11 @@ public:
         error::ErrorStream errorStream {std::cerr};
         lwnn::front::passes::runAllPasses(module, errorStream);
 
+        if(setPrettyPrintAst_) {
+            visualize::prettyPrint(module);
+            std::cout.flush();
+        }
+
         if(errorStream.errorCount() > 0) {
             throw ExecutionException(
                 string::format("There were %d compilation errors.  See stderr for details.", errorStream.errorCount()));
@@ -79,10 +84,6 @@ public:
                 exportedSymbols_.emplace(symbolToExport->name(), symbolToExport);
             }
         }
-
-        if(setPrettyPrintAst_) {
-            visualize::prettyPrint(module);
-        }
     }
 
 protected:
@@ -93,7 +94,7 @@ protected:
 
         if(dumpIROnModuleLoad_) {
             llvm::outs() << "LLVM IR:\n";
-            llvmModule->print(llvm::outs(), nullptr);
+            llvmModule->dump();
         }
 
         jit_->addModule(move(llvmModule));

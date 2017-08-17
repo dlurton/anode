@@ -19,12 +19,12 @@ protected:
     size_t scopeDepth() { return symbolTableStack_.size(); }
 
 public:
-    virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
-        funcDeclStmt->parameterScope()->setParent(topScope());
+    virtual bool visitingFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
         symbolTableStack_.push_back(funcDeclStmt->parameterScope());
+        return true;
     }
 
-    virtual void visitedFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
+    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
         ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
         symbolTableStack_.pop_back();
     }
@@ -54,9 +54,10 @@ public:
 /** Sets each SymbolTable's parent scope. */
 class SetSymbolTableParentsAstVisitor : public ScopeFollowingVisitor {
 public:
-    virtual void visitingFuncDeclStmt(ast::FuncDeclStmt *funcDeclStmt) override {
-        ScopeFollowingVisitor::visitedFuncDeclStmt(funcDeclStmt);
+    virtual bool visitingFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
         funcDeclStmt->parameterScope()->setParent(topScope());
+        ScopeFollowingVisitor::visitingFuncDeclStmt(funcDeclStmt);
+        return true;
     }
 
     virtual bool visitingCompoundStmt(ast::CompoundStmt *stmt) override {
@@ -88,6 +89,11 @@ public:
         topScope()->addSymbol(classSymbol);
 
         return ScopeFollowingVisitor::visitingClassDefinition(cd);
+    }
+
+    virtual bool visitingFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) {
+        ScopeFollowingVisitor::visitingFuncDeclStmt(funcDeclStmt);
+        return true;
     }
 
     virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
@@ -126,6 +132,7 @@ public:
         if(expr->symbol() && expr->symbol()->storageKind() == scope::StorageKind::Local) {
             definedSymbols_.emplace(expr->symbol());
         }
+
     }
 
     virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) {

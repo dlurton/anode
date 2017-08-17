@@ -83,9 +83,7 @@ namespace lwnn {
             }
 
             virtual void enterVarDeclExpr(LwnnParser::VarDeclExprContext *ctx) override {
-                auto typeRef = new TypeRef(
-                    getSourceSpan(ctx->type),
-                    ctx->type->getText());
+                auto typeRef = new TypeRef(getSourceSpan(ctx->type), ctx->type->getText());
 
                 setResult(new ast::VariableDeclExpr(getSourceSpan(ctx), ctx->name->getText(), typeRef));
             }
@@ -188,6 +186,10 @@ namespace lwnn {
             virtual void enterVariableRefExpr(LwnnParser::VariableRefExprContext *ctx) override {
                 setResult(new VariableRefExpr(getSourceSpan(ctx), ctx->getText()));
             }
+
+//            virtual void enterFuncCallExpr(LwnnParser::FuncCallExprContext * ctx) override {
+//                setResult(new FuncCallExpr(getSourceSpan(ctx), extractExpr(ctx->expr())));
+//            }
 
             virtual void enterTernaryExpr(LwnnParser::TernaryExprContext *ctx) override {
                 if(!ctx->cond) return;
@@ -353,11 +355,23 @@ namespace lwnn {
             return listener.hasResult() ? listener.surrenderResult() : nullptr;
         }
 
-
         class StmtListener : public LwnnBaseListenerHelper<ast::Stmt> {
         public:
             virtual void enterExpressionStatement(LwnnParser::ExpressionStatementContext *ctx) override {
                 setResult(extractExprStmt(ctx->exprStmt()));
+            }
+
+            virtual void enterFunctionDefinition(LwnnParser::FunctionDefinitionContext *ctx) override {
+                LwnnParser::FuncDefContext *funcDef = ctx->funcDef();
+                source::SourceSpan span = getSourceSpan(funcDef);
+                std::string name = funcDef->name->getText();
+
+                LwnnParser::TypeRefContext *typeRefCtx = funcDef->typeRef();
+                ast::TypeRef *typeRef = new TypeRef(getSourceSpan(typeRefCtx), typeRefCtx->ID()->getText());
+
+                ExprStmt *funcBody = extractExprStmt(funcDef->body);
+
+                setResult(new FuncDefStmt(span, name, typeRef, funcBody));
             }
 
             virtual void enterClassDefinition(LwnnParser::ClassDefinitionContext *ctx) override {

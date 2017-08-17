@@ -69,7 +69,26 @@ and up-to-date picture of supported syntax and features, however, here's a short
     aPairOfWidgets.first.id = 1;
     aPairOfWidgets.second.id = 2;
     ```
+    - Class Backlog:
+        - Declare references to objects (something like `anObjectReference:SomeClass*`) 
+        - Generate "constructor" from all statements within a class
+        - Define functions within classes
+        - Constructors which call the generated constructor
+        - Inheritance
+        - Virtual methods
+        - Interfaces / abstract methods
+ - Can define functions: `func someFunction:int() 10 + 12;`
+    - Or: `func someFunction:int() { someGlobal = someGlobal + 1; someGlobal + 12; }`
+    - The result of the last expression in the function body is the return value:
+    - Local variables also can be defined.
+    - Functions Backlog:
+        - Parameters
+            - Pass by value
+            - Pass by reference
+        - Overloading
+        - Explicit return
 
+ 
  
 ## Building
 
@@ -97,3 +116,9 @@ successful, the libraries and headers of each dependency will be installed in su
     cd cmake-build
     cmake ..
 
+Building the source documentation requires doxygen.
+
+    cd $project_root/src
+    doxygen doxygen.cfg
+    
+ 

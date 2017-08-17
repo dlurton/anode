@@ -41,6 +41,28 @@ public:
         return false;
     }
 
+    virtual bool visitingFuncDeclStmt(FuncDefStmt *funcDef) {
+        //"Push" the state of the IRBuilder
+        auto oldBasicBlock = cc().irBuilder().GetInsertBlock();
+        auto oldInsertPoint = cc().irBuilder().GetInsertPoint();
+
+
+        llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
+            cc().llvmModule().getOrInsertFunction(funcDef->name(), cc().typeMap().toLlvmType(funcDef->returnTypeRef()->type())));
+        llvmFunc->setCallingConv(llvm::CallingConv::C);
+        auto startBlock = llvm::BasicBlock::Create(cc().llvmContext(), "begin", llvmFunc);
+
+        cc().irBuilder().SetInsertPoint(startBlock);
+
+        llvm::Value *value = emitExpr(funcDef->body(), cc());
+
+        cc().irBuilder().CreateRet(value);
+
+        //"Pop" the state of the IR builder.
+        cc().irBuilder().SetInsertPoint(oldBasicBlock, oldInsertPoint);
+        return false;
+    }
+
     virtual bool visitingExprStmt(ExprStmt *expr) override {
 
         if (!expr->type()->isPrimitive()) {

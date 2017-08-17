@@ -59,7 +59,7 @@ class ReturnStmt;
 class ExprStmt;
 class CompoundStmt;
 class CompoundExpr;
-class FuncDeclStmt;
+class FuncDefStmt;
 class ClassDefinition;
 class ReturnStmt;
 class IfExprStmt;
@@ -84,8 +84,8 @@ public:
     /** Executes after every Stmt is visited. */
     virtual void visitedStmt(Stmt *) { }
 
-    virtual void visitingFuncDeclStmt(FuncDeclStmt *) { }
-    virtual void visitedFuncDeclStmt(FuncDeclStmt *) { }
+    virtual bool visitingFuncDeclStmt(FuncDefStmt *) { return true; }
+    virtual void visitedFuncDeclStmt(FuncDefStmt *) { }
 
     virtual bool visitingClassDefinition(ClassDefinition *) { return true; }
     virtual void visitedClassDefinition(ClassDefinition *) {  }
@@ -157,7 +157,7 @@ public:
 class Stmt : public AstNode {
 protected:
     source::SourceSpan sourceSpan_;
-    Stmt(source::SourceSpan sourceSpan) : sourceSpan_(sourceSpan) { }
+    Stmt(const source::SourceSpan &sourceSpan) : sourceSpan_(sourceSpan) { }
 public:
     virtual StmtKind stmtKind() const = 0;
 
@@ -177,7 +177,7 @@ class TypeRef : public AstNode {
     gc_vector<type::TypeResolutionListener*> listeners_;
 public:
     /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
-    TypeRef(source::SourceSpan sourceSpan, std::string name)
+    TypeRef(const source::SourceSpan &sourceSpan, std::string name)
         : sourceSpan_(sourceSpan), name_(name), referencedType_(nullptr) { }
 
     /** Constructor to be used when the data type is known and doesn't need to be resolved. */
@@ -215,7 +215,7 @@ public:
 /** Base class for all expressions. */
 class ExprStmt : public Stmt {
 protected:
-    ExprStmt(source::SourceSpan sourceSpan) : Stmt(sourceSpan) { }
+    ExprStmt(const source::SourceSpan &sourceSpan) : Stmt(sourceSpan) { }
 public:
     virtual ~ExprStmt() { }
     virtual StmtKind stmtKind() const override { return StmtKind::ExprStmt; }
@@ -726,38 +726,41 @@ public:
     }
 };
 
-class FuncDeclStmt : public Stmt {
+class FuncDefStmt : public Stmt {
     const std::string name_;
     TypeRef* returnTypeRef_;
-    scope::SymbolTable* parameterScope_;
-    Stmt* body_;
+    scope::SymbolTable parameterScope_;
+    ExprStmt* body_;
 
 public:
-    FuncDeclStmt(source::SourceSpan sourceSpan,
-                 std::string name,
-                 TypeRef* returnTypeRef,
-                 Stmt* body)
-        : Stmt(sourceSpan),
-          name_{ name },
-          returnTypeRef_{ returnTypeRef },
-          body_{ body } { }
+    FuncDefStmt(source::SourceSpan sourceSpan, std::string name, TypeRef* returnTypeRef, ExprStmt* body)
+        : Stmt(sourceSpan), name_{ name }, returnTypeRef_{ returnTypeRef }, parameterScope_{scope::StorageKind::Argument}, body_{ body } { }
 
     StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
     std::string name() const { return name_; }
     TypeRef *returnTypeRef() const { return returnTypeRef_; }
-    scope::SymbolTable *parameterScope() const { return parameterScope_; };
-    Stmt *body() const { return body_; }
+    scope::SymbolTable *parameterScope() { return &parameterScope_; };
+    ExprStmt *body() const { return body_; }
 
     virtual void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingStmt(this);
-        visitor->visitingFuncDeclStmt(this);
+        visitChildren = visitor->visitingFuncDeclStmt(this) ? visitChildren : false;
         if(visitChildren) {
+            returnTypeRef_->accept(visitor);
             body_->accept(visitor);
         }
         visitor->visitedFuncDeclStmt(this);
         visitor->visitedStmt(this);
     }
 };
+//
+//class FuncCallExpr : public ExprStmt {
+//    ExprStmt *funcExpr_;
+//public:
+//    FuncCallExpr(const source::SourceSpan &span, ast::ExprStmt *funcExpr) : ExprStmt(span), funcExpr_{funcExpr} { }
+//    ExprStmt *funcExpr() { return funcExpr_; }
+//};
+
 
 class ClassDefinition : public Stmt {
     std::string name_;
@@ -806,7 +809,7 @@ class DotExpr : public ExprStmt {
     type::ClassField *field_ = nullptr;
     bool isWrite_ = false;
 public:
-    DotExpr(const source::SourceSpan &sourceSpan, const source::SourceSpan &dotSourceSpan, ExprStmt *lValue, std::string memberName)
+    DotExpr(const source::SourceSpan &sourceSpan, const source::SourceSpan &dotSourceSpan, ExprStmt *lValue, const std::string &memberName)
         : ExprStmt(sourceSpan), dotSourceSpan_{dotSourceSpan}, lValue_{lValue}, memberName_{memberName} { }
 
     source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
@@ -844,7 +847,7 @@ class Module : public gc {
     std::string name_;
     CompoundStmt *body_;
 public:
-    Module(std::string name, CompoundStmt* body)
+    Module(const std::string &name, CompoundStmt* body)
         : name_{name}, body_{body} {
     }
 

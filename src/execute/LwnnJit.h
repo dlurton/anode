@@ -6,7 +6,7 @@
 namespace lwnn {
     namespace execute {
 
-        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDeclStmt &FnAST, const std::string &Suffix);
+        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDefStmt &FnAST, const std::string &Suffix);
 
         //The original version of this (llvm::orc::createResolver(...)) doesn't seem to want to compile no matter what I do.
         template<typename DylibLookupFtorT, typename ExternalLookupFtorT>
@@ -98,7 +98,7 @@ namespace lwnn {
                                                         std::move(Resolver)));
             }
 
-            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDeclStmt> FnAST) {
+            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDefStmt> FnAST) {
                 // Create a CompileCallback - this is the re-entry point into the compiler
                 // for functions that haven't been compiled yet.
                 auto CCInfo = CompileCallbackMgr->getCompileCallback();
@@ -117,7 +117,7 @@ namespace lwnn {
 
                 // Move ownership of FnAST to a shared pointer - C++11 lambdas don't support
                 // capture-by-move, which is be required for unique_ptr.
-                auto SharedFnAST = std::shared_ptr<ast::FuncDeclStmt>(std::move(FnAST));
+                auto SharedFnAST = std::shared_ptr<ast::FuncDefStmt>(std::move(FnAST));
 
                 // Set the action to compile our AST. This lambda will be run if/when
                 // execution hits the compile callback (via the stub).

@@ -1,5 +1,3 @@
-/* Ahttps://stackoverflow.com/questions/29971097/how-to-create-ast-with-antlr4 */
-
 grammar Lwnn;
 
 module
@@ -9,6 +7,7 @@ module
 stmt
     : exprStmt          # expressionStatement
     | classDef          # classDefinition
+    | funcDef           # functionDefinition
     ;
 
  exprStmt
@@ -23,8 +22,8 @@ stmt
 // http://en.cppreference.com/w/cpp/language/operator_precedence
 expr
     : name=ID ':' type=typeRef                                        # varDeclExpr
+//    | expr '(' ')'                                                    # funcCallExpr
     | '(' expr ')'                                                    # parensExpr
-//  | op=('+'|'-') expr                                               # unaryExpr
     | left=expr op=(OP_MUL | OP_DIV) right=expr                       # binaryExpr
     | left=expr op=(OP_ADD | OP_SUB) right=expr                       # binaryExpr
     | left=expr op=(OP_GT | OP_GTE | OP_LT | OP_LTE) right=expr       # binaryExpr
@@ -33,7 +32,6 @@ expr
     | left=expr op=OP_OR right=expr                                   # binaryExpr
     | left=expr op=OP_DOT right=ID                                    # dotExpr
     | <assoc=right> left=expr op=OP_ASSIGN right=expr                 # binaryExpr
-//  | func=ID '(' expr ')'                                            # funcExpr
     | value=LIT_INT                                                   # literalInt32Expr
     | value=LIT_FLOAT                                                 # literalFloatExpr
     | value=litBool                                                   # literalBool
@@ -56,6 +54,10 @@ classDef
 
 classBody
     : '{' statements=stmt* '}'
+    ;
+
+funcDef
+    : 'func' name=ID ':' typeRef '(' ')' body=exprStmt
     ;
 
 typeRef
@@ -91,3 +93,4 @@ LIT_INT:    '-'?[0-9]+;
 LIT_FLOAT:  '-'?[0-9]+'.'[0-9]+;
 ID:         [a-zA-Z_][a-zA-Z0-9_]*;
 WS:         [ \t\r\n] -> channel(HIDDEN);
+

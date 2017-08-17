@@ -33,7 +33,7 @@ public:
         symbolValueMap_[symbol] = value;
     }
 
-    llvm::Value *getMappedVallue(scope::Symbol *symbol) {
+    llvm::Value *getMappedValue(scope::Symbol *symbol) {
         llvm::Value *found = symbolValueMap_[symbol];
         ASSERT(found && "Symbol must be mapped to an LLVM value.");
         return found;

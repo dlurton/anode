@@ -670,4 +670,26 @@ TEST_CASE("class, stack allocated, with another class inside it") {
     //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
+TEST_CASE("basic function definition") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "func someFunctionReturningInt:int() 1024; ");
+    exec(ec, "func someFunctionReturningFloat:float() 102.4; ");
+    exec(ec, "func someFunctionReturningBool:bool() true; ");
+}
 
+TEST_CASE("basic function definition with local variable") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "func someFunctionReturningInt:int() { retValue:int = 10; retValue + 1; }");
+}
+
+TEST_CASE("basic function definition with global statement before and after") {
+    //Note: this proves that we can save and resume the IR builder's insertion point.
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    std::vector<StmtResult> result = testWithResults(ec, "someGlobal:int = 10; func someFunctionReturningInt:int() 1; someGlobal;");
+    REQUIRE(result.size() == 2);
+    REQUIRE(result[0].primitiveType == type::PrimitiveType::Int32);
+    REQUIRE(result[0].storage.int32Result == 10); //This value from declaration/assignment.
+
+    REQUIRE(result[1].primitiveType == type::PrimitiveType::Int32);
+    REQUIRE(result[1].storage.int32Result == 10); //This value from reference after func definition
+}

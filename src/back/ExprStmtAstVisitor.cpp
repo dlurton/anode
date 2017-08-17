@@ -101,7 +101,7 @@ namespace lwnn {
             }
 
             virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
-                llvm::Value *pointer = cc().getMappedVallue(expr->symbol());
+                llvm::Value *pointer = cc().getMappedValue(expr->symbol());
 
                 ASSERT(pointer);
 

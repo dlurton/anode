@@ -7,15 +7,6 @@ namespace lwnn { namespace test_util {
 int testCount = 0;
 
 std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
-    std::cout << "Executing:  " << source << "\n";
-    auto testStartTime = std::chrono::high_resolution_clock::now();
-
-    std::string module_name = string::format("test_%d", ++testCount);
-
-    ast::Module *module = parse::parseModule(source, module_name);
-    ASSERT(module && "If module is null, a syntax error probably occurred!");
-    executionContext->prepareModule(module);
-
 #ifdef VISUALIZE_AST
     executionContext->setPrettyPrintAst(true);
 #endif
@@ -23,6 +14,15 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
 #ifdef DUMP_IR
     executionContext->setDumpIROnLoad(true);
 #endif
+
+    std::cout << "Executing:  " << source << "\n";
+    std::string module_name = string::format("test_%d", ++testCount);
+    auto testStartTime = std::chrono::high_resolution_clock::now();
+
+    ast::Module *module = parse::parseModule(source, module_name);
+    ASSERT(module && "If module is null, a syntax error probably occurred!");
+
+    executionContext->prepareModule(module);
 
     std::vector<StmtResult> results;
 
@@ -54,7 +54,7 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
     long long microseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
     std::cout << microseconds << "ms\n";
 
-    GC_collect_a_little();
+    //GC_collect_a_little();
     return results;
 }
 

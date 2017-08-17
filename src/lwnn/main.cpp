@@ -214,8 +214,6 @@ namespace lwnn {
         if(!module) {
             return;
         }
-//        std::cout << "Before ";
-//        visualize::prettyPrint(module.get());
 
         if(shouldExecute) {
             runModule(executionContext, module);

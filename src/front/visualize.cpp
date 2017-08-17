@@ -149,12 +149,13 @@ namespace lwnn {
                 writer_.decIndent();
             }
 
-            virtual void visitingFuncDeclStmt(FuncDeclStmt *func) override {
-                writer_.writeln("FunctionStmt: " + func->name());
+            virtual bool visitingFuncDeclStmt(FuncDefStmt *func) override {
+                writer_.writeln("FuncDefStmt: " + func->name());
                 writer_.incIndent();
+                return true;
             }
 
-            virtual void visitedFuncDeclStmt(FuncDeclStmt *) override {
+            virtual void visitedFuncDeclStmt(FuncDefStmt *) override {
                 writer_.decIndent();
             }
 
@@ -183,7 +184,7 @@ namespace lwnn {
 
         void prettyPrint(Module *module) {
             std::cout << "LWNN AST:\n";
-            PrettyPrinterVisitor visitor{ std::cout };
+            PrettyPrinterVisitor visitor{ std::cerr };
             module->accept(&visitor);
             std::cout << "\n";
         }
