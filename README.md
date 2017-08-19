@@ -69,7 +69,7 @@ and up-to-date picture of supported syntax and features, however, here's a short
     aPairOfWidgets.first.id = 1;
     aPairOfWidgets.second.id = 2;
     ```
-    - Class Backlog:
+    - Class Backlog (not done yet):
         - Declare references to objects (something like `anObjectReference:SomeClass*`) 
         - Generate "object_init" which initializes fields to their defaults.
         - Define functions within classes
@@ -79,16 +79,15 @@ and up-to-date picture of supported syntax and features, however, here's a short
         - Interfaces / abstract methods
  - Can define functions: `func someFunction:int() 10 + 12;`
     - Or: `func someFunction:int() { someGlobal = someGlobal + 1; someGlobal + 12; }`
-    - The result of the last expression in the function body is the return value:
-    - Local variables also can be defined.
-    - Functions Backlog:
+    - The result of the last expression in the function body is the return value.
+    - Local variables also can be defined within functions.
+    - Functions may be invoked:  `anInt:int = someFunction();`
+    - Functions Backlog (not done yet):
         - Parameters
             - Pass by value
             - Pass by reference
         - Overloading
         - Explicit return
-
- 
  
 ## Building
 
