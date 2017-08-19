@@ -187,9 +187,12 @@ namespace lwnn {
                 setResult(new VariableRefExpr(getSourceSpan(ctx), ctx->getText()));
             }
 
-//            virtual void enterFuncCallExpr(LwnnParser::FuncCallExprContext * ctx) override {
-//                setResult(new FuncCallExpr(getSourceSpan(ctx), extractExpr(ctx->expr())));
-//            }
+            virtual void enterFuncCallExpr(LwnnParser::FuncCallExprContext * ctx) override {
+                setResult(new FuncCallExpr(
+                    getSourceSpan(ctx),
+                    getSourceSpan(ctx->op),
+                    extractExpr(ctx->expr())));
+            }
 
             virtual void enterTernaryExpr(LwnnParser::TernaryExprContext *ctx) override {
                 if(!ctx->cond) return;
@@ -228,27 +231,12 @@ namespace lwnn {
                 ast::ExprStmt *elseExprStmt = extractExpr(ctx->elseExpr);
 
                 setResult(
-                    new IfExprStmt(getSourceSpan(ctx),
-                                                 condListener.surrenderResult(),
-                                                 thenExprStmt,
-                                                 elseExprStmt));
+                    new IfExprStmt(
+                        getSourceSpan(ctx),
+                        condListener.surrenderResult(),
+                        thenExprStmt,
+                        elseExprStmt));
             }
-
-            //At least for now, the while statement will not be able to serve as an expression with a value.
-//            virtual void enterWhileExpr(LwnnParser::WhileExprContext * ctx) override {
-//                ASSERT(ctx->cond);
-//                ASSERT(ctx->body);
-//                ExprStmt *condition = extractExpr(ctx->cond);
-//                ExprStmt *body = extractExpr(ctx->body);
-//
-//                setResult(
-//                    new WhileExpr(
-//                        getSourceSpan(ctx),
-//                        condition,
-//                        body
-//                    )
-//                );
-//            }
 
             virtual void enterCompoundExpr(LwnnParser::CompoundExprContext * ctx) override {
                 setResult(extractCompoundExpr(ctx->compoundExprStmt()));
@@ -367,6 +355,7 @@ namespace lwnn {
                 std::string name = funcDef->name->getText();
 
                 LwnnParser::TypeRefContext *typeRefCtx = funcDef->typeRef();
+                if(!typeRefCtx) return;
                 ast::TypeRef *typeRef = new TypeRef(getSourceSpan(typeRefCtx), typeRefCtx->ID()->getText());
 
                 ExprStmt *funcBody = extractExprStmt(funcDef->body);

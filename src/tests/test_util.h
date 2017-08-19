@@ -62,6 +62,5 @@ namespace lwnn {
             T result = test<T>(ec, source);
             return result;
         }
-
     }
 }

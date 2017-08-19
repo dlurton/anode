@@ -71,9 +71,9 @@ and up-to-date picture of supported syntax and features, however, here's a short
     ```
     - Class Backlog:
         - Declare references to objects (something like `anObjectReference:SomeClass*`) 
-        - Generate "constructor" from all statements within a class
+        - Generate "object_init" which initializes fields to their defaults.
         - Define functions within classes
-        - Constructors which call the generated constructor
+        - Constructors 
         - Inheritance
         - Virtual methods
         - Interfaces / abstract methods

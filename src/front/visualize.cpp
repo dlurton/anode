@@ -130,7 +130,7 @@ namespace lwnn {
             }
 
             virtual void visitingCastExpr(CastExpr *expr) override {
-                writer_.writeln("Cast(%s, to %s):",
+                writer_.writeln("CastExpr(%s, to %s):",
                                 expr->castKind() == CastKind::Implicit ? "implicit" : "explicit",
                                 expr->type()->name().c_str());
 
@@ -141,7 +141,7 @@ namespace lwnn {
             }
 
             virtual void visitingReturnStmt(ReturnStmt *) override {
-                writer_.writeln("Return:");
+                writer_.writeln("ReturnStmt:");
                 writer_.incIndent();
             }
 
@@ -149,10 +149,19 @@ namespace lwnn {
                 writer_.decIndent();
             }
 
-            virtual bool visitingFuncDeclStmt(FuncDefStmt *func) override {
+            virtual bool visitingFuncDefStmt(FuncDefStmt *func) override {
                 writer_.writeln("FuncDefStmt: " + func->name());
                 writer_.incIndent();
                 return true;
+            }
+
+            virtual void visitingFuncCallExpr(FuncCallExpr *) override {
+                writer_.writeln("FuncCallExpr:");
+                writer_.incIndent();
+            }
+
+            virtual void visitedFuncCallExpr(FuncCallExpr *) override {
+                writer_.decIndent();
             }
 
             virtual void visitedFuncDeclStmt(FuncDefStmt *) override {

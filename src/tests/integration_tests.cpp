@@ -670,11 +670,11 @@ TEST_CASE("class, stack allocated, with another class inside it") {
     //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
-TEST_CASE("basic function definition") {
+TEST_CASE("basic function definition and invocation") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    exec(ec, "func someFunctionReturningInt:int() 1024; ");
-    exec(ec, "func someFunctionReturningFloat:float() 102.4; ");
-    exec(ec, "func someFunctionReturningBool:bool() true; ");
+    REQUIRE(test<int>(ec, "func someFunctionReturningInt:int() 1024; someFunctionReturningInt(); ") == 1024);
+    REQUIRE(test<float>(ec, "func someFunctionReturningFloat:float() 102.4; someFunctionReturningFloat();") == 102.4f);
+    REQUIRE(test<bool>(ec, "func someFunctionReturningBool:bool() true; someFunctionReturningBool();"));
 }
 
 TEST_CASE("basic function definition with local variable") {
@@ -683,7 +683,9 @@ TEST_CASE("basic function definition with local variable") {
 }
 
 TEST_CASE("basic function definition with global statement before and after") {
-    //Note: this proves that we can save and resume the IR builder's insertion point.
+    //Note: this proves that we can save and restore the IR builder's insertion point because
+    //the first and third statements are part of the module init function and the irBuilder's insertion block and point must
+    //be changed to emit someFunctionReturningInt()
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     std::vector<StmtResult> result = testWithResults(ec, "someGlobal:int = 10; func someFunctionReturningInt:int() 1; someGlobal;");
     REQUIRE(result.size() == 2);
@@ -692,4 +694,34 @@ TEST_CASE("basic function definition with global statement before and after") {
 
     REQUIRE(result[1].primitiveType == type::PrimitiveType::Int32);
     REQUIRE(result[1].storage.int32Result == 10); //This value from reference after func definition
+}
+
+TEST_CASE("basic function call from different module than where it was defined") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    //Can execute function declared in separate module.
+    exec(ec, "func someFunctionReturningInt:int() 1024; ");
+    REQUIRE(test<int>(ec, "someFunctionReturningInt();") == 1024);
+}
+
+TEST_CASE("basic void function call with side effects") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "someEffectedVariable:int = 1;");
+    exec(ec, "func someFuncWithSideEffects:void() { someEffectedVariable = 2; } someFuncWithSideEffects();");
+    REQUIRE(test<int>(ec, "someEffectedVariable;") == 2);
+}
+
+TEST_CASE("basic function call with side effects") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "someEffectedVariable:int = 1;");
+    REQUIRE(test<int>(ec, "func someFuncWithSideEffects:int() { someEffectedVariable = 2; }someFuncWithSideEffects();") == 2);
+    REQUIRE(test<int>(ec, "someEffectedVariable;") == 2);
+}
+
+
+TEST_CASE("basic function call") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    //Can execute function declared in same module
+    REQUIRE(test<int>(ec, "func someFunctionReturningInt:int() 1024; someFunctionReturningInt();") == 1024);
+    //Can execute function declared in separate module.
+    REQUIRE(test<int>(ec, "someFunctionReturningInt();") == 1024);
 }

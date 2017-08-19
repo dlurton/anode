@@ -32,7 +32,8 @@ enum class ExprKind {
     ConditionalExpr,
     CastExpr,
     CompoundExpr,
-    DotExpr
+    DotExpr,
+    FuncCallExpr
 };
 std::string to_string(ExprKind kind);
 
@@ -60,6 +61,7 @@ class ExprStmt;
 class CompoundStmt;
 class CompoundExpr;
 class FuncDefStmt;
+class FuncCallExpr;
 class ClassDefinition;
 class ReturnStmt;
 class IfExprStmt;
@@ -84,8 +86,11 @@ public:
     /** Executes after every Stmt is visited. */
     virtual void visitedStmt(Stmt *) { }
 
-    virtual bool visitingFuncDeclStmt(FuncDefStmt *) { return true; }
+    virtual bool visitingFuncDefStmt(FuncDefStmt *) { return true; }
     virtual void visitedFuncDeclStmt(FuncDefStmt *) { }
+
+    virtual void visitingFuncCallExpr(FuncCallExpr *) {  }
+    virtual void visitedFuncCallExpr(FuncCallExpr *) { }
 
     virtual bool visitingClassDefinition(ClassDefinition *) { return true; }
     virtual void visitedClassDefinition(ClassDefinition *) {  }
@@ -494,7 +499,6 @@ public:
         : ExprStmt(sourceSpan), toType_(toType), valueExpr_(valueExpr), castKind_(castKind) { }
 
     static CastExpr *createImplicit(ExprStmt *valueExpr, type::Type *toType);
-    static CastExpr *createImplicit(ExprStmt* valueExpr, ast::TypeRef *toType);
 
     ExprKind exprKind() const override { return ExprKind::CastExpr; }
     type::Type *type() const  override{ return toType_->type(); }
@@ -705,12 +709,12 @@ public:
     }
 
     ExprStmt *condition() const { return condition_; }
+
     void setCondition(ExprStmt *newCondition) { condition_ = newCondition; }
 
     ExprStmt *body() const { return body_; }
 
     virtual bool canWrite() const override { return false; };
-
 
     virtual void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingExprStmt(this);
@@ -729,6 +733,7 @@ public:
 class FuncDefStmt : public Stmt {
     const std::string name_;
     TypeRef* returnTypeRef_;
+    scope::FunctionSymbol *symbol_= nullptr;
     scope::SymbolTable parameterScope_;
     ExprStmt* body_;
 
@@ -736,15 +741,24 @@ public:
     FuncDefStmt(source::SourceSpan sourceSpan, std::string name, TypeRef* returnTypeRef, ExprStmt* body)
         : Stmt(sourceSpan), name_{ name }, returnTypeRef_{ returnTypeRef }, parameterScope_{scope::StorageKind::Argument}, body_{ body } { }
 
+
     StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
     std::string name() const { return name_; }
     TypeRef *returnTypeRef() const { return returnTypeRef_; }
     scope::SymbolTable *parameterScope() { return &parameterScope_; };
     ExprStmt *body() const { return body_; }
+    void setBody(ExprStmt *body) { body_ = body; }
+
+    scope::FunctionSymbol *symbol() const {
+        ASSERT(symbol_ && "Function symbol not resolved yet")
+        return symbol_;
+    }
+
+    void setSymbol(scope::FunctionSymbol *symbol) { symbol_ = symbol; }
 
     virtual void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingStmt(this);
-        visitChildren = visitor->visitingFuncDeclStmt(this) ? visitChildren : false;
+        visitChildren = visitor->visitingFuncDefStmt(this) ? visitChildren : false;
         if(visitChildren) {
             returnTypeRef_->accept(visitor);
             body_->accept(visitor);
@@ -753,13 +767,32 @@ public:
         visitor->visitedStmt(this);
     }
 };
-//
-//class FuncCallExpr : public ExprStmt {
-//    ExprStmt *funcExpr_;
-//public:
-//    FuncCallExpr(const source::SourceSpan &span, ast::ExprStmt *funcExpr) : ExprStmt(span), funcExpr_{funcExpr} { }
-//    ExprStmt *funcExpr() { return funcExpr_; }
-//};
+
+class FuncCallExpr : public ExprStmt {
+    source::SourceSpan openParenSpan_;
+    ExprStmt *funcExpr_;
+public:
+    FuncCallExpr(const source::SourceSpan &span, const source::SourceSpan &openParenSpan, ast::ExprStmt *funcExpr)
+        : ExprStmt(span), openParenSpan_{openParenSpan}, funcExpr_{funcExpr} { }
+    ExprStmt *funcExpr() { return funcExpr_; }
+
+    virtual ExprKind exprKind() const override { return ExprKind::FuncCallExpr; };
+    virtual bool canWrite() const override { return false; };
+
+    type::Type *type() const override {
+        auto functionType = dynamic_cast<type::FunctionType*>(funcExpr_->type());
+        ASSERT(functionType && "Expression is not a function");
+        return functionType->returnType();
+    }
+
+    virtual void accept(AstVisitor *visitor) override {
+        visitor->visitingExprStmt(this);
+        visitor->visitingFuncCallExpr(this);
+        funcExpr_->accept(visitor);
+        visitor->visitedFuncCallExpr(this);
+        visitor->visitedExprStmt(this);
+    }
+};
 
 
 class ClassDefinition : public Stmt {

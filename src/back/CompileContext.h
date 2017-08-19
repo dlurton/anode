@@ -17,7 +17,7 @@ class CompileContext : no_copy, no_assign {
     llvm::Module &llvmModule_;
     llvm::IRBuilder<> &irBuilder_;
     TypeMap &typeMap_;
-    std::unordered_map<scope::Symbol*, llvm::Value*> symbolValueMap_;
+    gc_unordered_map<scope::Symbol*, llvm::Value*> symbolValueMap_;
 
 public:
 
@@ -30,6 +30,7 @@ public:
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
 
     void mapSymbolToValue(scope::Symbol *symbol, llvm::Value *value) {
+        ASSERT(value);
         symbolValueMap_[symbol] = value;
     }
 

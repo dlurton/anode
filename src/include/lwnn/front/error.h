@@ -22,6 +22,7 @@ namespace lwnn {
             InvalidImplicitCastInIfCondition,
             InvalidImplicitCastInIfBodies,
             InvalidImplicitCastInInWhileCondition,
+            InvalidImplicitCastInImplicitReturn,
             SymbolAlreadyDefinedInScope,
             VariableNotDefined,
             VariableUsedBeforeDefinition,
@@ -31,7 +32,7 @@ namespace lwnn {
             SymbolIsNotAType,
             OperatorCannotBeUsedWithType,
             LeftOfDotNotClass,
-            ClassMemberNotFound,
+            ClassMemberNotFound
         };
 
         class ErrorStream {

@@ -9,7 +9,7 @@ namespace lwnn {
         const int ALIGNMENT = 4;
 
         llvm::Value *emitExpr(lwnn::ast::ExprStmt *exprStmt, CompileContext &);
-//        void emitFuncDef(lwnn::ast::FuncDefStmt *, CompileContext &);
+        void emitFuncDefs(lwnn::ast::Module *module, CompileContext &cc);
 
     }
 }

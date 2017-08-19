@@ -22,7 +22,7 @@ stmt
 // http://en.cppreference.com/w/cpp/language/operator_precedence
 expr
     : name=ID ':' type=typeRef                                        # varDeclExpr
-//    | expr '(' ')'                                                    # funcCallExpr
+    | expr op='(' ')'                                                 # funcCallExpr
     | '(' expr ')'                                                    # parensExpr
     | left=expr op=(OP_MUL | OP_DIV) right=expr                       # binaryExpr
     | left=expr op=(OP_ADD | OP_SUB) right=expr                       # binaryExpr

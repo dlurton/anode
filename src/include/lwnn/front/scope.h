@@ -75,18 +75,24 @@ public:
         return name_ + ":" + (type() ? type()->name() : "<unresolved type>");
     }
 };
-//
-//class FunctionSymbol : public Symbol {
-//    std::string name_;
-//    type::FunctionType functionType_;
-//public:
-//    FunctionSymbol(const std::string &name) : name_(name), functionType_{};
-//
-//    virtual std::string name() { return name_; };
-//
-//    virtual std::string toString() { return name_ + ":" + functionType_->returnType()->name() + "()"; }
-//    virtual type::Type *type() { return &functionType_; }
-//};
+
+class FunctionSymbol : public Symbol, public type::TypeResolutionListener {
+    std::string name_;
+    type::FunctionType *functionType_ = nullptr;
+public:
+    FunctionSymbol(const std::string &name) : name_(name) { }
+
+    std::string name() const override { return name_; };
+    std::string toString() const override { return name_ + ":" + functionType_->returnType()->name() + "()"; }
+    type::Type *type() const override { return functionType_; }
+
+    /** This is just a convenience so we don't have to upcast the return value of type() when we need an instance of FunctionType. */
+    type::FunctionType *functionType() { return functionType_; }
+
+    void notifyTypeResolved(type::Type *type) override  {
+        functionType_ = new type::FunctionType(type);
+    }
+};
 
 class TypeSymbol : public Symbol {
     type::Type *type_;
@@ -166,18 +172,17 @@ public:
         return classes;
     }
 
-//    std::vector<FunctionSymbol*> functions() const {
-//        std::vector<FunctionSymbol*> symbols;
-//        symbols.reserve(orderedSymbols_.size());
-//        for (auto symbol : orderedSymbols_) {
-//            auto function = dynamic_cast<FunctionSymbol*>(symbol);
-//            if(function != nullptr) {
-//                symbols.push_back(function);
-//            }
-//        }
-//
-//        return symbols;
-//    }
+    std::vector<FunctionSymbol*> functions() const {
+        std::vector<FunctionSymbol*> symbols;
+        for (auto symbol : orderedSymbols_) {
+            auto function = dynamic_cast<FunctionSymbol*>(symbol);
+            if(function != nullptr) {
+                symbols.push_back(function);
+            }
+        }
+
+        return symbols;
+    }
 
     std::vector<Symbol*> symbols() const {
         std::vector<Symbol*> symbols;

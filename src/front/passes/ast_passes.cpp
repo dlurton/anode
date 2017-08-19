@@ -19,7 +19,7 @@ protected:
     size_t scopeDepth() { return symbolTableStack_.size(); }
 
 public:
-    virtual bool visitingFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    virtual bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         symbolTableStack_.push_back(funcDeclStmt->parameterScope());
         return true;
     }
@@ -54,9 +54,9 @@ public:
 /** Sets each SymbolTable's parent scope. */
 class SetSymbolTableParentsAstVisitor : public ScopeFollowingVisitor {
 public:
-    virtual bool visitingFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    virtual bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         funcDeclStmt->parameterScope()->setParent(topScope());
-        ScopeFollowingVisitor::visitingFuncDeclStmt(funcDeclStmt);
+        ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
         return true;
     }
 
@@ -91,9 +91,13 @@ public:
         return ScopeFollowingVisitor::visitingClassDefinition(cd);
     }
 
-    virtual bool visitingFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) {
-        ScopeFollowingVisitor::visitingFuncDeclStmt(funcDeclStmt);
-        return true;
+    virtual bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) {
+        scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name());
+        topScope()->addSymbol(funcSymbol);
+        funcDeclStmt->setSymbol(funcSymbol);
+        funcDeclStmt->returnTypeRef()->addTypeResolutionListener(funcSymbol);
+
+        return ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
     virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
@@ -140,7 +144,7 @@ public:
 
         scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name());
         if(!found) {
-            errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Variable '%s' was not defined in this scope.",
+            errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Symbol '%s' was not defined in this scope.",
                 expr->name().c_str());
         } else {
             if(found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
@@ -272,12 +276,21 @@ class MarkDotExprWritesPass : public ast::AstVisitor {
         }
     }
 };
-//
-//class DotExprSemanticsPass : public ast::AstVisitor {
-//    virtual void visitingDotExpr(ast::DotExpr *) {
-//
-//    }
-//};
+
+class FunctionCallSemanticsPass : public ast::AstVisitor {
+    error::ErrorStream &errorStream_;
+public:
+    FunctionCallSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+
+    virtual void visitedFuncCallExpr(ast::FuncCallExpr *funcCallExpr) override {
+        if(!funcCallExpr->funcExpr()->type()->isFunction()) {
+            errorStream_.error(
+                error::ErrorKind::OperatorCannotBeUsedWithType,
+                funcCallExpr->sourceSpan(),
+                "Result of expression left of '(' is not a function.");
+        }
+    }
+};
 
 void runAllPasses(ast::Module *module, error::ErrorStream &es) {
 
@@ -298,15 +311,15 @@ void runAllPasses(ast::Module *module, error::ErrorStream &es) {
     //Build the symbol tables so that symbol resolution works
     //Symbol tables are really just metadata generated from global definitions (i.e. class, func, etc.)
     passes.emplace_back(new PopulateSymbolTablesAstVisitor(es));
+    //Resolve all type references here (i.e. variables, arguments, class fields, function arguments, etc)
+    //will know to the type::Type after this phase
+    passes.emplace_back(new TypeResolvingVisitor(es));
     //Symbol references (i.e. variable, call sites, etc) find their corresponding symbols here.
     passes.emplace_back(new SymbolResolvingAstVisitor(es));
     //Create type::ClassType and populate all the fields, for all classes
     passes.emplace_back(new PopulateClassTypesAstVisitor());
     //Resolve all member references
     passes.emplace_back(new ResolveDotExprMemberPass(es));
-    //Resolve all type references here (i.e. variables, arguments, class fields, function arguments, etc)
-    //will know to the type::Type after this phase
-    passes.emplace_back(new TypeResolvingVisitor(es));
     //Insert implicit casts where they are allowed
     passes.emplace_back(new AddImplicitCastsVisitor(es));
     //Dot expressions immediately to the left of '=' should be properly marked as "writes" so the correct
@@ -317,6 +330,7 @@ void runAllPasses(ast::Module *module, error::ErrorStream &es) {
 
     passes.emplace_back(new BinaryExprSemanticsPass(es));
     passes.emplace_back(new CastExprSemanticPass(es));
+    passes.emplace_back(new FunctionCallSemanticsPass(es));
 
     for(ast::AstVisitor *pass : passes) {
         module->accept(pass);

@@ -41,25 +41,7 @@ public:
         return false;
     }
 
-    virtual bool visitingFuncDeclStmt(FuncDefStmt *funcDef) {
-        //"Push" the state of the IRBuilder
-        auto oldBasicBlock = cc().irBuilder().GetInsertBlock();
-        auto oldInsertPoint = cc().irBuilder().GetInsertPoint();
-
-
-        llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
-            cc().llvmModule().getOrInsertFunction(funcDef->name(), cc().typeMap().toLlvmType(funcDef->returnTypeRef()->type())));
-        llvmFunc->setCallingConv(llvm::CallingConv::C);
-        auto startBlock = llvm::BasicBlock::Create(cc().llvmContext(), "begin", llvmFunc);
-
-        cc().irBuilder().SetInsertPoint(startBlock);
-
-        llvm::Value *value = emitExpr(funcDef->body(), cc());
-
-        cc().irBuilder().CreateRet(value);
-
-        //"Pop" the state of the IR builder.
-        cc().irBuilder().SetInsertPoint(oldBasicBlock, oldInsertPoint);
+    virtual bool visitingFuncDefStmt(FuncDefStmt *) override {
         return false;
     }
 
@@ -71,7 +53,7 @@ public:
         }
 
         llvm::Value *llvmValue = emitExpr(expr, cc());
-        if (llvmValue) {
+        if (llvmValue && !llvmValue->getType()->isVoidTy()) {
             resultExprStmtCount_++;
             std::string variableName = string::format("result_%d", resultExprStmtCount_);
             llvm::AllocaInst *resultVar = cc().irBuilder().CreateAlloca(llvmValue->getType(), nullptr, variableName);
@@ -110,7 +92,7 @@ public:
         //The reason for doing this here instead of in visitVariableDeclExpr is we do not
         //have VariableDeclExprs for the imported global variables but they do exist as symbols in the global scope.
         std::vector<scope::VariableSymbol *> globals = module->scope()->variables();
-        for (scope::Symbol *symbol : globals) {
+        for (scope::VariableSymbol *symbol : globals) {
             //next step:  make this call to .toLlvmType() return the previously created llvm::StructType
             llvm::Type *llvmType = cc().typeMap().toLlvmType(symbol->type());
             cc().llvmModule().getOrInsertGlobal(symbol->name(), llvmType);
@@ -141,6 +123,22 @@ public:
 
             globalVar->setAlignment(ALIGNMENT);
         }
+
+        //Create all functions and symbol to value mappings...  Here, this happens for functions declared in this module
+        //and in previous modules, however, no BasicBlock is ever created for external functions and no IR is ever emitted.
+        //LLVM always searches external modules when linking such functions.
+        std::vector<scope::FunctionSymbol*> functions = module->scope()->functions();
+        for(scope::FunctionSymbol *functionSymbol : functions) {
+
+            llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
+                cc().llvmModule().getOrInsertFunction(functionSymbol->name(), cc().typeMap().toLlvmType(functionSymbol->functionType()->returnType())));
+
+            llvmFunc->setCallingConv(llvm::CallingConv::C);
+
+            cc().mapSymbolToValue(functionSymbol, llvmFunc);
+        }
+
+        emitFuncDefs(module, cc());
 
         return true;
     }
@@ -185,7 +183,6 @@ private:
         llvm::Value *valuePtr = paramItr;
         valuePtr->setName("valuePtr");
     }
-
 
     void declareExecutionContextGlobal() {
         cc().llvmModule().getOrInsertGlobal(EXECUTION_CONTEXT_GLOBAL_NAME, llvm::Type::getInt64Ty(cc().llvmContext()));

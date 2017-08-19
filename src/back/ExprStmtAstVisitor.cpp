@@ -20,6 +20,19 @@ namespace lwnn {
                 return valueStack_.top();
             }
 
+            virtual void visitedFuncCallExpr(ast::FuncCallExpr *) override {
+                llvm::Value *value = valueStack_.top();
+                valueStack_.pop();
+
+                llvm::Function *llvmFunc = llvm::cast<llvm::Function>(value);
+
+                std::vector<llvm::Value*> args;
+                llvm::CallInst *result = cc().irBuilder().CreateCall(llvmFunc, args);
+
+                valueStack_.push(result);
+            }
+
+
             virtual void visitedCastExpr(ast::CastExpr *expr) {
                 llvm::Value *value = valueStack_.top();
                 valueStack_.pop();

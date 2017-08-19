@@ -12,20 +12,21 @@ public:
 
     virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
         if (binaryExpr->binaryExprKind() == ast::BinaryExprKind::Logical) {
-            if (binaryExpr->lValue()->type()->primitiveType() != type::PrimitiveType::Bool) {
+
+            if (!binaryExpr->lValue()->type()->isSameType(&type::Primitives::Bool)) {
 
                 ast::CastExpr *rValue = ast::CastExpr::createImplicit(binaryExpr->lValue(), &type::Primitives::Bool);
                 binaryExpr->setLValue(rValue);
 
             }
 
-            if (binaryExpr->rValue()->type()->primitiveType() != type::PrimitiveType::Bool) {
+            if (!binaryExpr->rValue()->type()->isSameType(&type::Primitives::Bool)) {
 
                 ast::CastExpr *lValue = ast::CastExpr::createImplicit(binaryExpr->rValue(), &type::Primitives::Bool);
                 binaryExpr->setRValue(lValue);
 
             }
-        } else if (binaryExpr->lValue()->type() != binaryExpr->rValue()->type()) {
+        } else if (!binaryExpr->lValue()->type()->isSameType(binaryExpr->rValue()->type())) {
 
             //If we can implicitly cast the lvalue to same type as the rvalue, we should...
             if (binaryExpr->lValue()->type()->canImplicitCastTo(binaryExpr->rValue()->type())
@@ -57,7 +58,7 @@ public:
 
     virtual void visitedIfExpr(ast::IfExprStmt *ifExpr) {
 
-        if(ifExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
+        if(!ifExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
 
                 ifExpr->setCondition(ast::CastExpr::createImplicit(ifExpr->condition(), &type::Primitives::Bool));
@@ -66,14 +67,14 @@ public:
                 errorStream_.error(
                     error::ErrorKind::InvalidImplicitCastInIfCondition,
                     ifExpr->condition()->sourceSpan(),
-                    "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
+                    "Cannot implicitly cast condition expression from '%s' to 'bool'.",
                     ifExpr->condition()->type()->name().c_str());
             }
         }
 
         if(!ifExpr->elseExpr()) return;
 
-        if(ifExpr->thenExpr()->type() != ifExpr->elseExpr()->type()) {
+        if(!ifExpr->thenExpr()->type()->isSameType(ifExpr->elseExpr()->type())) {
             //If we can implicitly cast the lvalue to same type as the rvalue, we should...
             if(ifExpr->elseExpr()->type()->canImplicitCastTo(ifExpr->thenExpr()->type())) {
 
@@ -88,7 +89,7 @@ public:
                 errorStream_.error(
                     error::ErrorKind::InvalidImplicitCastInIfBodies,
                     ifExpr->sourceSpan(),
-                    "Cannot implicitly convert '%s' to '%s' or vice-versa",
+                    "Cannot implicitly cast  '%s' to '%s' or vice-versa",
                     ifExpr->thenExpr()->type()->name().c_str(),
                     ifExpr->elseExpr()->type()->name().c_str());
             }
@@ -97,7 +98,7 @@ public:
 
     virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) {
         //Can we deduplicate this code? (duplicate is in AddImplicitCastsVisitor::visitedIfExpr)
-        if(whileExpr->condition()->type()->primitiveType() != type::PrimitiveType::Bool) {
+        if(!whileExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (whileExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
 
                 whileExpr->setCondition(ast::CastExpr::createImplicit(whileExpr->condition(), &type::Primitives::Bool));
@@ -106,12 +107,29 @@ public:
                 errorStream_.error(
                     error::ErrorKind::InvalidImplicitCastInInWhileCondition,
                     whileExpr->condition()->sourceSpan(),
-                    "Condition expression cannot be implicitly converted from '%s' to 'bool'.",
+                    "Cannot implicitly cast condition expression from '%s' to 'bool'.",
                     whileExpr->condition()->type()->name().c_str());
             }
         }
 
         return true;
+    }
+
+    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *stmt) {
+        if(stmt->returnTypeRef()->type()->isSameType(&type::Primitives::Void)) return;
+
+        if(!stmt->returnTypeRef()->type()->isSameType(stmt->body()->type())) {
+            if(!stmt->body()->type()->canImplicitCastTo(stmt->returnTypeRef()->type())) {
+                errorStream_.error(
+                    error::ErrorKind::InvalidImplicitCastInImplicitReturn,
+                    stmt->body()->sourceSpan(),
+                    "Cannot implicitly cast implicit return value from '%s' to '%s'.",
+                    stmt->body()->type()->name().c_str(),
+                    stmt->returnTypeRef()->type()->name().c_str());
+            } else {
+                stmt->setBody(ast::CastExpr::createImplicit(stmt->body(), stmt->returnTypeRef()->type()));
+            }
+        }
     }
 };
 

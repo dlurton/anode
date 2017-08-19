@@ -68,14 +68,14 @@ public:
         error::ErrorStream errorStream {std::cerr};
         lwnn::front::passes::runAllPasses(module, errorStream);
 
-        if(setPrettyPrintAst_) {
-            visualize::prettyPrint(module);
-            std::cout.flush();
-        }
-
         if(errorStream.errorCount() > 0) {
             throw ExecutionException(
                 string::format("There were %d compilation errors.  See stderr for details.", errorStream.errorCount()));
+        }
+
+        if(setPrettyPrintAst_) {
+            visualize::prettyPrint(module);
+            std::cout.flush();
         }
 
         for(auto symbolToExport : module->scope()->symbols()) {

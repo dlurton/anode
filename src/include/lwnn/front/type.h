@@ -48,8 +48,13 @@ public:
     /** Name of the type. */
     virtual std::string name() const { return name_; }
 
+    virtual bool isSameType(type::Type *) const = 0;
+
     /** True if the type is a primitive value (i.e. int, bool, float, etc) */
     virtual bool isPrimitive() const { return primitiveType() != PrimitiveType::NotAPrimitive; };
+
+    /** True if the type is void. */
+    virtual bool isVoid() const { return primitiveType() == PrimitiveType::Void; };
 
     /** True of the type a class. */
     virtual bool isClass() const { return false; };
@@ -81,6 +86,12 @@ class ScalarType : public Type {
 public:
     ScalarType(const std::string &name, PrimitiveType primitiveType_, bool canDoArithmetic)
         : Type(name), primitiveType_(primitiveType_), canDoArithmetic_(canDoArithmetic) {}
+
+    bool isSameType(type::Type *other) const {
+        //We never create more than once instance of ScalarType for a given scalar data type
+        //so this simple check suffices.
+        return this == other;
+    }
 
     bool canDoArithmetic() const override { return canDoArithmetic_; }
     PrimitiveType primitiveType() const { return primitiveType_; }
@@ -122,8 +133,17 @@ class FunctionType : public Type {
     Type *returnType_;
 public:
     FunctionType(type::Type *returnType) : Type("func:" + returnType->name()), returnType_{returnType} { }
+    bool isSameType(type::Type *other) const {
+        if(this == other) return true;
+        if(!other->isFunction()) return false;
 
-    Type *returnType() { return returnType_; }
+        FunctionType* otherFunctionType = dynamic_cast<FunctionType*>(other);
+        return otherFunctionType && this->returnType_->isSameType(otherFunctionType->returnType_);
+    }
+
+    bool isFunction() const override { return true; }
+
+    Type *returnType() const { return returnType_; }
 };
 
 class ClassField : public type::TypeResolutionListener, public gc {
@@ -147,6 +167,12 @@ class ClassType : public Type {
 public:
     ClassType(const std::string &name) : Type(name) {
 
+    }
+
+    bool isSameType(type::Type *other) const {
+        //We don't expect multiple instances of ClassType to be created which reference the same class
+        //so this simple check suffices.
+        return other == this;
     }
 
     bool isClass() const override { return true; }
