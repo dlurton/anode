@@ -1,4 +1,5 @@
 
+#include "front/error.h"
 #include "execute/execute.h"
 #include "front/parse.h"
 #include "back/compile.h"
@@ -15,11 +16,18 @@ int main( int argc, char* argv[] )
     //GC_set_all_interior_pointers(1);
     GC_INIT();
 
-    std::cout << "libgc " << GC_VERSION_MAJOR << "." << GC_VERSION_MINOR << "." << GC_VERSION_MICRO << "\n";
     int result = Catch::Session().run( argc, argv );
 
     //Really should leave this here until we're certain libgc is going to work.
-    std::cout << "Number of AstNodes collected by our garbage collector: " << lwnn::ast::astNodesDestroyedCount << "\n";
+    //std::cout << "Number of AstNodes collected by our garbage collector: " << lwnn::ast::astNodesDestroyedCount << "\n";
+
+    if(testCount > 0) {
+        double avgDuration = (double) totalDuration / (double) testCount;
+        std::cerr << "\nExecution count: " << testCount<< "\n";
+        std::cerr << "Average execution duration: " << avgDuration << "\n";
+        std::cerr.flush();
+    }
+
 
     return ( result < 0xff ? result : 0xff );
 }
@@ -603,14 +611,26 @@ TEST_CASE("casting") {
 
 TEST_CASE("while loop") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    exec(ec, "a:int; while(a < 10) a = a + 1; ");
+    exec(ec, R"(
+        a:int;
+        while(a < 10)
+            a = a + 1;
+    )");
     REQUIRE(test<int>(ec, "a;") == 10);
 }
 
 TEST_CASE("nested while loops") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "a:int; b:int; innerCount:int;");
-    exec(ec, "while(a < 3) { a = a + 1; b = 0; while (b < 5) { b = b + 1; innerCount = innerCount + 1; } }");
+    exec(ec, R"(
+        while(a < 3) {
+            a = a + 1;
+            b = 0;
+            while (b < 5) {
+                b = b + 1;
+                innerCount = innerCount + 1;
+            }
+        })");
     REQUIRE(test<int>(ec, "a;") == 3);
     REQUIRE(test<int>(ec, "b;") == 5);
     REQUIRE(test<int>(ec, "innerCount;") == 15);
@@ -619,7 +639,13 @@ TEST_CASE("nested while loops") {
 
 TEST_CASE("class, stack allocated") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    exec(ec, "class Widget { a:int; b:float; c:bool; }");
+    exec(ec, R"(
+        class Widget {
+            a:int;
+            b:float;
+            c:bool;
+        }
+    )");
     exec(ec, "someWidget:Widget;");
     REQUIRE(test<int>(ec, "someWidget.a;") == 0);
     REQUIRE(test<int>(ec, "someWidget.a = 234;") == 234);
@@ -672,9 +698,16 @@ TEST_CASE("class, stack allocated, with another class inside it") {
 
 TEST_CASE("basic function definition and invocation") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    REQUIRE(test<int>(ec, "func someFunctionReturningInt:int() 1024; someFunctionReturningInt(); ") == 1024);
-    REQUIRE(test<float>(ec, "func someFunctionReturningFloat:float() 102.4; someFunctionReturningFloat();") == 102.4f);
-    REQUIRE(test<bool>(ec, "func someFunctionReturningBool:bool() true; someFunctionReturningBool();"));
+    auto src = R"(
+        func someFunctionReturningInt:int() 1024;
+        func someFunctionReturningFloat:float() 102.4;
+        func someFunctionReturningBool:bool() true;
+    )";
+    exec(ec, src);
+
+    REQUIRE(test<int>(ec, "someFunctionReturningInt();") == 1024);
+    REQUIRE(test<float>(ec, "someFunctionReturningFloat();") == 102.4f);
+    REQUIRE(test<bool>(ec, "someFunctionReturningBool();"));
 }
 
 TEST_CASE("basic function definition with local variable") {
@@ -706,17 +739,27 @@ TEST_CASE("basic function call from different module than where it was defined")
 TEST_CASE("basic void function call with side effects") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "someEffectedVariable:int = 1;");
-    exec(ec, "func someFuncWithSideEffects:void() { someEffectedVariable = 2; } someFuncWithSideEffects();");
+    exec(ec, R"(
+        func someFuncWithSideEffects:void() {
+            someEffectedVariable = 2;
+        }
+        someFuncWithSideEffects();
+    )");
     REQUIRE(test<int>(ec, "someEffectedVariable;") == 2);
 }
 
 TEST_CASE("basic function call with side effects") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "someEffectedVariable:int = 1;");
-    REQUIRE(test<int>(ec, "func someFuncWithSideEffects:int() { someEffectedVariable = 2; }someFuncWithSideEffects();") == 2);
+    auto src = R"(
+        func someFuncWithSideEffects:int() {
+            someEffectedVariable = 2;
+        }
+        someFuncWithSideEffects();
+    )";
+    REQUIRE(test<int>(ec, src) == 2);
     REQUIRE(test<int>(ec, "someEffectedVariable;") == 2);
 }
-
 
 TEST_CASE("basic function call") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
@@ -725,3 +768,54 @@ TEST_CASE("basic function call") {
     //Can execute function declared in separate module.
     REQUIRE(test<int>(ec, "someFunctionReturningInt();") == 1024);
 }
+
+
+TEST_CASE("function with int parameter") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            func someFunction:int(someValue:int) someValue;
+            someFunction(10);
+        )";
+    REQUIRE(test<int>(ec, src) == 10);
+}
+
+TEST_CASE("function with float parameter") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            func someFunction:float(someValue:float) someValue;
+            someFunction(1001.0);
+        )";
+    REQUIRE(test<float>(ec, src) == 1001.0);
+}
+
+TEST_CASE("function with bool parameter") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            func someFunction:int(someValue:int) someValue;
+            someFunction(10);
+        )";
+    REQUIRE(test<int>(ec, src) == 10);
+}
+
+
+TEST_CASE("function with implicitly cast float parameter") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            func someFunction:float(someValue:float) someValue;
+            someFunction(101);
+        )";
+    REQUIRE(test<float>(ec, src) == 101.0);
+}
+
+
+//TEST_CASE("function with class instance argument") {
+//    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+//    auto src = R"(
+//        class SomeClass { someField:int; }
+//        func someFunc:int(someArg:SomeClass) someArg.someField;
+//        someVar:SomeClass;
+//        someVar.someField = 500;
+//    )";
+//    exec(ec, src);
+//    REQUIRE(test<int>(ec, "someFunc(someVar);") == 500);
+//}

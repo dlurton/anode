@@ -93,7 +93,7 @@ protected:
         std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module, typeMap_, context_, jit_->getTargetMachine());
 
         if(dumpIROnModuleLoad_) {
-            llvm::outs() << "LLVM IR:\n";
+            std::cerr << "LLVM IR:\n";
             llvmModule->dump();
         }
 

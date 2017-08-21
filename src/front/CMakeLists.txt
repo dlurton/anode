@@ -43,7 +43,7 @@ set(FRONT_SRC_FILES
         type.cpp
         passes/ast_passes.cpp
         source.cpp
-        passes/AddImplicitCastsVisitor.h)
+        passes/AddImplicitCastsPass.h)
 
 include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
 

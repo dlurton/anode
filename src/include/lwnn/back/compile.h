@@ -23,7 +23,7 @@ namespace lwnn { namespace back {
         const char * const EXECUTION_CONTEXT_GLOBAL_NAME = "__execution__context__";
 
     class TypeMap : no_assign, no_copy {
-        gc_unordered_map<type::Type *, llvm::Type *> typeMap_;
+        gc_unordered_map<const type::Type *, llvm::Type *> typeMap_;
     public:
         TypeMap(llvm::LLVMContext &llvmContext) {
 
@@ -40,7 +40,7 @@ namespace lwnn { namespace back {
 
         llvm::Type *toLlvmType(type::Type *lwnnType) {
             ASSERT(lwnnType);
-            llvm::Type *foundType = typeMap_[lwnnType];
+            llvm::Type *foundType = typeMap_[lwnnType->actualType()];
 
             ASSERT(foundType && "LWNN type to LLVM type Mapping must exist!");
             return foundType;

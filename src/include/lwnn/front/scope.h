@@ -9,7 +9,7 @@
 namespace lwnn {  namespace scope {
 
 /** Indicates type of storage for this variable. */
-enum class StorageKind {
+enum class StorageKind : unsigned char {
     NotSet,
     Global,
     Local,
@@ -37,12 +37,10 @@ public:
     void setIsExternal(bool isExternal) { isExternal_ = isExternal; }
 };
 
-class VariableSymbol : public Symbol, public type::TypeResolutionListener {
-    type::Type *type_ = nullptr;
+class VariableSymbol : public Symbol {
+    type::Type *type_;
     std::string name_;
-    std::vector<type::TypeResolutionListener*> typeResolutionListeners_;
 public:
-    VariableSymbol(const std::string &name) : name_(name) { }
     VariableSymbol(const std::string &name, type::Type *type) : type_(type), name_(name) { }
 
     virtual ~VariableSymbol() { }
@@ -50,21 +48,6 @@ public:
     virtual type::Type *type() const override {
         ASSERT(type_ && "Type must be resolved first");
         return type_;
-    }
-
-    virtual type::Type *maybeUnresolvedType() const {
-        return type_;
-    }
-
-    void notifyTypeResolved(type::Type *type) override  {
-        type_ = type;
-        for(auto listener : typeResolutionListeners_) {
-            listener->notifyTypeResolved(type_);
-        }
-    }
-
-    void addTypeResolutionListener(type::TypeResolutionListener *symbol) {
-        typeResolutionListeners_.push_back(symbol);
     }
 
     virtual std::string name() const override {
@@ -76,11 +59,12 @@ public:
     }
 };
 
-class FunctionSymbol : public Symbol, public type::TypeResolutionListener {
+
+class FunctionSymbol : public Symbol {
     std::string name_;
-    type::FunctionType *functionType_ = nullptr;
+    type::FunctionType *functionType_;
 public:
-    FunctionSymbol(const std::string &name) : name_(name) { }
+    FunctionSymbol(const std::string &name, type::FunctionType *functionType) : name_{name}, functionType_{functionType} { }
 
     std::string name() const override { return name_; };
     std::string toString() const override { return name_ + ":" + functionType_->returnType()->name() + "()"; }
@@ -88,10 +72,6 @@ public:
 
     /** This is just a convenience so we don't have to upcast the return value of type() when we need an instance of FunctionType. */
     type::FunctionType *functionType() { return functionType_; }
-
-    void notifyTypeResolved(type::Type *type) override  {
-        functionType_ = new type::FunctionType(type);
-    }
 };
 
 class TypeSymbol : public Symbol {
@@ -150,8 +130,8 @@ public:
         orderedSymbols_.emplace_back(symbol);
     }
 
-    std::vector<VariableSymbol*> variables() {
-        std::vector<VariableSymbol*> variables;
+    gc_vector<VariableSymbol*> variables() {
+        gc_vector<VariableSymbol*> variables;
         for (auto symbol : orderedSymbols_) {
             auto variable = dynamic_cast<VariableSymbol*>(symbol);
             if(variable)
@@ -161,8 +141,8 @@ public:
         return variables;
     }
 
-    std::vector<TypeSymbol*> types() {
-        std::vector<TypeSymbol*> classes;
+    gc_vector<TypeSymbol*> types() {
+        gc_vector<TypeSymbol*> classes;
         for (auto symbol : orderedSymbols_) {
             auto variable = dynamic_cast<scope::TypeSymbol*>(symbol);
             if(variable)
@@ -172,8 +152,8 @@ public:
         return classes;
     }
 
-    std::vector<FunctionSymbol*> functions() const {
-        std::vector<FunctionSymbol*> symbols;
+    gc_vector<FunctionSymbol*> functions() const {
+        gc_vector<FunctionSymbol*> symbols;
         for (auto symbol : orderedSymbols_) {
             auto function = dynamic_cast<FunctionSymbol*>(symbol);
             if(function != nullptr) {
@@ -184,8 +164,8 @@ public:
         return symbols;
     }
 
-    std::vector<Symbol*> symbols() const {
-        std::vector<Symbol*> symbols;
+    gc_vector<Symbol*> symbols() const {
+        gc_vector<Symbol*> symbols;
         symbols.reserve(orderedSymbols_.size());
         for (auto symbol : orderedSymbols_) {
             symbols.push_back(symbol);

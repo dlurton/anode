@@ -188,7 +188,6 @@ int main(int argc, char **argv) {
 
     linenoiseHistoryFree();
     std::cout << "destructionCount: " << destructionCount << std::endl;
-    std::cout << "destructionCount: " << destructionCount << std::endl;
     return 0;
 }
 

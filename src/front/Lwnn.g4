@@ -22,7 +22,7 @@ stmt
 // http://en.cppreference.com/w/cpp/language/operator_precedence
 expr
     : name=ID ':' type=typeRef                                        # varDeclExpr
-    | expr op='(' ')'                                                 # funcCallExpr
+    | expr op='(' exprList? ')'                                       # funcCallExpr
     | '(' expr ')'                                                    # parensExpr
     | left=expr op=(OP_MUL | OP_DIV) right=expr                       # binaryExpr
     | left=expr op=(OP_ADD | OP_SUB) right=expr                       # binaryExpr
@@ -36,7 +36,7 @@ expr
     | value=LIT_FLOAT                                                 # literalFloatExpr
     | value=litBool                                                   # literalBool
     | var=ID                                                          # variableRefExpr
-    | 'cast' OP_LT type=ID OP_GT '(' expr ')'                         # castExpr
+    | 'cast' OP_LT type=typeRef OP_GT '(' expr ')'                    # castExpr
     | '(?' cond=expr ',' thenExpr=expr ',' elseExpr=expr ')'          # ternaryExpr
     | compoundExprStmt                                                # compoundExpr
     | KW_IF '(' cond=expr ')' thenExpr=expr ('else' elseExpr=expr)?   # ifExpr
@@ -57,7 +57,21 @@ classBody
     ;
 
 funcDef
-    : 'func' name=ID ':' typeRef '(' ')' body=exprStmt
+    : 'func' name=ID ':' typeRef '(' parameters=parameterDefList? ')' body=exprStmt
+    ;
+
+parameterDef
+    : name=ID ':' typeRef //('=' initializer=literalExpr)?
+    ;
+
+parameterDefList
+    : parameterDef
+    | parameterDefList ',' parameterDef
+    ;
+
+exprList
+    : expr
+    | exprList ',' expr
     ;
 
 typeRef

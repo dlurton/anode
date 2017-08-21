@@ -5,10 +5,12 @@
 
 namespace lwnn { namespace front { namespace passes {
 
-class AddImplicitCastsVisitor : public ast::AstVisitor {
+class AddImplicitCastsPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
 public:
-    AddImplicitCastsVisitor(error::ErrorStream &errorStream_) : errorStream_(errorStream_) {}
+    AddImplicitCastsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+
+    // Note:  due to it being a more natural place for it, implicit casts for function call arguments are done in FuncCallSemanticsPass
 
     virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
         if (binaryExpr->binaryExprKind() == ast::BinaryExprKind::Logical) {
@@ -84,6 +86,7 @@ public:
             else if (ifExpr->thenExpr()->type()->canImplicitCastTo(ifExpr->elseExpr()->type())) {
 
                 ifExpr->setThenExpr(ast::CastExpr::createImplicit(ifExpr->thenExpr(), ifExpr->elseExpr()->type()));
+
             }
             else { // No implicit cast available...
                 errorStream_.error(
@@ -115,22 +118,23 @@ public:
         return true;
     }
 
-    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *stmt) {
-        if(stmt->returnTypeRef()->type()->isSameType(&type::Primitives::Void)) return;
+    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *funcDef) {
+        if(funcDef->returnType()->isSameType(&type::Primitives::Void)) return;
 
-        if(!stmt->returnTypeRef()->type()->isSameType(stmt->body()->type())) {
-            if(!stmt->body()->type()->canImplicitCastTo(stmt->returnTypeRef()->type())) {
+        if(!funcDef->returnType()->isSameType(funcDef->body()->type())) {
+            if(!funcDef->body()->type()->canImplicitCastTo(funcDef->returnType())) {
                 errorStream_.error(
                     error::ErrorKind::InvalidImplicitCastInImplicitReturn,
-                    stmt->body()->sourceSpan(),
+                    funcDef->body()->sourceSpan(),
                     "Cannot implicitly cast implicit return value from '%s' to '%s'.",
-                    stmt->body()->type()->name().c_str(),
-                    stmt->returnTypeRef()->type()->name().c_str());
+                    funcDef->body()->type()->name().c_str(),
+                    funcDef->returnType()->name().c_str());
             } else {
-                stmt->setBody(ast::CastExpr::createImplicit(stmt->body(), stmt->returnTypeRef()->type()));
+                funcDef->setBody(ast::CastExpr::createImplicit(funcDef->body(), funcDef->returnType()));
             }
         }
     }
+
 };
 
 }}}

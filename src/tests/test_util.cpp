@@ -4,7 +4,9 @@
 #include <chrono>
 
 namespace lwnn { namespace test_util {
-int testCount = 0;
+
+unsigned int testCount = 0;
+unsigned int totalDuration = 0;
 
 std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
 #ifdef VISUALIZE_AST
@@ -15,7 +17,7 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
     executionContext->setDumpIROnLoad(true);
 #endif
 
-    std::cout << "Executing:  " << source << "\n";
+    std::cerr << "Executing:  " << source << "\n";
     std::string module_name = string::format("test_%d", ++testCount);
     auto testStartTime = std::chrono::high_resolution_clock::now();
 
@@ -51,9 +53,9 @@ std::vector<StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContex
 
     executionContext->executeModule(module);
     auto elapsed = std::chrono::high_resolution_clock::now() - testStartTime;
-    long long microseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-    std::cout << microseconds << "ms\n";
-
+    long long milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+    std::cerr << milliseconds << "ms\n";
+    totalDuration += milliseconds;
     //GC_collect_a_little();
     return results;
 }

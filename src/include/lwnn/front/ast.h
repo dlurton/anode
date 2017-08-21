@@ -13,7 +13,7 @@
 
 namespace lwnn { namespace ast {
 
-enum class StmtKind {
+enum class StmtKind : unsigned char {
     FunctionDeclStmt,
     ReturnStmt,
     ExprStmt,
@@ -22,7 +22,7 @@ enum class StmtKind {
 };
 std::string to_string(StmtKind kind);
 
-enum class ExprKind {
+enum class ExprKind : unsigned char {
     VariableDeclExpr,
     LiteralBoolExpr,
     LiteralInt32Expr,
@@ -37,7 +37,7 @@ enum class ExprKind {
 };
 std::string to_string(ExprKind kind);
 
-enum class BinaryOperationKind {
+enum class BinaryOperationKind : unsigned char {
     Assign,
     Add,
     Sub,
@@ -60,6 +60,7 @@ class ReturnStmt;
 class ExprStmt;
 class CompoundStmt;
 class CompoundExpr;
+class ParameterDef;
 class FuncDefStmt;
 class FuncCallExpr;
 class ClassDefinition;
@@ -85,6 +86,9 @@ public:
     virtual bool visitingStmt(Stmt *) { return true; }
     /** Executes after every Stmt is visited. */
     virtual void visitedStmt(Stmt *) { }
+
+    virtual void visitingParameterDef(ParameterDef *) { }
+    virtual void visitedParameterDef(ParameterDef *) { }
 
     virtual bool visitingFuncDefStmt(FuncDefStmt *) { return true; }
     virtual void visitedFuncDeclStmt(FuncDefStmt *) { }
@@ -177,17 +181,16 @@ public:
 class TypeRef : public AstNode {
     source::SourceSpan sourceSpan_;
     const std::string name_;
-    type::Type *referencedType_;
+    type::ResolutionDeferredType *referencedType_;
 
-    gc_vector<type::TypeResolutionListener*> listeners_;
 public:
     /** Constructor to be used when the data type isn't known yet and needs to be resolved later. */
     TypeRef(const source::SourceSpan &sourceSpan, std::string name)
-        : sourceSpan_(sourceSpan), name_(name), referencedType_(nullptr) { }
+        : sourceSpan_(sourceSpan), name_(name), referencedType_(new type::ResolutionDeferredType()) { }
 
     /** Constructor to be used when the data type is known and doesn't need to be resolved. */
     TypeRef(source::SourceSpan sourceSpan, type::Type *dataType)
-        : sourceSpan_(sourceSpan), name_(dataType->name()), referencedType_(dataType) { }
+        : sourceSpan_(sourceSpan), name_(dataType->name()), referencedType_(new type::ResolutionDeferredType(dataType)) { }
 
     source::SourceSpan sourceSpan() {
         return sourceSpan_;
@@ -201,20 +204,14 @@ public:
     }
 
     void setType(type::Type *referencedType) {
-        referencedType_ = referencedType;
-        for(auto listener : listeners_) {
-            listener->notifyTypeResolved(referencedType_);
-        }
+        referencedType_->resolve(referencedType);
     }
-
-    void addTypeResolutionListener(type::TypeResolutionListener *symbol) {
-        listeners_.push_back(symbol);
-    }
-
     virtual void accept(AstVisitor *visitor) override {
         visitor->visitTypeRef(this);
     }
 };
+
+
 
 
 /** Base class for all expressions. */
@@ -293,7 +290,7 @@ public:
  * use the same data structure to represent them, how their code is emitted is very
  * different.
  */
-enum class BinaryExprKind {
+enum class BinaryExprKind : unsigned char {
     /** Both operands of an arithmetic binary expression are always evaluated. */
         Arithmetic,
     /** At least one operand of a logical operation is always evaluated and one
@@ -354,7 +351,7 @@ public:
 
     /** This is the type of the operands. */
     type::Type *operandsType() const {
-        ASSERT(rValue_->type() == lValue_->type());
+        ASSERT(rValue_->type()->isSameType(lValue_->type()->actualType()));
         return rValue_->type();
     }
 
@@ -403,7 +400,7 @@ public:
     }
 };
 
-enum class VariableAccess {
+enum class VariableAccess : unsigned char {
     Read,
     Write
 };
@@ -477,7 +474,7 @@ public:
     }
 };
 
-enum class CastKind {
+enum class CastKind : unsigned char {
     Explicit,
     Implicit
 };
@@ -651,7 +648,7 @@ public:
     virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
 
     type::Type *type() const override {
-        if(elseExpr_ == nullptr || thenExpr_->type() != elseExpr_->type()) {
+        if(elseExpr_ == nullptr || !thenExpr_->type()->isSameType(elseExpr_->type())) {
             return &type::Primitives::Void;
         }
 
@@ -730,21 +727,65 @@ public:
     }
 };
 
+class ParameterDef : public AstNode {
+    source::SourceSpan span_;
+    const std::string name_;
+    TypeRef* typeRef_;
+    scope::VariableSymbol *symbol_ = nullptr;
+public:
+    ParameterDef(source::SourceSpan span, const std::string &name, TypeRef *typeRef)
+        : span_{span}, name_{name}, typeRef_{typeRef} { }
+
+    source::SourceSpan span() { return span(); }
+    std::string name() { return name_; }
+    type::Type *type() { return typeRef_->type(); }
+
+    scope::VariableSymbol *symbol() {
+        ASSERT(symbol_);
+        return symbol_;
+    }
+    void setSymbol(scope::VariableSymbol *symbol) { symbol_ = symbol; }
+
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingParameterDef(this);
+        typeRef_->accept(visitor);
+        visitor->visitedParameterDef(this);
+    }
+
+};
+type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef*> &parameters);
+
 class FuncDefStmt : public Stmt {
     const std::string name_;
-    TypeRef* returnTypeRef_;
     scope::FunctionSymbol *symbol_= nullptr;
     scope::SymbolTable parameterScope_;
+    TypeRef *returnTypeRef_;
+    gc_vector<ParameterDef*> parameters_;
     ExprStmt* body_;
+    type::FunctionType *functionType_;
 
 public:
-    FuncDefStmt(source::SourceSpan sourceSpan, std::string name, TypeRef* returnTypeRef, ExprStmt* body)
-        : Stmt(sourceSpan), name_{ name }, returnTypeRef_{ returnTypeRef }, parameterScope_{scope::StorageKind::Argument}, body_{ body } { }
+    FuncDefStmt(
+        source::SourceSpan sourceSpan,
+        std::string name,
+        TypeRef* returnTypeRef,
+        gc_vector<ParameterDef*> parameters,
+        ExprStmt* body
+    ) : Stmt(sourceSpan),
+        name_{name},
+        parameterScope_{scope::StorageKind::Argument},
+        returnTypeRef_{returnTypeRef},
+        parameters_{parameters},
+        body_{body},
+        functionType_{ createFunctionType(returnTypeRef->type(), parameters) }
+    {
 
+    }
 
     StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
     std::string name() const { return name_; }
-    TypeRef *returnTypeRef() const { return returnTypeRef_; }
+    type::Type *returnType() const { return functionType_->returnType(); }
+    type::FunctionType *functionType() { return functionType_; }
     scope::SymbolTable *parameterScope() { return &parameterScope_; };
     ExprStmt *body() const { return body_; }
     void setBody(ExprStmt *body) { body_ = body; }
@@ -756,11 +797,24 @@ public:
 
     void setSymbol(scope::FunctionSymbol *symbol) { symbol_ = symbol; }
 
+    gc_vector<ParameterDef*> parameters() {
+        gc_vector<ParameterDef*> retval;
+        retval.reserve(parameters_.size());
+        for(auto pd : parameters_) {
+            retval.push_back(pd);
+        }
+
+        return retval;
+    }
+
     virtual void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingStmt(this);
         visitChildren = visitor->visitingFuncDefStmt(this) ? visitChildren : false;
         if(visitChildren) {
             returnTypeRef_->accept(visitor);
+            for(auto p : parameters_) {
+                p->accept(visitor);
+            }
             body_->accept(visitor);
         }
         visitor->visitedFuncDeclStmt(this);
@@ -768,12 +822,21 @@ public:
     }
 };
 
+
 class FuncCallExpr : public ExprStmt {
     source::SourceSpan openParenSpan_;
     ExprStmt *funcExpr_;
+    gc_vector<ExprStmt*> arguments_;
 public:
-    FuncCallExpr(const source::SourceSpan &span, const source::SourceSpan &openParenSpan, ast::ExprStmt *funcExpr)
-        : ExprStmt(span), openParenSpan_{openParenSpan}, funcExpr_{funcExpr} { }
+    FuncCallExpr(
+        const source::SourceSpan &span,
+        const source::SourceSpan &openParenSpan,
+        ast::ExprStmt *funcExpr,
+        const gc_vector<ExprStmt*> &arguments
+    ) : ExprStmt(span),
+        openParenSpan_{openParenSpan},
+        funcExpr_{funcExpr},
+        arguments_{arguments} { }
     ExprStmt *funcExpr() { return funcExpr_; }
 
     virtual ExprKind exprKind() const override { return ExprKind::FuncCallExpr; };
@@ -785,10 +848,31 @@ public:
         return functionType->returnType();
     }
 
+    gc_vector<ExprStmt*> arguments() const {
+        gc_vector<ExprStmt *> args;
+        args.reserve(arguments_.size());
+        for (auto argument : arguments_) {
+            args.push_back(argument);
+        }
+        return args;
+    }
+
+    void replaceArgument(size_t index, ExprStmt *newExpr) {
+        ASSERT(index < arguments_.size());
+        arguments_[index] = newExpr;
+    }
+
+    size_t argCount() { return arguments_.size(); }
+
     virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingExprStmt(this);
+        bool visitChildren = visitor->visitingExprStmt(this);
         visitor->visitingFuncCallExpr(this);
-        funcExpr_->accept(visitor);
+        if(visitChildren) {
+            funcExpr_->accept(visitor);
+            for (auto argument : arguments_) {
+                argument->accept(visitor);
+            }
+        }
         visitor->visitedFuncCallExpr(this);
         visitor->visitedExprStmt(this);
     }
@@ -815,12 +899,7 @@ public:
 
     void populateClassType() {
         for(auto variable : this->body()->scope()->variables()) {
-            type::Type *type = variable->maybeUnresolvedType();
-            type::ClassField &field = classType_->addField(variable->name(), type);
-            if(!type) {
-                //Add the newly created field
-                variable->addTypeResolutionListener(&field);
-            }
+            classType_->addField(variable->name(), variable->type());
         }
     }
 

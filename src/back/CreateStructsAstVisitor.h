@@ -15,7 +15,7 @@ public:
     }
 
     virtual bool visitingClassDefinition(ast::ClassDefinition *cd) {
-        std::vector<scope::Symbol *> symbols = cd->body()->scope()->symbols();
+        gc_vector<scope::Symbol *> symbols = cd->body()->scope()->symbols();
         std::vector<llvm::Type *> memberTypes;
         memberTypes.reserve(symbols.size());
 

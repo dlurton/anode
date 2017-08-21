@@ -6,7 +6,7 @@ namespace lwnn {
     namespace back {
 
         class ExprStmtAstVisitor : public CompileAstVisitor {
-            gc_stack<llvm::Value*> valueStack_;
+            std::stack<llvm::Value*> valueStack_;
 
         public:
             ExprStmtAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
@@ -20,13 +20,23 @@ namespace lwnn {
                 return valueStack_.top();
             }
 
-            virtual void visitedFuncCallExpr(ast::FuncCallExpr *) override {
+            virtual void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
+                //Pop arguments off first since they are evaulated before the function ptr.
+                std::vector<llvm::Value*> args;
+                for(size_t i = 0; i < expr->argCount(); ++i) {
+                    args.push_back(valueStack_.top());
+                    valueStack_.pop();
+                }
+                //Arguments are popped off in reverse order.
+                std::reverse(args.begin(), args.end());
+
+                //Pop the function pointer.
                 llvm::Value *value = valueStack_.top();
                 valueStack_.pop();
 
                 llvm::Function *llvmFunc = llvm::cast<llvm::Function>(value);
 
-                std::vector<llvm::Value*> args;
+
                 llvm::CallInst *result = cc().irBuilder().CreateCall(llvmFunc, args);
 
                 valueStack_.push(result);
@@ -203,7 +213,7 @@ namespace lwnn {
                     return;
                 }
 
-                ASSERT(expr->lValue()->type() == expr->rValue()->type() && "data types must match");
+                ASSERT(expr->lValue()->type()->isSameType(expr->rValue()->type()) && "data types must match");
 
                 llvm::Value *rValue = valueStack_.top();
                 valueStack_.pop();
@@ -315,7 +325,7 @@ namespace lwnn {
             virtual void visitedDotExpr(ast::DotExpr *expr) override {
                 llvm::Value *lvalue = valueStack_.top();
                 valueStack_.pop();
-                type::ClassType *classType = dynamic_cast<type::ClassType*>(expr->lValue()->type());
+                auto classType = dynamic_cast<const type::ClassType*>(expr->lValue()->type()->actualType());
                 ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have fields.");
                 type::ClassField *classField = classType->findField(expr->memberName());
                 unsigned ordinal = classField->ordinal();
