@@ -3,6 +3,7 @@
 cmake-build-debug/
 cmake-build/
 externs/
+doc/
 !externs/antlr4/antlr4-complete.jar
 !externs/catch
 bin

@@ -69,26 +69,47 @@ and up-to-date picture of supported syntax and features, however, here's a short
     aPairOfWidgets.first.id = 1;
     aPairOfWidgets.second.id = 2;
     ```
-    - Class Backlog (not done yet):
-        - Declare references to objects (something like `anObjectReference:SomeClass*`) 
-        - Generate "object_init" which initializes fields to their defaults.
-        - Define functions within classes
-        - Constructors 
-        - Inheritance
-        - Virtual methods
-        - Interfaces / abstract methods
- - Can define functions: `func someFunction:int() 10 + 12;`
-    - Or: `func someFunction:int() { someGlobal = someGlobal + 1; someGlobal + 12; }`
+        
+ - Can define functions: `func someFunction:int() 10 + 12;` (if there is only one expression in the function body)
+    - Or: `func someFunction:int() { someGlobal = someGlobal + 1; someGlobal + 12; }` (for multiple expressions in the function body)
     - The result of the last expression in the function body is the return value.
+    - Functions may return nothing: `func someFunction:void() someExpression;` in which cast the last expression in the function body is ignored.
     - Local variables also can be defined within functions.
-    - Functions may be invoked:  `anInt:int = someFunction();`
-    - Functions Backlog (not done yet):
-        - Parameters
-            - Pass by value
-            - Pass by reference
-        - Overloading
-        - Explicit return
- 
+    - Functions may be invoked:  `anInt:int = someFunction();`    
+    - Primitive types may be used as function arguments:
+        - `func someFunc:void(arg1:int, arg2:float, arg3:bool) soomeExpression`
+        
+#### Really Really Rough Feature Backlog
+
+These are listed in roughly the order they will be implemented.
+
+- `assert` function for testing
+- JIT & execute entire files at command-line
+    - i.e. `lwnn file_to_exec.lwn`
+    - Also can use shebang in first line of a file:  `#!/path/to/lwnn/executable`
+- New testing infrastructure
+    - Reads list of files from directory and executes them in alphabetical order, uses new `assert` keyword  
+- Explicit return, for when an exit before the last expression of the function body is desired.  Will use keyword `ret`
+- Pass class instances by value
+- Declare references to objects (something like `anObjectReference:SomeClass*`) 
+- Pass any type by reference 
+- Function overloading
+- Generate "object_init" which initializes fields to their defaults
+- Member functions
+- Constructors 
+- Inheritance
+- Virtual functions
+- Interfaces / abstract functions
+- Modules
+- Pre-compile groups of modules into shared libraries for faster loading and interop with other languages such as C 
+- Compiler generated metadata about all compiled language constructs
+  - Can be used by the compiler when importing a module *and* for reflection
+- Generics
+- Reflection
+- Multiple return value / unpacking:  `(firstValue:int, secondValue:int) = functionReturningPair()`
+  - Probably uses tuples
+- Numerous other ideas too amorphous to mention
+
 ## Building
 
 ### Dependencies First
