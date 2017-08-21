@@ -76,7 +76,7 @@ and up-to-date picture of supported syntax and features, however, here's a short
     - Local variables also can be defined within functions.
     - Functions may be invoked:  `anInt:int = someFunction();`    
     - Primitive types may be used as function arguments:
-        - `func someFunc:void(arg1:int, arg2:float, arg3:bool) soomeExpression`
+        - `func someFunc:void(arg1:int, arg2:float, arg3:bool) someExpression`
         
 #### Really Really Rough Feature Backlog
 
@@ -99,11 +99,11 @@ These are listed in roughly the order they will be implemented.
 - Inheritance
 - Virtual functions
 - Interfaces / abstract functions
+- Generics
 - Modules
 - Pre-compile groups of modules into shared libraries for faster loading and interop with other languages such as C 
 - Compiler generated metadata about all compiled language constructs
   - Can be used by the compiler when importing a module *and* for reflection
-- Generics
 - Reflection
 - Multiple return value / unpacking:  `(firstValue:int, secondValue:int) = functionReturningPair()`
   - Probably uses tuples
