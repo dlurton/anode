@@ -69,7 +69,6 @@ and up-to-date picture of supported syntax and features, however, here's a short
     aPairOfWidgets.first.id = 1;
     aPairOfWidgets.second.id = 2;
     ```
-        
  - Can define functions: `func someFunction:int() 10 + 12;` (if there is only one expression in the function body)
     - Or: `func someFunction:int() { someGlobal = someGlobal + 1; someGlobal + 12; }` (for multiple expressions in the function body)
     - The result of the last expression in the function body is the return value.
