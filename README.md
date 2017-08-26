@@ -108,13 +108,6 @@ and up-to-date picture of supported syntax and features, however, here's a short
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 
 
-- `assert` function for testing
-- Also can use shebang in first line of a file:  `#!/path/to/lwnn/executable`
-- JIT & execute entire files at command-line
-    - i.e. `lwnn file_to_exec.lwn`
-    
-- New testing infrastructure
-    - Reads list of files from directory and executes them in alphabetical order, uses new `assert` keyword  
 - Explicit return, for when an exit before the last expression of the function body is desired.  Will use keyword `ret`
 - `for` loop
 - `switch` maybe with pattern matching.
