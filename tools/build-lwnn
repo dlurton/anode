@@ -30,3 +30,8 @@ cmake --build $LWNN_CMAKE_DIR -- -j $NUM_CORES
 
 #say "LWNN Built and Installed successfully at" $LWNN_INSTALL_DIR
 
+say "Running Tests"
+ctest --output-on-failure
+ls
+
+say "LWNN built and tested successfully!"

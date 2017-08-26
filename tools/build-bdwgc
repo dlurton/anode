@@ -8,7 +8,7 @@ EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
 INSTALL_DIR=$EXTERNS_DIR/bdwgc/usr/local/lib
 SCRATCH_DIR=$EXTERNS_DIR/scratch
 SRC_DIR=$SCRATCH_DIR/bdwgc
-BRANCH=master
+BRANCH=release-7_4
 
 say "Directories:"
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
@@ -31,11 +31,11 @@ if [ ! -d $SRC_DIR ]; then
     cd $SRC_DIR
 else
     cd $SRC_DIR
-    git pull
+    git pull origin $BRANCH
 fi
 
-say "Switching to gc7_4_4 branch"
-git checkout tags/gc7_4_4
+say "Switching to  branch"
+git checkout $BRANCH
 
 
 say "Running autoreconf -vif"
