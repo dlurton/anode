@@ -418,6 +418,7 @@ namespace lwnn {
                 currentFunc->getBasicBlockList().push_back(bodyBlock);
                 cc().irBuilder().SetInsertPoint(bodyBlock);
                 emitExpr(whileExpr->body(), cc());
+
                 //Loop back to the condition
                 cc().irBuilder().CreateBr(conditionBlock);
 
@@ -442,6 +443,42 @@ namespace lwnn {
 
                 return false;
             }
+
+            virtual bool visitingAssertExprStmt(ast::AssertExprStmt *assert) override {
+                //Emit the condition
+                llvm::Value *condValue = emitExpr(assert->condition(), cc());
+
+                //Prepare the BasicBlocks
+                llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
+                llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc().llvmContext(), "assertFailBlock");
+                llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "assertEndBlock");
+
+                //Branch to then or else blocks, depending on condition.
+                cc().irBuilder().CreateCondBr(condValue, endBlock, thenBlock);
+
+                //Emit the thenBlock
+                currentFunc->getBasicBlockList().push_back(thenBlock);
+                cc().irBuilder().SetInsertPoint(thenBlock);
+
+                //Call the assert_failed function
+                std::vector<llvm::Value*> arguments;
+                source::SourceSpan span = assert->condition()->sourceSpan();
+                arguments.push_back(cc().getDeduplicatedStringConstant(span.name()));
+                arguments.push_back(getLiteralUIntLLvmValue((unsigned int)span.start().line()));
+                arguments.push_back(cc().getDeduplicatedStringConstant(assert->expression()));
+                cc().irBuilder().CreateCall(cc().assertFunc(), arguments);
+
+                thenBlock = cc().irBuilder().GetInsertBlock();
+
+                //Jump to the endBlock, skipping the elseBlock
+                cc().irBuilder().CreateBr(endBlock);
+
+                //Emit the endBlock
+                currentFunc->getBasicBlockList().push_back(endBlock);
+                cc().irBuilder().SetInsertPoint(endBlock);
+                return false;
+            }
+
         };
 
         llvm::Value *emitExpr(ast::ExprStmt *exprStmt, CompileContext &cc) {

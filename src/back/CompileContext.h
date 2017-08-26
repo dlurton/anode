@@ -17,8 +17,9 @@ class CompileContext : no_copy, no_assign {
     llvm::Module &llvmModule_;
     llvm::IRBuilder<> &irBuilder_;
     TypeMap &typeMap_;
-    gc_unordered_map<scope::Symbol*, llvm::Value*> symbolValueMap_;
-
+    gc_unordered_map<scope::Symbol *, llvm::Value *> symbolValueMap_;
+    llvm::Function *assertFunc_ = nullptr;
+    std::unordered_map<std::string, llvm::Value*> stringConstants_;
 public:
 
     CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_, TypeMap &typeMap)
@@ -26,8 +27,19 @@ public:
     }
 
     llvm::LLVMContext &llvmContext() { return llvmContext_; }
+
     llvm::Module &llvmModule() { return llvmModule_; }
+
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
+
+    llvm::Function *assertFunc() {
+        ASSERT(assertFunc_);
+        return assertFunc_;
+    }
+
+    void setAssertFunc(llvm::Function *assertFunc) {
+        assertFunc_ = assertFunc;
+    }
 
     void mapSymbolToValue(scope::Symbol *symbol, llvm::Value *value) {
         ASSERT(value);
@@ -62,6 +74,14 @@ public:
             default:
                 ASSERT_FAIL("Unhandled PrimitiveType");
         }
+    }
+
+    llvm::Value *getDeduplicatedStringConstant(const std::string &value) {
+        llvm::Value *&found = stringConstants_[value];
+        if(!found) {
+            found = irBuilder_.CreateGlobalStringPtr(value);
+        }
+        return found;
     }
 };
 

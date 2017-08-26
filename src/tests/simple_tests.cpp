@@ -21,10 +21,11 @@ int main( int argc, char* argv[] )
     //Really should leave this here until we're certain libgc is going to work.
     //std::cout << "Number of AstNodes collected by our garbage collector: " << lwnn::ast::astNodesDestroyedCount << "\n";
 
+    std::cout.flush();
     if(testCount > 0) {
         double avgDuration = (double) totalDuration / (double) testCount;
         std::cerr << "\nExecution count: " << testCount<< "\n";
-        std::cerr << "Average execution duration: " << avgDuration << "\n";
+        std::cerr << "Average execution duration in ms: " << avgDuration << "\n";
         std::cerr.flush();
     }
 
@@ -720,7 +721,7 @@ TEST_CASE("basic function definition with global statement before and after") {
     //the first and third statements are part of the module init function and the irBuilder's insertion block and point must
     //be changed to emit someFunctionReturningInt()
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    std::vector<StmtResult> result = testWithResults(ec, "someGlobal:int = 10; func someFunctionReturningInt:int() 1; someGlobal;");
+    std::vector<execute::StmtResult> result = testWithResults(ec, "someGlobal:int = 10; func someFunctionReturningInt:int() 1; someGlobal;");
     REQUIRE(result.size() == 2);
     REQUIRE(result[0].primitiveType == type::PrimitiveType::Int32);
     REQUIRE(result[0].storage.int32Result == 10); //This value from declaration/assignment.
@@ -807,15 +808,11 @@ TEST_CASE("function with implicitly cast float parameter") {
     REQUIRE(test<float>(ec, src) == 101.0);
 }
 
-
-//TEST_CASE("function with class instance argument") {
-//    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-//    auto src = R"(
-//        class SomeClass { someField:int; }
-//        func someFunc:int(someArg:SomeClass) someArg.someField;
-//        someVar:SomeClass;
-//        someVar.someField = 500;
-//    )";
-//    exec(ec, src);
-//    REQUIRE(test<int>(ec, "someFunc(someVar);") == 500);
-//}
+TEST_CASE("assert") {
+    REQUIRE_THROWS_AS(exec("assert(false);"), exception::LwnnAssertionFailedException);
+    REQUIRE_THROWS_AS(exec("assert(0);"), exception::LwnnAssertionFailedException);
+    REQUIRE_THROWS_AS(exec("assert(0.0);"), exception::LwnnAssertionFailedException);
+    REQUIRE_NOTHROW(exec("assert(true);"));
+    REQUIRE_NOTHROW(exec("assert(1);"));
+    REQUIRE_NOTHROW(exec("assert(1.0);"));
+}

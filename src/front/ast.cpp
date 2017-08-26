@@ -6,39 +6,26 @@ namespace lwnn { namespace ast {
 
 unsigned long astNodesDestroyedCount = 0;
 
-std::string to_string(StmtKind kind) {
-    switch (kind) {
-        case StmtKind::FunctionDeclStmt:
-            return "FunctionDeclStmt";
-        case StmtKind::ReturnStmt:
-            return "ReturnStmt";
-        case StmtKind::ExprStmt:
-            return "ExprStmt";
-        default:
-            ASSERT_FAIL("Unhandled StmtKind");
-    }
-}
-
-std::string to_string(ExprKind kind) {
-    switch (kind) {
-        case ExprKind::CompoundExpr:
-            return "CompoundExpr";
-        case ExprKind::VariableDeclExpr:
-            return "VariableDeclExpr";
-        case ExprKind::LiteralInt32Expr:
-            return "LiteralInt32Expr";
-        case ExprKind::LiteralFloatExpr:
-            return "LiteralFloatExpr";
-        case ExprKind::VariableRefExpr:
-            return "VariableRefExpr";
-        case ExprKind::BinaryExpr:
-            return "BinaryExpr";
-        case ExprKind::ConditionalExpr:
-            return "ConditionalExpr";
-        default:
-            ASSERT_FAIL("Unhandled ExprKind");
-    }
-}
+//std::string to_string(ExprKind kind) {
+//    switch (kind) {
+//        case ExprKind::CompoundExpr:
+//            return "CompoundExpr";
+//        case ExprKind::VariableDeclExpr:
+//            return "VariableDeclExpr";
+//        case ExprKind::LiteralInt32Expr:
+//            return "LiteralInt32Expr";
+//        case ExprKind::LiteralFloatExpr:
+//            return "LiteralFloatExpr";
+//        case ExprKind::VariableRefExpr:
+//            return "VariableRefExpr";
+//        case ExprKind::BinaryExpr:
+//            return "BinaryExpr";
+//        case ExprKind::ConditionalExpr:
+//            return "ConditionalExpr";
+//        default:
+//            ASSERT_FAIL("Unhandled ExprKind");
+//    }
+//}
 
 std::string to_string(BinaryOperationKind type) {
     switch (type) {
@@ -87,4 +74,6 @@ type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<P
 
     return new type::FunctionType(returnType, parameterTypes);
 }
+
+
 }}

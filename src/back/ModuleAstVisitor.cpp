@@ -80,6 +80,7 @@ public:
     virtual bool visitingModule(Module *module) override {
         cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
+        declareAssertFunction();
         declareResultFunction();
 
         startModuleInitFunc(module);
@@ -203,6 +204,28 @@ private:
         globalVar->setAlignment(ALIGNMENT);
 
         executionContextPtrValue_ = globalVar;
+    }
+
+    void declareAssertFunction() {
+        llvm::Function *assertFunc = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
+            ASSERT_FAILED_FUNC_NAME,
+            llvm::Type::getVoidTy(cc().llvmContext()),      //Return type
+            llvm::Type::getInt8PtrTy(cc().llvmContext()),   //char * to source filename
+            llvm::Type::getInt32Ty(cc().llvmContext()),     //line number
+            llvm::Type::getInt8PtrTy(cc().llvmContext()))   //char * to expression
+        );
+
+        auto paramItr = assertFunc->arg_begin();
+        llvm::Value *executionContext = paramItr++;
+        executionContext->setName("filename");
+
+        llvm::Value *primitiveType = paramItr++;
+        primitiveType->setName("lineNo");
+
+        llvm::Value *valuePtr = paramItr;
+        valuePtr->setName("expression");
+
+        cc().setAssertFunc(assertFunc);
     }
 };
 

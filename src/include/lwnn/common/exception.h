@@ -3,69 +3,57 @@
 #include <string>
 #include <iostream>
 
-#define ASSERT_FAIL(message) throw lwnn::exception::DebugAssertionFailedException( \
+#define ASSERT_FAIL(message) throw ::lwnn::exception::DebugAssertionFailedException( \
     std::string(message) + \
     std::string("\nFile       : ") + std::string(__FILE__) + \
     std::string("\nLine       : ") + std::to_string(__LINE__));
 
-#define ASSERT(arg) if(!(arg)) { throw lwnn::exception::DebugAssertionFailedException( \
+#define ASSERT(arg) if(!(arg)) { throw ::lwnn::exception::DebugAssertionFailedException( \
     std::string("Debug assertion failed!") + \
     std::string("\nFile       : ") + std::string(__FILE__) + \
     std::string("\nLine       : ") + std::to_string(__LINE__) + \
     std::string("\nExpression : ") + std::string(#arg)); }
 
-namespace lwnn {
-    namespace exception {
-    class Exception : public std::runtime_error {
-    public:
-        Exception(const std::string &message) : runtime_error(message) {
-            //TODO: store traceback/stacktrace/whatever
-            //http://stackoverflow.com/questions/3151779/how-its-better-to-invoke-gdb-from-program-to-print-its-stacktrace/4611112#4611112
-        }
+namespace lwnn { namespace exception {
 
-        virtual ~Exception() { }
+class Exception : public std::runtime_error {
+public:
+    Exception(const std::string &message) : runtime_error(message) {
+        //TODO: store traceback/stacktrace/whatever
+        //http://stackoverflow.com/questions/3151779/how-its-better-to-invoke-gdb-from-program-to-print-its-stacktrace/4611112#4611112
+    }
 
-        void dump() {
-            std::cout << what() << "\n";
-        }
-    };
+    virtual ~Exception() { }
 
-    class FatalException : public Exception {
-    public:
-        FatalException(const std::string &message) : Exception(message) { }
+    void dump() {
+        std::cout << what() << "\n";
+    }
+};
 
-        virtual ~FatalException() {
+/** Thrown by runtime libraries when an `assert()` has failed. */
+class LwnnAssertionFailedException : public std::runtime_error {
+public:
+    LwnnAssertionFailedException(const std::string &message) : runtime_error(message) {
+    }
+};
 
-        }
-    };
+class FatalException : public Exception {
+public:
+    FatalException(const std::string &message) : Exception(message) { }
 
-    class DebugAssertionFailedException : public FatalException {
-    public:
-        DebugAssertionFailedException(const std::string &message) : FatalException(message) {
+    virtual ~FatalException() {
 
-        }
-    };
+    }
+};
 
-    class AssertionException : public Exception {
-    public:
-        AssertionException(const std::string &argumentName)
-                : Exception("Invalid value: " + argumentName) {
-        }
-        AssertionException(const std::string &message, const std::string &argumentName)
-                : Exception(message + " Expression:" +  argumentName) {
-        }
-    };
 
-    class InvalidStateException : public FatalException {
-    public:
-        InvalidStateException(const std::string &message) : FatalException(message) {
+/** Thrown by the compiler whenever a DEBUG_ASSERT has failed.
+ * This perhaps should not exist and we should dumping a message to stderr and abort()ing instead? */
+class DebugAssertionFailedException : public FatalException {
+public:
+    DebugAssertionFailedException(const std::string &message) : FatalException(message) {
 
-        }
+    }
+};
 
-        virtual ~InvalidStateException() {
-
-        }
-
-    };
-    } //namespace exception
-}//namespace lwnn
+}}

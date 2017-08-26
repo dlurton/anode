@@ -23,6 +23,7 @@ enum class ErrorKind : unsigned short {
     InvalidImplicitCastInInWhileCondition,
     InvalidImplicitCastInImplicitReturn,
     InvalidImplicitCastInFunctionCallArgument,
+    InvalidImplicitCastInAssertCondition,
     SymbolAlreadyDefinedInScope,
     VariableNotDefined,
     VariableUsedBeforeDefinition,
@@ -33,7 +34,7 @@ enum class ErrorKind : unsigned short {
     OperatorCannotBeUsedWithType,
     LeftOfDotNotClass,
     ClassMemberNotFound,
-    IncorrectNumberOfArguments
+    IncorrectNumberOfArguments,
 };
 
 class ErrorStream {

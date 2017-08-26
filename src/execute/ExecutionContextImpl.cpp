@@ -2,13 +2,14 @@
 #include "back/compile.h"
 #include "front/ast_passes.h"
 #include "front/visualize.h"
+#include "runtime/builtins.h"
 
 #include "LwnnJit.h"
 
 
 namespace lwnn { namespace execute {
 /** This function is called by the JITd code to deliver the result of an expression entered at the REPL. */
-extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr);
+extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, void *valuePtr);
 
 /** This class contains contain pointers to garbage collected objects so it *must* inherit from gc or gc_cleanup
  * so that it's memory is scanned for  pointers to live objects, otherwise these may get collected prematurely. */
@@ -22,16 +23,17 @@ class ExecutionContextImpl : public ExecutionContext, public gc_cleanup, no_copy
     back::TypeMap typeMap_;
 public:
     ExecutionContextImpl() : typeMap_{context_} {
-        jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, (uint64_t)this);
+        jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, this);
         jit_->setEnableOptimization(false);
-        jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, (uint64_t)receiveReplResult);
+        jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, (void*)receiveReplResult);
 
+        auto builtins = lwnn::runtime::getBuiltins();
+        for(auto &pair : builtins) {
+            jit_->putExport(pair.first, pair.second);
+        }
     }
-//    ~ExecutionContextImpl() {
-//        std::cout << "ExecutionContextImpl destroyed\n";
-//    }
 
-    void dispatchResult(type::PrimitiveType primitiveType, uint64_t valuePtr) {
+    void dispatchResult(type::PrimitiveType primitiveType, void *valuePtr) {
         if(resultFunctor_)
             resultFunctor_(this, primitiveType, valuePtr);
     }
@@ -106,7 +108,7 @@ protected:
     }
 }; //ExecutionContextImpl
 
-extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, uint64_t valuePtr) {
+extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, void *valuePtr) {
     ExecutionContextImpl *ec = reinterpret_cast<ExecutionContextImpl*>(ecPtr);
     ec->dispatchResult(primitiveType, valuePtr);
 }

@@ -12,7 +12,7 @@ public:
 
     // Note:  due to it being a more natural place for it, implicit casts for function call arguments are done in FuncCallSemanticsPass
 
-    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
+    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
         if (binaryExpr->binaryExprKind() == ast::BinaryExprKind::Logical) {
 
             if (!binaryExpr->lValue()->type()->isSameType(&type::Primitives::Bool)) {
@@ -37,7 +37,7 @@ public:
                 ast::CastExpr *lValue = ast::CastExpr::createImplicit(binaryExpr->lValue(), binaryExpr->rValue()->type());
                 binaryExpr->setLValue(lValue);
 
-            } //otherwise, if we can to the reverse, we should...
+            } //otherwise, if we can do the reverse, we should...
             else if (binaryExpr->rValue()->type()->canImplicitCastTo(binaryExpr->lValue()->type())) {
 
                 ast::CastExpr *rValue = ast::CastExpr::createImplicit(binaryExpr->rValue(), binaryExpr->lValue()->type());
@@ -58,7 +58,7 @@ public:
         }
     }
 
-    virtual void visitedIfExpr(ast::IfExprStmt *ifExpr) {
+    virtual void visitedIfExpr(ast::IfExprStmt *ifExpr) override {
 
         if(!ifExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
@@ -99,7 +99,7 @@ public:
         }
     }
 
-    virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) {
+    virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) override {
         //Can we deduplicate this code? (duplicate is in AddImplicitCastsVisitor::visitedIfExpr)
         if(!whileExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (whileExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
@@ -118,7 +118,7 @@ public:
         return true;
     }
 
-    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *funcDef) {
+    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *funcDef) override {
         if(funcDef->returnType()->isSameType(&type::Primitives::Void)) return;
 
         if(!funcDef->returnType()->isSameType(funcDef->body()->type())) {
@@ -131,6 +131,23 @@ public:
                     funcDef->returnType()->name().c_str());
             } else {
                 funcDef->setBody(ast::CastExpr::createImplicit(funcDef->body(), funcDef->returnType()));
+            }
+        }
+    }
+
+    virtual void visitedAssertExprStmt(ast::AssertExprStmt *assertExprStmt) override {
+
+        if(!assertExprStmt->condition()->type()->isSameType(&type::Primitives::Bool)) {
+            if (assertExprStmt->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+
+                assertExprStmt->setCondition(ast::CastExpr::createImplicit(assertExprStmt->condition(), &type::Primitives::Bool));
+
+            } else {
+                errorStream_.error(
+                    error::ErrorKind::InvalidImplicitCastInAssertCondition,
+                    assertExprStmt->condition()->sourceSpan(),
+                    "Cannot implicitly cast condition expression from '%s' to 'bool'.",
+                    assertExprStmt->condition()->type()->name().c_str());
             }
         }
     }

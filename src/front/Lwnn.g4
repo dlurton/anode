@@ -16,6 +16,7 @@ stmt
     | KW_IF '(' cond=expr ')' thenStmt=exprStmt ('else' elseStmt=exprStmt)?    # ifStmt
     | KW_WHILE '(' cond=expr ')' body=expr ';'                                 # whileStmt
     | KW_WHILE '(' cond=expr ')' body=compoundExprStmt                         # whileStmtCompound
+    | 'assert' '(' cond=expr ')' ';'                                           # assertExpr
     ;
 
 // Generally, we are following this for operator precdence:
@@ -82,6 +83,9 @@ litBool
     : KW_TRUE
     | KW_FALSE;
 
+COMMENT: '(#' (COMMENT|.)*? '#)' -> channel(HIDDEN);
+LINE_COMMENT  : '#' .*? '\n' -> channel(HIDDEN) ;
+
 OP_ADD: '+';
 OP_SUB: '-';
 OP_MUL: '*';
@@ -102,9 +106,9 @@ KW_FALSE: 'false';
 KW_IF: 'if';
 KW_WHILE: 'while';
 
-//NUM :   [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)?;
 LIT_INT:    '-'?[0-9]+;
 LIT_FLOAT:  '-'?[0-9]+'.'[0-9]+;
 ID:         [a-zA-Z_][a-zA-Z0-9_]*;
 WS:         [ \t\r\n] -> channel(HIDDEN);
+
 

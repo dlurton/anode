@@ -10,6 +10,9 @@
 #include "generated/LwnnParser.h"
 #include "generated/LwnnBaseListener.h"
 
+#include <fstream>
+#include <sstream>
+
 using namespace lwnn::ast;
 using namespace lwnn_parser;
 using namespace antlr4;
@@ -25,34 +28,20 @@ ast::CompoundExpr *extractCompoundExpr(LwnnParser::CompoundExprStmtContext *ctx)
 
 /** Extracts a SourceRange from values specified in token. */
 static source::SourceSpan getSourceSpan(antlr4::Token *token) {
-    auto startSource = token->getTokenSource();
-
     //NOTE:  this is kinda not so good because it assumes tokens never span lines, which is fine for most
     //tokens since they don't span lines.  But if I ever decide to implement multi-line strings...
-    return source::SourceSpan(startSource->getSourceName(),
-          source::SourceLocation(startSource->getLine(), startSource->getCharPositionInLine()),
-          source::SourceLocation(startSource->getLine(), startSource->getCharPositionInLine() + token->getText().length()));
+    return source::SourceSpan(token->getInputStream()->getSourceName(),
+          source::SourceLocation(token->getLine(), token->getCharPositionInLine()),
+          source::SourceLocation(token->getLine(), token->getCharPositionInLine() + token->getText().length()));
 }
 
 /** Extracts a SourceRange from values specified in ctx. */
 static source::SourceSpan getSourceSpan(antlr4::ParserRuleContext *ctx) {
-    auto startSource = ctx->getStart()->getTokenSource();
-    auto endSource = ctx->getStop()->getTokenSource();
-
-    return source::SourceSpan(startSource->getSourceName(),
-              source::SourceLocation(startSource->getLine(), startSource->getCharPositionInLine()),
-              source::SourceLocation(endSource->getLine(), endSource->getCharPositionInLine()));
+    return source::SourceSpan(ctx->start->getInputStream()->getSourceName(),
+              source::SourceLocation(ctx->start->getLine(), ctx->start->getCharPositionInLine()),
+              source::SourceLocation(ctx->stop->getLine(), ctx->stop->getCharPositionInLine()));
 }
 
-/** Extracts a SourceRange from values specified in ctx. */
-static source::SourceSpan getSourceSpan(antlr4::ParserRuleContext *startContext, antlr4::ParserRuleContext *endContext) {
-    auto startSource = startContext->getStart()->getTokenSource();
-    auto endSource = endContext->getStop()->getTokenSource();
-
-    return source::SourceSpan(startSource->getSourceName(),
-              source::SourceLocation(startSource->getLine(), startSource->getCharPositionInLine()),
-              source::SourceLocation(endSource->getLine(), endSource->getCharPositionInLine()));
-}
 
 ast::TypeRef *extractTypeRef(LwnnParser::TypeRefContext *ctx) {
     return new TypeRef(getSourceSpan(ctx), ctx->getText());
@@ -170,7 +159,7 @@ public:
 
         ExprStmt *rightExpr = rightListener.surrenderResult();
         auto node = new BinaryExpr(
-                            getSourceSpan(ctx->left, ctx->right),
+                            getSourceSpan(ctx),
                             leftExpr,
                             opKind,
                             getSourceSpan(ctx->op),
@@ -265,6 +254,11 @@ ast::ExprStmt *extractExpr(LwnnParser::ExprContext *ctx) {
 /*******************************************/
 class ExprStmtListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
 public:
+    virtual void enterAssertExpr(LwnnParser::AssertExprContext *ctx) override {
+        auto condition = extractExpr(ctx->cond);
+        auto assertStmt = new AssertExprStmt(getSourceSpan(ctx), condition, ctx->cond->getText());
+        setResult(assertStmt);
+    }
 
     virtual void enterSimpleExpr(LwnnParser::SimpleExprContext *ctx) override {
         ExprListener listener;
@@ -424,7 +418,7 @@ public:
         std::vector<LwnnParser::StmtContext*> statements = ctx->stmt();
         auto compoundStmt = new ast::CompoundStmt(getSourceSpan(ctx), scope::StorageKind::Global);
         auto module = new ast::Module(moduleName_, compoundStmt);
-        for (LwnnParser::StmtContext *stmt: statements) {
+        for (LwnnParser::StmtContext *stmt : statements) {
             StmtListener listener;
             stmt->enterRule(&listener);
             if(!listener.hasResult()) return;
@@ -482,11 +476,11 @@ public:
     }
 };
 
-Module *parseModule(const std::string &lineOfCode, const std::string &inputName) {
+Module *parseModule(std::istream &inputFileStream, const std::string &inputName) {
     error::ErrorStream errorStream{std::cerr};
     LwnnErrorListener errorListener{errorStream};
 
-    ANTLRInputStream inputStream{lineOfCode};
+    ANTLRInputStream inputStream{inputFileStream};
     LwnnLexer lexer{&inputStream};
     inputStream.name = inputName;
 
@@ -514,6 +508,30 @@ Module *parseModule(const std::string &lineOfCode, const std::string &inputName)
     }
 
     return listener.surrenderResult();
+
 }
+
+
+Module *parseModule(const std::string &lineOfCode, const std::string &inputName) {
+    std::stringstream inputStringStream{lineOfCode};
+    return parseModule(inputStringStream, inputName);
+}
+
+Module *parseModule(const std::string &filename) {
+    std::ifstream inputFileStream{filename};
+    inputFileStream.open(filename, std::ios_base::in);
+    if(!inputFileStream.is_open()) {
+        throw std::runtime_error(std::string("Couldn't open input file: ") + filename);
+    }
+
+    // Slurp up entire file.  Would much rather be streaming this into the lexer but for seme reason ANTLR4 will not read any
+    // tokens at all from the inputFileStream directly-it is as if the file was empty.)
+    std::istreambuf_iterator<char> eos;
+    std::string fileContents(std::istreambuf_iterator<char>(inputFileStream), eos);
+
+    return parseModule(fileContents, filename);
+}
+
+
 
 }}

@@ -34,7 +34,7 @@ namespace lwnn {
             std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackMgr;
             std::unique_ptr<llvm::orc::IndirectStubsManager> IndirectStubsMgr;
 
-            std::unordered_map<std::string, uint64_t> exports_;
+            std::unordered_map<std::string, void*> exports_;
             bool enableOptimization_ = true;
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
@@ -57,7 +57,7 @@ namespace lwnn {
             }
 
             /** Adds a symbol to be exported to the JIT'd modules, overwriting any previously added values.*/
-            void putExport(std::string name, uint64_t address) {
+            void putExport(std::string name, void *address) {
                 auto found = exports_.find(name);
                 if(found != exports_.end()) {
                     exports_.erase(found);

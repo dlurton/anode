@@ -13,8 +13,8 @@ namespace lwnn {
             SourceLocation(std::size_t line, std::size_t position)
                 : line_(line), position_(position) { }
 
-            std::size_t line() { return line_; }
-            std::size_t position() { return line_; }
+            std::size_t line() const  { return line_; }
+            std::size_t position() const { return line_; }
 
             std::string toString() {
                 return string::format("(%d, %d)", line_, position_);
@@ -36,9 +36,9 @@ namespace lwnn {
             SourceSpan(const SourceSpan &copyFrom)
                 : name_(copyFrom.name_), start_(copyFrom.start_), end_(copyFrom.end_) { }
 
-            std::string name() { return name_;}
-            SourceLocation start() { return start_; }
-            SourceLocation end() { return end_; }
+            std::string const name() { return name_;}
+            SourceLocation const start() { return start_; }
+            SourceLocation const end() { return end_; }
 
             std::string toString() {
                 return string::format("%s %s", name_.c_str(), start_.toString().c_str());

@@ -27,10 +27,10 @@ public:
         // http://ellcc.org/demo/index.cgi to discover this...
         //    int foo(int a, int b) { return a + b + 1; }
         //    int main() { foo(1, 2); }
-        // The reason LWNN needs to do it is because LLVM weirdly treats its arguments (that do not need to be loaded) as values instead
-        // of pointers that do not need to be loaded.  All of the other variables are pointers whose values need to be loaded.
-        // This brings usage of function arguments to be the same as all other variables...
-        // I don't think this is very much of a performance hit because LLVM should optimize this out...
+        // The reason LWNN needs to do this is because LLVM weirdly treats its arguments as values while all other
+        // variables are pointers.  This allows the lwnn front-end to treat *all* variables as pointers and we don't need to include
+        // special logic to determine if the values referenced by pointers need to be loaded.
+        // I don't think this is very much of a performance hit because LLVM should optimize this out...  I mean, clang does it.
         auto funcParameters = funcDef->parameters();
         int argCount = 0;
         for(auto llvmParamItr = llvmFunc->arg_begin(); llvmParamItr != llvmFunc->arg_end(); ++llvmParamItr) {
@@ -43,7 +43,6 @@ public:
             cc().mapSymbolToValue(parameterDef->symbol(), localParamValue);
             cc().irBuilder().CreateStore(&argument, localParamValue);
         }
-
 
         llvm::Value *returnValue = emitExpr(funcDef->body(), cc());
 

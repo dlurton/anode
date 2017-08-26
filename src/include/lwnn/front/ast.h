@@ -12,30 +12,31 @@
 #include <memory>
 
 namespace lwnn { namespace ast {
+//
+//enum class StmtKind : unsigned char {
+//    FunctionDeclStmt,
+//    ReturnStmt,
+//    ExprStmt,
+//    CompoundStmt,
+//    ClassDefinition,
+//    AssertExprStmt
+//};
+//std::string to_string(StmtKind kind);
 
-enum class StmtKind : unsigned char {
-    FunctionDeclStmt,
-    ReturnStmt,
-    ExprStmt,
-    CompoundStmt,
-    ClassDefinition
-};
-std::string to_string(StmtKind kind);
-
-enum class ExprKind : unsigned char {
-    VariableDeclExpr,
-    LiteralBoolExpr,
-    LiteralInt32Expr,
-    LiteralFloatExpr,
-    VariableRefExpr,
-    BinaryExpr,
-    ConditionalExpr,
-    CastExpr,
-    CompoundExpr,
-    DotExpr,
-    FuncCallExpr
-};
-std::string to_string(ExprKind kind);
+//enum class ExprKind : unsigned char {
+//    VariableDeclExpr,
+//    LiteralBoolExpr,
+//    LiteralInt32Expr,
+//    LiteralFloatExpr,
+//    VariableRefExpr,
+//    BinaryExpr,
+//    ConditionalExpr,
+//    CastExpr,
+//    CompoundExpr,
+//    DotExpr,
+//    FuncCallExpr
+//};
+//std::string to_string(ExprKind kind);
 
 enum class BinaryOperationKind : unsigned char {
     Assign,
@@ -77,6 +78,7 @@ class VariableRefExpr;
 class AssignExpr;
 class CastExpr;
 class TypeRef;
+class AssertExprStmt;
 class Module;
 
 class AstVisitor : public gc {
@@ -110,6 +112,9 @@ public:
     virtual bool visitingExprStmt(ExprStmt *) { return true; }
     /** Executes after every ExprStmt is visited. */
     virtual void visitedExprStmt(ExprStmt *) { }
+
+    virtual bool visitingAssertExprStmt(AssertExprStmt *) { return true; }
+    virtual void visitedAssertExprStmt(AssertExprStmt *) { }
 
     virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
     virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
@@ -168,7 +173,7 @@ protected:
     source::SourceSpan sourceSpan_;
     Stmt(const source::SourceSpan &sourceSpan) : sourceSpan_(sourceSpan) { }
 public:
-    virtual StmtKind stmtKind() const = 0;
+    //virtual StmtKind stmtKind() const = 0;
 
     source::SourceSpan sourceSpan() const {
         return sourceSpan_;
@@ -220,8 +225,8 @@ protected:
     ExprStmt(const source::SourceSpan &sourceSpan) : Stmt(sourceSpan) { }
 public:
     virtual ~ExprStmt() { }
-    virtual StmtKind stmtKind() const override { return StmtKind::ExprStmt; }
-    virtual ExprKind exprKind() const = 0;
+//    virtual StmtKind stmtKind() const override { return StmtKind::ExprStmt; }
+    //virtual ExprKind exprKind() const = 0;
     virtual type::Type *type() const  = 0;
     virtual bool canWrite() const = 0;
 };
@@ -232,7 +237,7 @@ class LiteralBoolExpr : public ExprStmt {
 public:
     LiteralBoolExpr(source::SourceSpan sourceSpan, const bool value) : ExprStmt(sourceSpan), value_(value) {}
     virtual ~LiteralBoolExpr() {}
-    virtual ExprKind exprKind() const override { return ExprKind::LiteralBoolExpr; }
+    //virtual ExprKind exprKind() const override { return ExprKind::LiteralBoolExpr; }
     type::Type *type() const override { return &type::Primitives::Bool; }
     bool value() const { return value_; }
 
@@ -251,7 +256,7 @@ class LiteralInt32Expr : public ExprStmt {
 public:
     LiteralInt32Expr(source::SourceSpan sourceSpan, const int value) : ExprStmt(sourceSpan), value_(value) {}
     virtual ~LiteralInt32Expr() {}
-    virtual ExprKind exprKind() const override { return ExprKind::LiteralInt32Expr; }
+    //virtual ExprKind exprKind() const override { return ExprKind::LiteralInt32Expr; }
     type::Type *type() const override { return &type::Primitives::Int32; }
     int value() const { return value_; }
 
@@ -270,7 +275,7 @@ class LiteralFloatExpr : public ExprStmt {
 public:
     LiteralFloatExpr(source::SourceSpan sourceSpan, const float value) : ExprStmt(sourceSpan), value_(value) {}
     virtual ~LiteralFloatExpr() {}
-    ExprKind exprKind() const override { return ExprKind::LiteralFloatExpr; }
+    //ExprKind exprKind() const override { return ExprKind::LiteralFloatExpr; }
     type::Type *type() const override {  return &type::Primitives::Float; }
     float value() const { return value_; }
 
@@ -324,7 +329,7 @@ public:
 
     source::SourceSpan operatorSpan() { return operatorSpan_; }
 
-    ExprKind exprKind() const override { return ExprKind::BinaryExpr; }
+    //ExprKind exprKind() const override { return ExprKind::BinaryExpr; }
 
     /** This is the type of the result, which may be different than the type of the operands depending on the operation type,
      * because some operation types (e.g. equality, logical and, or, etc) always yield boolean values.  */
@@ -414,7 +419,7 @@ public:
     VariableRefExpr(source::SourceSpan sourceSpan, const std::string &name) : ExprStmt(sourceSpan), name_{ name } {
         ASSERT(name.size() > 0);
     }
-    ExprKind exprKind() const override { return ExprKind::VariableRefExpr; }
+    //ExprKind exprKind() const override { return ExprKind::VariableRefExpr; }
 
     virtual type::Type *type() const override {
         ASSERT(symbol_);
@@ -454,7 +459,7 @@ public:
 
     virtual std::string name() const override { return VariableRefExpr::name(); }
 
-    ExprKind exprKind() const override { return ExprKind::VariableDeclExpr; }
+    //ExprKind exprKind() const override { return ExprKind::VariableDeclExpr; }
     TypeRef *typeRef() { return typeRef_; }
     virtual type::Type *type() const override { return typeRef_->type(); }
 
@@ -497,7 +502,7 @@ public:
 
     static CastExpr *createImplicit(ExprStmt *valueExpr, type::Type *toType);
 
-    ExprKind exprKind() const override { return ExprKind::CastExpr; }
+    //ExprKind exprKind() const override { return ExprKind::CastExpr; }
     type::Type *type() const  override{ return toType_->type(); }
     CastKind castKind() const { return castKind_; }
 
@@ -529,7 +534,7 @@ public:
     virtual ~CompoundExpr() {}
     scope::SymbolTable *scope() { return &scope_; }
 
-    virtual ExprKind exprKind() const { return ExprKind::CompoundExpr; };
+    //virtual ExprKind exprKind() const { return ExprKind::CompoundExpr; };
     virtual type::Type *type() const {
         ASSERT(expressions_.size() > 0);
         return expressions_.back()->type();
@@ -571,9 +576,7 @@ public:
     CompoundStmt(source::SourceSpan sourceSpan, scope::StorageKind storageKind) : Stmt(sourceSpan), scope_{storageKind} { }
     virtual ~CompoundStmt() {}
 
-    StmtKind stmtKind() const override {
-        return StmtKind::CompoundStmt;
-    }
+    //StmtKind stmtKind() const override { return StmtKind::CompoundStmt; }
 
     scope::SymbolTable *scope() { return &scope_; }
 
@@ -611,7 +614,7 @@ public:
     ReturnStmt(source::SourceSpan sourceSpan, ExprStmt* valueExpr)
         : Stmt(sourceSpan), valueExpr_(valueExpr) {}
 
-    StmtKind stmtKind() const override { return StmtKind::ReturnStmt; }
+    //StmtKind stmtKind() const override { return StmtKind::ReturnStmt; }
     const ExprStmt *valueExpr() const { return valueExpr_; }
 
     virtual void accept(AstVisitor *visitor) override {
@@ -645,7 +648,7 @@ public:
         ASSERT(thenExpr_);
     }
 
-    virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
+    //virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
 
     type::Type *type() const override {
         if(elseExpr_ == nullptr || !thenExpr_->type()->isSameType(elseExpr_->type())) {
@@ -698,7 +701,7 @@ public:
         ASSERT(body_)
     }
 
-    virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
+    //virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
 
     type::Type *type() const override {
         //For now, while expressions will not return a value.
@@ -782,7 +785,7 @@ public:
 
     }
 
-    StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
+    //StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
     std::string name() const { return name_; }
     type::Type *returnType() const { return functionType_->returnType(); }
     type::FunctionType *functionType() { return functionType_; }
@@ -839,7 +842,7 @@ public:
         arguments_{arguments} { }
     ExprStmt *funcExpr() { return funcExpr_; }
 
-    virtual ExprKind exprKind() const override { return ExprKind::FuncCallExpr; };
+    //virtual ExprKind exprKind() const override { return ExprKind::FuncCallExpr; };
     virtual bool canWrite() const override { return false; };
 
     type::Type *type() const override {
@@ -889,7 +892,7 @@ public:
         : Stmt{span}, name_{name}, body_{body}, classType_{new type::ClassType(name)} {
     }
 
-    StmtKind stmtKind() const override { return StmtKind::ClassDefinition; }
+    //StmtKind stmtKind() const override { return StmtKind::ClassDefinition; }
 
     CompoundStmt *body() { return body_; }
 
@@ -926,7 +929,7 @@ public:
 
     source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
 
-    virtual ExprKind exprKind() const override { return ExprKind::DotExpr; };
+    //virtual ExprKind exprKind() const override { return ExprKind::DotExpr; };
     virtual bool canWrite() const override { return true; };
 
     bool isWrite() { return isWrite_; }
@@ -951,6 +954,34 @@ public:
         visitor->visitingDotExpr(this);
         lValue_->accept(visitor);
         visitor->visitedDotExpr(this);
+        visitor->visitedExprStmt(this);
+    }
+};
+
+class AssertExprStmt : public ExprStmt {
+    ast::ExprStmt *condition_;
+    std::string expression_;
+public:
+    AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt *condition, const std::string &expression)
+        : ExprStmt(sourceSpan), condition_{condition}, expression_{expression} { }
+
+    virtual type::Type *type() const { return &type::Primitives::Void; }
+    virtual bool canWrite() const { return false; };
+
+
+    ast::ExprStmt *condition() { return condition_; }
+    void setCondition(ast::ExprStmt *condition) {
+        condition_ = condition;
+    }
+    std::string expression() { return expression_; }
+
+    virtual void accept(AstVisitor *visitor) override {
+        bool visitChildren = visitor->visitingExprStmt(this);
+        visitChildren = visitor->visitingAssertExprStmt(this) ? visitChildren : false;
+        if(visitChildren) {
+            condition_->accept(visitor);
+        }
+        visitor->visitedAssertExprStmt(this);
         visitor->visitedExprStmt(this);
     }
 };
