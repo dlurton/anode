@@ -63,12 +63,22 @@ public:
     }
 
     bool visitingBinaryExpr(BinaryExpr *expr) override {
-        writer_.writeln("BinaryExpr: " + to_string(expr->operation()) + ", " + expr->type()->name());
+        writer_.writeln("BinaryExpr: " + to_string(expr->operation()));
         writer_.incIndent();
         return true;
     }
 
     void visitedBinaryExpr(BinaryExpr *) override {
+        writer_.decIndent();
+    }
+
+    bool visitingUnaryExpr(UnaryExpr *expr) override {
+        writer_.writeln("UnaryExpr: " + to_string(expr->operation()) + ", " + expr->type()->name());
+        writer_.incIndent();
+        return true;
+    }
+
+    void visitedUnaryExpr(UnaryExpr *) override {
         writer_.decIndent();
     }
 
@@ -129,9 +139,8 @@ public:
     }
 
     void visitingCastExpr(CastExpr *expr) override {
-        writer_.writeln("CastExpr(%s, to %s):",
-                        expr->castKind() == CastKind::Implicit ? "implicit" : "explicit",
-                        expr->type()->name().c_str());
+        writer_.writeln("CastExpr(%s):",
+                        expr->castKind() == CastKind::Implicit ? "implicit" : "explicit");
 
         writer_.incIndent();
     }
@@ -152,7 +161,7 @@ public:
         writer_.write("ParameterDef: ");
         writer_.write(pd->name());
         writer_.write(':');
-        writer_.writeln(pd->type()->name());
+        writer_.writeln(pd->typeRef()->name());
     }
 
     bool visitingFuncDefStmt(FuncDefStmt *func) override {
@@ -204,7 +213,7 @@ public:
     }
 };
 
-void prettyPrint(Module *module) {
+void prettyPrint(AstNode *module) {
     std::cerr<< "LWNN AST:\n";
     PrettyPrinterVisitor visitor{ std::cerr };
     module->accept(&visitor);

@@ -12,7 +12,6 @@
 #include <memory>
 
 namespace lwnn { namespace ast {
-//
 //enum class StmtKind : unsigned char {
 //    FunctionDeclStmt,
 //    ReturnStmt,
@@ -53,7 +52,7 @@ enum class BinaryOperationKind : unsigned char {
     GreaterThanOrEqual,
     LessThanOrEqual
 };
-std::string to_string(BinaryOperationKind type);
+std::string to_string(BinaryOperationKind kind);
 
 class AstNode;
 class Stmt;
@@ -71,6 +70,7 @@ class WhileExpr;
 class LiteralBoolExpr;
 class LiteralInt32Expr;
 class LiteralFloatExpr;
+class UnaryExpr;
 class BinaryExpr;
 class DotExpr;
 class VariableDeclExpr;
@@ -128,6 +128,9 @@ public:
     virtual bool visitingBinaryExpr(BinaryExpr *) { return true; }
     virtual void visitedBinaryExpr(BinaryExpr *) { }
 
+    virtual bool visitingUnaryExpr(UnaryExpr *) { return true; }
+    virtual void visitedUnaryExpr(UnaryExpr *) { }
+
     virtual void visitLiteralBoolExpr(LiteralBoolExpr *) { }
 
     virtual void visitLiteralInt32Expr(LiteralInt32Expr *) { }
@@ -164,6 +167,22 @@ public:
     }
     virtual void accept(AstVisitor *visitor) = 0;
 };
+
+template<typename TAstNode>
+bool isInstanceOf(AstNode *node) {
+    return dynamic_cast<TAstNode*>(node);
+}
+
+template<typename TAstNode>
+TAstNode *upcast(AstNode *node) {
+    TAstNode *upcasted = dynamic_cast<TAstNode*>(node);
+    if(!upcasted){
+        ASSERT_FAIL("Attempted to perform an invalid upcast");
+    }
+
+    return upcasted;
+}
+
 
 /** A statement any kind of non-terminal that may appear within a CompountStatement (i.e. between { and }), or
  * at the global scope, i.e. global variables, assignments, class definitions,
@@ -225,8 +244,6 @@ protected:
     ExprStmt(const source::SourceSpan &sourceSpan) : Stmt(sourceSpan) { }
 public:
     virtual ~ExprStmt() { }
-//    virtual StmtKind stmtKind() const override { return StmtKind::ExprStmt; }
-    //virtual ExprKind exprKind() const = 0;
     virtual type::Type *type() const  = 0;
     virtual bool canWrite() const = 0;
 };
@@ -256,7 +273,6 @@ class LiteralInt32Expr : public ExprStmt {
 public:
     LiteralInt32Expr(source::SourceSpan sourceSpan, const int value) : ExprStmt(sourceSpan), value_(value) {}
     virtual ~LiteralInt32Expr() {}
-    //virtual ExprKind exprKind() const override { return ExprKind::LiteralInt32Expr; }
     type::Type *type() const override { return &type::Primitives::Int32; }
     int value() const { return value_; }
 
@@ -288,6 +304,49 @@ public:
         visitor->visitedExprStmt(this);
     }
 };
+
+enum class UnaryOperationKind : unsigned char {
+    Not,
+    PreIncrement,
+    PreDecrement
+};
+std::string to_string(UnaryOperationKind type);
+
+class UnaryExpr : public ExprStmt {
+    const source::SourceSpan operatorSpan_;
+    ExprStmt *valueExpr_;
+    const UnaryOperationKind operation_;
+public:
+    /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
+    UnaryExpr(source::SourceSpan sourceSpan, ExprStmt *valueExpr, UnaryOperationKind operation, source::SourceSpan operatorSpan)
+        : ExprStmt{sourceSpan}, operatorSpan_{operatorSpan}, valueExpr_{valueExpr}, operation_{operation} {
+
+        ASSERT(valueExpr_);
+    }
+
+    source::SourceSpan operatorSpan() { return operatorSpan_; }
+
+    type::Type *type() const override { return &type::Primitives::Bool; }
+
+    ExprStmt *valueExpr() const { return valueExpr_; }
+    void setLValue(ExprStmt *newLValue) { valueExpr_ = newLValue; }
+
+    virtual bool canWrite() const override { return false; };
+
+    UnaryOperationKind operation() const { return operation_; }
+
+    virtual void accept(AstVisitor *visitor) override {
+        bool visitChildren = visitor->visitingExprStmt(this);
+        visitChildren = visitor->visitingUnaryExpr(this) ? visitChildren : false;
+
+        if(visitChildren) {
+            valueExpr_->accept(visitor);
+        }
+        visitor->visitedUnaryExpr(this);
+        visitor->visitedExprStmt(this);
+    }
+};
+
 
 
 /** Represents the type of binary operation.
@@ -530,7 +589,10 @@ class CompoundExpr : public ExprStmt {
 protected:
     gc_vector<ExprStmt*> expressions_;
 public:
-    CompoundExpr(source::SourceSpan sourceSpan) : ExprStmt(sourceSpan), scope_{scope::StorageKind::Local} { }
+    CompoundExpr(source::SourceSpan sourceSpan, scope::StorageKind storageKind) : ExprStmt(sourceSpan), scope_{storageKind} { }
+    CompoundExpr(source::SourceSpan sourceSpan, scope::StorageKind storageKind, const gc_vector<ExprStmt*> expressions)
+        : ExprStmt(sourceSpan), scope_{storageKind}, expressions_{expressions} { }
+
     virtual ~CompoundExpr() {}
     scope::SymbolTable *scope() { return &scope_; }
 
@@ -742,6 +804,7 @@ public:
     source::SourceSpan span() { return span(); }
     std::string name() { return name_; }
     type::Type *type() { return typeRef_->type(); }
+    TypeRef *typeRef() { return typeRef_; }
 
     scope::VariableSymbol *symbol() {
         ASSERT(symbol_);
@@ -758,7 +821,7 @@ public:
 };
 type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef*> &parameters);
 
-class FuncDefStmt : public Stmt {
+class FuncDefStmt : public ExprStmt {
     const std::string name_;
     scope::FunctionSymbol *symbol_= nullptr;
     scope::SymbolTable parameterScope_;
@@ -774,18 +837,17 @@ public:
         TypeRef* returnTypeRef,
         gc_vector<ParameterDef*> parameters,
         ExprStmt* body
-    ) : Stmt(sourceSpan),
+    ) : ExprStmt(sourceSpan),
         name_{name},
         parameterScope_{scope::StorageKind::Argument},
         returnTypeRef_{returnTypeRef},
         parameters_{parameters},
         body_{body},
-        functionType_{ createFunctionType(returnTypeRef->type(), parameters) }
-    {
+        functionType_{createFunctionType(returnTypeRef->type(), parameters)} { }
 
-    }
+    type::Type *type() const override { return &type::Primitives::Void; }
+    bool canWrite() const override { return false; }
 
-    //StmtKind stmtKind() const override { return StmtKind::FunctionDeclStmt; }
     std::string name() const { return name_; }
     type::Type *returnType() const { return functionType_->returnType(); }
     type::FunctionType *functionType() { return functionType_; }
@@ -882,19 +944,32 @@ public:
 };
 
 
-class ClassDefinition : public Stmt {
+
+class ClassDefinition : public ExprStmt {
     std::string name_;
-    CompoundStmt *body_;
+    CompoundExpr *body_;
 
     type::ClassType *classType_;
-public:
-    ClassDefinition(source::SourceSpan span, std::string name, CompoundStmt *body)
-        : Stmt{span}, name_{name}, body_{body}, classType_{new type::ClassType(name)} {
+
+    inline static CompoundExpr *possiblyWrapExprInCompoundExpr(ast::ExprStmt *expr) {
+        CompoundExpr *compoundExpr = dynamic_cast<CompoundExpr*>(expr);
+        if(compoundExpr) return compoundExpr;
+        compoundExpr = new CompoundExpr(expr->sourceSpan(), scope::StorageKind::Instance);
+        compoundExpr->addExpr(expr);
+        return compoundExpr;
     }
 
-    //StmtKind stmtKind() const override { return StmtKind::ClassDefinition; }
+public:
+    ClassDefinition(source::SourceSpan span, std::string name, ast::ExprStmt *body)
+        : ExprStmt{span},
+          name_{name},
+          body_{possiblyWrapExprInCompoundExpr(body)},
+          classType_{new type::ClassType(name)} { }
 
-    CompoundStmt *body() { return body_; }
+    type::Type *type() const override { return &type::Primitives::Void; }
+    bool canWrite() const override { return false; }
+
+    CompoundExpr *body() { return body_; }
 
     std::string name() { return name_; }
 
@@ -986,11 +1061,11 @@ public:
     }
 };
 
-class Module : public gc {
+class Module : public AstNode {
     std::string name_;
-    CompoundStmt *body_;
+    CompoundExpr *body_;
 public:
-    Module(const std::string &name, CompoundStmt* body)
+    Module(const std::string &name, CompoundExpr* body)
         : name_{name}, body_{body} {
     }
 
@@ -998,9 +1073,9 @@ public:
 
     scope::SymbolTable *scope() { return body_->scope(); }
 
-    CompoundStmt *body() { return body_; }
+    CompoundExpr *body() { return body_; }
 
-    void accept(AstVisitor *visitor) {
+    void accept(AstVisitor *visitor) override {
         if(visitor->visitingModule(this)) {
             body_->accept(visitor);
         }

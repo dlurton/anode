@@ -16,7 +16,18 @@ namespace lwnn { namespace error {
  */
 enum class ErrorKind : unsigned short {
     NoError,
+    //Lexer errors
+    UnexpectedCharacter,
+    InvalidLiteralInt32,
+    InvalidLiteralFloat,
+    UnexpectedEofInMultilineComment,
+
+    //Parser errors
+    UnexpectedToken,
     Syntax,
+    SurpriseToken,
+
+    //Semantic errors
     InvalidImplicitCastInBinaryExpr,
     InvalidImplicitCastInIfCondition,
     InvalidImplicitCastInIfBodies,

@@ -6,29 +6,21 @@ namespace lwnn { namespace ast {
 
 unsigned long astNodesDestroyedCount = 0;
 
-//std::string to_string(ExprKind kind) {
-//    switch (kind) {
-//        case ExprKind::CompoundExpr:
-//            return "CompoundExpr";
-//        case ExprKind::VariableDeclExpr:
-//            return "VariableDeclExpr";
-//        case ExprKind::LiteralInt32Expr:
-//            return "LiteralInt32Expr";
-//        case ExprKind::LiteralFloatExpr:
-//            return "LiteralFloatExpr";
-//        case ExprKind::VariableRefExpr:
-//            return "VariableRefExpr";
-//        case ExprKind::BinaryExpr:
-//            return "BinaryExpr";
-//        case ExprKind::ConditionalExpr:
-//            return "ConditionalExpr";
-//        default:
-//            ASSERT_FAIL("Unhandled ExprKind");
-//    }
-//}
+std::string to_string(UnaryOperationKind type) {
+    switch(type) {
+        case UnaryOperationKind::Not:
+            return "!";
+        case UnaryOperationKind::PreIncrement:
+            return "++(pre)";
+        case UnaryOperationKind::PreDecrement:
+            return "--(pre)";
+        default:
+            return "<unknown UnaryOperationKind>";
+    }
+}
 
-std::string to_string(BinaryOperationKind type) {
-    switch (type) {
+std::string to_string(BinaryOperationKind kind) {
+    switch (kind) {
         case BinaryOperationKind::Assign:
             return "=";
         case BinaryOperationKind::Add:

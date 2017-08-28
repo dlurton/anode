@@ -32,6 +32,11 @@
 
 namespace lwnn {
 
+class no_new {
+private:
+    void *operator new(size_t) throw() { return nullptr; }
+};
+
 class no_copy {
 public:
     // no copy

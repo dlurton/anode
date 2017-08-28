@@ -3,16 +3,12 @@
 #include <string>
 #include <iostream>
 
-#define ASSERT_FAIL(message) throw ::lwnn::exception::DebugAssertionFailedException( \
-    std::string(message) + \
-    std::string("\nFile       : ") + std::string(__FILE__) + \
-    std::string("\nLine       : ") + std::to_string(__LINE__));
+#define ASSERT_FAIL(message) \
+    throw ::lwnn::exception::DebugAssertionFailedException(string::format("%s:%d: Debug assertion failed: %s", __FILE__, __LINE__, message));
 
-#define ASSERT(arg) if(!(arg)) { throw ::lwnn::exception::DebugAssertionFailedException( \
-    std::string("Debug assertion failed!") + \
-    std::string("\nFile       : ") + std::string(__FILE__) + \
-    std::string("\nLine       : ") + std::to_string(__LINE__) + \
-    std::string("\nExpression : ") + std::string(#arg)); }
+#define ASSERT(arg) if(!(arg)) { \
+    throw ::lwnn::exception::DebugAssertionFailedException( \
+        string::format("%s:%d: Debug assertion failed.  Expression: %s", __FILE__, __LINE__, #arg)); };
 
 namespace lwnn { namespace exception {
 
@@ -52,7 +48,7 @@ public:
 class DebugAssertionFailedException : public FatalException {
 public:
     DebugAssertionFailedException(const std::string &message) : FatalException(message) {
-
+        std::cerr << message << "\n";
     }
 };
 

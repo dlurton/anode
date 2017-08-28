@@ -43,6 +43,7 @@ static source::SourceSpan getSourceSpan(antlr4::ParserRuleContext *ctx) {
 }
 
 
+
 ast::TypeRef *extractTypeRef(LwnnParser::TypeRefContext *ctx) {
     return new TypeRef(getSourceSpan(ctx), ctx->getText());
 }
@@ -331,7 +332,7 @@ class CompoundExprListener : public LwnnBaseListenerHelper<ast::CompoundExpr> {
 public:
     virtual void enterCompoundExprStmt(LwnnParser::CompoundExprStmtContext * ctx) override {
         std::vector<LwnnParser::ExprStmtContext*> expressions = ctx->exprStmt();
-        auto compoundExpr = new ast::CompoundExpr(getSourceSpan(ctx));
+        auto compoundExpr = new ast::CompoundExpr(getSourceSpan(ctx), scope::StorageKind::Local);
         for (LwnnParser::ExprStmtContext *expr : expressions) {
             ExprStmt *exprStmt = extractExprStmt(expr);
             if(exprStmt) {
@@ -349,7 +350,7 @@ ast::CompoundExpr *extractCompoundExpr(LwnnParser::CompoundExprStmtContext *ctx)
     return listener.hasResult() ? listener.surrenderResult() : nullptr;
 }
 
-class StmtListener : public LwnnBaseListenerHelper<ast::Stmt> {
+class StmtListener : public LwnnBaseListenerHelper<ast::ExprStmt> {
 public:
     virtual void enterExpressionStatement(LwnnParser::ExpressionStatementContext *ctx) override {
         setResult(extractExprStmt(ctx->exprStmt()));
@@ -391,13 +392,13 @@ public:
         if(!ctx->classDef()) return;
         if(!ctx->classDef()->classBody()) return;
 
-        CompoundStmt *compoundStmt = new CompoundStmt(getSourceSpan(ctx), scope::StorageKind::Instance);
+        CompoundExpr *compoundStmt = new CompoundExpr(getSourceSpan(ctx), scope::StorageKind::Instance);
         for (LwnnParser::StmtContext *stmt : ctx->classDef()->classBody()->stmt()) {
             if(stmt == nullptr) continue;
             StmtListener listener;
             stmt->enterRule(&listener);
             if (!listener.hasResult()) continue;
-            compoundStmt->addStmt(listener.surrenderResult());
+            compoundStmt->addExpr(listener.surrenderResult());
         }
 
         auto classDef = new ast::ClassDefinition(
@@ -416,13 +417,13 @@ public:
 
     virtual void enterModule(LwnnParser::ModuleContext *ctx) override {
         std::vector<LwnnParser::StmtContext*> statements = ctx->stmt();
-        auto compoundStmt = new ast::CompoundStmt(getSourceSpan(ctx), scope::StorageKind::Global);
+        auto compoundStmt = new ast::CompoundExpr(getSourceSpan(ctx), scope::StorageKind::Global);
         auto module = new ast::Module(moduleName_, compoundStmt);
         for (LwnnParser::StmtContext *stmt : statements) {
             StmtListener listener;
             stmt->enterRule(&listener);
             if(!listener.hasResult()) return;
-            module->body()->addStmt(listener.surrenderResult());
+            module->body()->addExpr(listener.surrenderResult());
         }
         setResult(module);
     }

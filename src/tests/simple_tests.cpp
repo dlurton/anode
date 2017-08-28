@@ -29,7 +29,6 @@ int main( int argc, char* argv[] )
         std::cerr.flush();
     }
 
-
     return ( result < 0xff ? result : 0xff );
 }
 

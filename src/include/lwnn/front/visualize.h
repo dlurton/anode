@@ -5,7 +5,7 @@
 
 namespace lwnn {
     namespace visualize {
-        void prettyPrint(ast::Module *module);
+        void prettyPrint(ast::AstNode *module);
 
         class IndentWriter {
             std::ostream &out_;
