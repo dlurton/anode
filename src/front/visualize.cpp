@@ -26,18 +26,6 @@ public:
         writer_.decIndent();
     }
 
-    bool visitingCompoundStmt(CompoundStmt *expr) override {
-        writer_.write("CompoundStmt: ");
-        writeScopeVariables(expr->scope());
-        writer_.writeln();
-        writer_.incIndent();
-        return true;
-    }
-
-    void visitedCompoundStmt(CompoundStmt *) override {
-        writer_.decIndent();
-    }
-
     void writeScopeVariables(scope::SymbolTable *scope) {
         writer_.write('(');
         auto symbols = scope->symbols();
@@ -135,6 +123,17 @@ public:
     }
 
     void visitedWhileExpr(WhileExpr *) override {
+        writer_.decIndent();
+    }
+
+
+    bool visitingAssertExprStmt(AssertExprStmt *) override {
+        writer_.writeln("AssertExprStmt:");
+        writer_.incIndent();
+        return true;
+    }
+
+    void visitedAssertExprStmt(AssertExprStmt *) override {
         writer_.decIndent();
     }
 

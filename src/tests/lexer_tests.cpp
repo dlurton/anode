@@ -1,5 +1,5 @@
 
-
+#define CATCH_CONFIG_FAST_COMPILE
 #include "catch.hpp"
 #include "../front/Lexer.h"
 #include <limits>
@@ -29,7 +29,7 @@ gc_vector<Token*> extractAllTokens(const std::string &fromStr) {
 }
 
 TEST_CASE("simple tokens") {
-    auto tokens = extractAllTokens("; ! + - * / = == != > < >= <= ++ -- . : ( ) { } true false while if func cast");
+    auto tokens = extractAllTokens("; ! + - * / = == != > < >= <= ++ -- . : ( ) { } true false while if func cast class assert");
     int i = 0;
     REQUIRE(tokens[i++]->kind() == TokenKind::END_OF_STATEMENT);
     REQUIRE(tokens[i++]->kind() == TokenKind::OP_NOT);
@@ -58,6 +58,8 @@ TEST_CASE("simple tokens") {
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_IF);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_FUNC);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_CAST);
+    REQUIRE(tokens[i++]->kind() == TokenKind::KW_CLASS);
+    REQUIRE(tokens[i++]->kind() == TokenKind::KW_ASSERT);
     REQUIRE(tokens[i++]->kind() == TokenKind::END_OF_INPUT);
 
     REQUIRE(i == tokens.size());

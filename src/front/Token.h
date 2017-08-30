@@ -49,6 +49,7 @@ enum class TokenKind : unsigned short {
     KW_FUNC,
     KW_CAST,
     KW_CLASS,
+    KW_ASSERT,
     COMMA,
 };
 

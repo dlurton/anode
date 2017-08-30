@@ -40,15 +40,6 @@ public:
         symbolTableStack_.pop_back();
     }
 
-    virtual bool visitingCompoundStmt(ast::CompoundStmt *compoundStmt) override {
-        symbolTableStack_.push_back(compoundStmt->scope());
-        return true;
-    }
-
-    virtual void visitedCompoundStmt(ast::CompoundStmt *compoundStmt) override {
-        ASSERT(compoundStmt->scope() == symbolTableStack_.back());
-        symbolTableStack_.pop_back();
-    }
 };
 
 
@@ -61,17 +52,11 @@ public:
         return true;
     }
 
-    virtual bool visitingCompoundStmt(ast::CompoundStmt *stmt) override {
+    virtual bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
         //The first entry on the stack would be the global scope which has no parent
         if(scopeDepth()) {
-            stmt->scope()->setParent(topScope());
+            expr->scope()->setParent(topScope());
         }
-        ScopeFollowingVisitor::visitingCompoundStmt(stmt);
-        return true;
-    }
-
-    virtual bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
-        expr->scope()->setParent(topScope());
         ScopeFollowingVisitor::visitingCompoundExpr(expr);
         return true;
     }

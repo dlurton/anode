@@ -9,9 +9,9 @@ namespace lwnn { namespace runtime {
 
 
 extern "C" {
-    void assert_fail(char *filename, unsigned int lineNo, char *expression) {
+    void assert_fail(char *filename, unsigned int lineNo) {
         std::stringstream out;
-        out << filename << ":" << lineNo << ": " << "ASSERTION FAILED: " << expression << std::endl;
+        out << filename << ":" << lineNo << ": " << "ASSERTION FAILED" << std::endl;
         throw exception::LwnnAssertionFailedException(out.str());
         //std::abort();
     }

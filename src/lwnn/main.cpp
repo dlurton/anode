@@ -155,7 +155,7 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
 
 void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName,
                  bool shouldExecute) {
-    lwnn::ast::Module *module = lwnn::parse::parseModule(lineOfCode, moduleName);
+    lwnn::ast::Module *module = lwnn::front::parseModule(lineOfCode, moduleName);
 
     //If no Module returned, parsing failed.
     if(!module) {
@@ -170,7 +170,7 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
 bool executeScript(const std::string &startScriptFilename) {
     lwnn::ast::Module *module;
     try {
-        module = lwnn::parse::parseModule(startScriptFilename);
+        module = lwnn::front::parseModule(startScriptFilename);
 
         //If no Module returned, parsing failed.
         if(!module) {

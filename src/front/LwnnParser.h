@@ -6,6 +6,9 @@
 
 #include <functional>
 
+#include <fstream>
+#include <sstream>
+
 using namespace std::placeholders;
 
 namespace lwnn { namespace front { namespace parser {
@@ -167,7 +170,7 @@ class LwnnParser : public PrattParser<ast::ExprStmt> {
         consumeOpenParen();
         ast::ExprStmt *condExpr = parseExpr();
         consumeCloseParen();
-        ast::ExprStmt *bodyExpr = parseExpr();
+        ast::ExprStmt *bodyExpr = parseExprStmt();
 
         return new ast::WhileExpr(
             getSourceSpan(whileKeyword->span(), bodyExpr->sourceSpan()),
@@ -245,7 +248,29 @@ class LwnnParser : public PrattParser<ast::ExprStmt> {
         );
     }
 
+    ast::ExprStmt *parseAssert(Token *assertKeyword) {
+        consumeOpenParen();
+        ast::ExprStmt *cond = parseExpr();
+        Token *closeParen = consumeCloseParen();
+
+        return new ast::AssertExprStmt(
+            getSourceSpan(assertKeyword->span(), closeParen->span()),
+            cond);
+    }
+
+    ast::ExprStmt *parseDotExpr(ast::ExprStmt *lValue, Token *operatorToken) {
+        Token *memberName = consumeIdentifier();
+
+        return new ast::DotExpr(
+            getSourceSpan(lValue->sourceSpan(), memberName->span()),
+            operatorToken->span(),
+            lValue,
+            memberName->text()
+        );
+    }
+
     ast::ExprStmt *parseBinaryExpr(ast::ExprStmt *lValue, Token *operatorToken);
+
     Associativity getOperatorAssociativity(TokenKind kind);
     int getOperatorPrecedence(TokenKind kind) override;
 
@@ -253,38 +278,42 @@ public:
 
     LwnnParser(Lexer &lexer, error::ErrorStream &errorStream) : PrattParser(lexer, errorStream) {
         //Prefix parselets
-        registerPrefixParselet(TokenKind::LIT_INT, std::bind(&LwnnParser::parseLiteralInt32, this, _1));
-        registerPrefixParselet(TokenKind::LIT_FLOAT, std::bind(&LwnnParser::parseLiteralFloat, this, _1));
-        registerPrefixParselet(TokenKind::KW_TRUE, std::bind(&LwnnParser::parseLiteralBool, this, _1));
-        registerPrefixParselet(TokenKind::KW_FALSE, std::bind(&LwnnParser::parseLiteralBool, this, _1));
-        registerPrefixParselet(TokenKind::ID, std::bind(&LwnnParser::parseVariableRef, this, _1));
+        registerGenericParselet(TokenKind::LIT_INT, std::bind(&LwnnParser::parseLiteralInt32, this, _1));
+        registerGenericParselet(TokenKind::LIT_FLOAT, std::bind(&LwnnParser::parseLiteralFloat, this, _1));
+        registerGenericParselet(TokenKind::KW_TRUE, std::bind(&LwnnParser::parseLiteralBool, this, _1));
+        registerGenericParselet(TokenKind::KW_FALSE, std::bind(&LwnnParser::parseLiteralBool, this, _1));
+        registerGenericParselet(TokenKind::ID, std::bind(&LwnnParser::parseVariableRef, this, _1));
 
-        registerPrefixParselet(TokenKind::OP_NOT, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
-        registerPrefixParselet(TokenKind::OP_INC, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
-        registerPrefixParselet(TokenKind::OP_DEC, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_NOT, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_INC, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_DEC, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
 
-        registerPrefixParselet(TokenKind::OPEN_CURLY, std::bind(&LwnnParser::parseCompoundStmt, this, _1));
-        registerPrefixParselet(TokenKind::OPEN_PAREN, std::bind(&LwnnParser::parseParensExpr, this, _1));
-        registerPrefixParselet(TokenKind::KW_CAST, std::bind(&LwnnParser::parseCastExpr, this, _1));
-        registerPrefixParselet(TokenKind::OP_COND, std::bind(&LwnnParser::parseConditional, this, _1));
-        registerPrefixParselet(TokenKind::KW_IF, std::bind(&LwnnParser::parseIfExpr, this, _1));
-        registerPrefixParselet(TokenKind::KW_WHILE, std::bind(&LwnnParser::parseWhile, this, _1));
-        registerPrefixParselet(TokenKind::KW_FUNC, std::bind(&LwnnParser::parseFuncDef, this, _1));
-        registerPrefixParselet(TokenKind::KW_CLASS, std::bind(&LwnnParser::parseClassDef, this, _1));
+        registerGenericParselet(TokenKind::OPEN_CURLY, std::bind(&LwnnParser::parseCompoundStmt, this, _1));
+        registerGenericParselet(TokenKind::OPEN_PAREN, std::bind(&LwnnParser::parseParensExpr, this, _1));
+        registerGenericParselet(TokenKind::KW_CAST, std::bind(&LwnnParser::parseCastExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_COND, std::bind(&LwnnParser::parseConditional, this, _1));
+        registerGenericParselet(TokenKind::KW_IF, std::bind(&LwnnParser::parseIfExpr, this, _1));
+        registerGenericParselet(TokenKind::KW_WHILE, std::bind(&LwnnParser::parseWhile, this, _1));
+        registerGenericParselet(TokenKind::KW_FUNC, std::bind(&LwnnParser::parseFuncDef, this, _1));
+        registerGenericParselet(TokenKind::KW_CLASS, std::bind(&LwnnParser::parseClassDef, this, _1));
+        registerGenericParselet(TokenKind::KW_ASSERT, std::bind(&LwnnParser::parseAssert, this, _1));
 
         //Infix parselets
         registerInfixParselet(TokenKind::OP_ADD, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_SUB, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_MUL, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_DIV, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_EQ, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_NEQ, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_GT, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_GTE, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_LT, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_LTE, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_LAND, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_LOR, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OPEN_PAREN, std::bind(&LwnnParser::parseFuncCallExpr, this, _1, _2));
         registerInfixParselet(TokenKind::OP_ASSIGN, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_DOT, std::bind(&LwnnParser::parseDotExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OPEN_PAREN, std::bind(&LwnnParser::parseFuncCallExpr, this, _1, _2));
     }
 
     ast::Module *parseModule() {
@@ -322,6 +351,7 @@ public:
         return expr;
     }
 };
+
 
 
 }}}

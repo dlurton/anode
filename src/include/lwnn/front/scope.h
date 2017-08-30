@@ -87,8 +87,8 @@ public:
 
 class SymbolTable {
     SymbolTable *parent_ = nullptr;
-    std::unordered_map<std::string, scope::Symbol*> symbols_;
-    std::vector<scope::Symbol*> orderedSymbols_;
+    gc_unordered_map<std::string, scope::Symbol*> symbols_;
+    gc_vector<scope::Symbol*> orderedSymbols_;
     StorageKind storageKind_;
 public:
     SymbolTable(StorageKind storageKind) : storageKind_(storageKind) {}
@@ -96,6 +96,10 @@ public:
     void setParent(SymbolTable *parent) {
         ASSERT(parent != this && "Hello? Are you trying to cause an infinite loop?");
         parent_ = parent;
+    }
+
+    StorageKind storageKind() {
+        return storageKind_;
     }
 
     /** Finds the named symbol in the current scope */

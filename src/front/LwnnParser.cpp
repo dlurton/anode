@@ -1,4 +1,4 @@
-#include "LwnnParser2.h"
+#include "LwnnParser.h"
 
 namespace lwnn { namespace front { namespace parser {
 

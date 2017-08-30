@@ -465,10 +465,8 @@ namespace lwnn {
                 source::SourceSpan span = assert->condition()->sourceSpan();
                 arguments.push_back(cc().getDeduplicatedStringConstant(span.name()));
                 arguments.push_back(getLiteralUIntLLvmValue((unsigned int)span.start().line()));
-                arguments.push_back(cc().getDeduplicatedStringConstant(assert->expression()));
+                //arguments.push_back(cc().getDeduplicatedStringConstant(assert->expression()));
                 cc().irBuilder().CreateCall(cc().assertFunc(), arguments);
-
-                thenBlock = cc().irBuilder().GetInsertBlock();
 
                 //Jump to the endBlock, skipping the elseBlock
                 cc().irBuilder().CreateBr(endBlock);

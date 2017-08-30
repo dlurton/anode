@@ -1,6 +1,6 @@
 setup_llvm()
 
-set(TESTS_SOURCE_FILES simple_tests.cpp ../../externs/catch/catch.hpp test_util.h test_util.cpp lexer_tests.cpp parser_tests.cpp)
+set(TESTS_SOURCE_FILES simple_tests.cpp ../../externs/catch/catch.hpp test_util.h test_util.cpp lexer_tests.cpp ../include/lwnn/front/parse.h)
 
 include_directories(${CMAKE_SOURCE_DIR}/externs/catch)
 

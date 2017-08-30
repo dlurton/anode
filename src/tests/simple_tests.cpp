@@ -1,10 +1,9 @@
-
 #include "front/error.h"
 #include "execute/execute.h"
-#include "front/parse.h"
 #include "back/compile.h"
 #include "test_util.h"
 
+#define CATCH_CONFIG_FAST_COMPILE
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 
@@ -17,9 +16,6 @@ int main( int argc, char* argv[] )
     GC_INIT();
 
     int result = Catch::Session().run( argc, argv );
-
-    //Really should leave this here until we're certain libgc is going to work.
-    //std::cout << "Number of AstNodes collected by our garbage collector: " << lwnn::ast::astNodesDestroyedCount << "\n";
 
     std::cout.flush();
     if(testCount > 0) {
@@ -368,13 +364,13 @@ TEST_CASE("logical and") {
     SECTION("logical and with compound expressions short-circuits") {
         std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
         exec(ec, "a:int = 0; b:int = 0;");
-        REQUIRE(!test<bool>(ec, "{ a = 1; false; } && { b = 1; a; };"));
+        REQUIRE(!test<bool>(ec, "{ a = 1; false; } && { b = 1; a; }"));
         REQUIRE(test<int>(ec, "a;") == 1); // a = 1; should have executed
         REQUIRE(test<int>(ec, "b;") == 0); // b = 1; should not have executed
 
         ec = execute::createExecutionContext();
         exec(ec, "a:int = 0;b:int = 0;");
-        REQUIRE(test<bool>(ec, "{ a = 1; true; } && { b = 1; a; };"));
+        REQUIRE(test<bool>(ec, "{ a = 1; true; } && { b = 1; a; }"));
         REQUIRE(test<int>(ec, "a;") == 1); // a = 1; should have executed
         REQUIRE(test<int>(ec, "b;") == 1); // b = 1; should have executed
     }
@@ -512,9 +508,9 @@ TEST_CASE("if as rvalue") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "a:int;");
 
-    exec(ec, "a = if (true) 1 else 2;");
+    exec(ec, "a = if (true) 1; else 2;");
     REQUIRE(test<int>(ec, "a;") == 1);
-    exec(ec, "a = if (false) 1 else 2;");
+    exec(ec, "a = if (false) 1; else 2;");
     REQUIRE(test<int>(ec, "a;") == 2);
 
     exec(ec, "a = if (true) { 1; } else { 2; };");

@@ -1,35 +1,41 @@
 
 #include "Lexer.h"
 #include "front/ast.h"
+#include "front/parse.h"
+
 #pragma once
 
 namespace lwnn { namespace front { namespace parser {
 
-typedef std::function<ast::ExprStmt*(Token*)> prefix_parselet_t;
+/** Defines a function signature which is invoked by PrattParser when it encounters a specific symbol.
+ * Such as a prefix operator (i.e. ++i), or a keyword (i.e. 'if' or 'while') to parse the appropriate language construct.
+ */
+typedef std::function<ast::ExprStmt*(Token*)> generic_parselet_t;
+
+/** Like generic_parselet_t, but for parsing infix expressions (a.k.a binary expressions, i.e. 1 + 1). */
 typedef std::function<ast::ExprStmt*(ast::ExprStmt*, Token*)> infix_parselet_t;
 
+/** Operator associativity. */
 enum class Associativity {
     Left,
     Right
 };
 
 
-class ParseAbortedException : exception::Exception {
-public:
-    ParseAbortedException(const std::string &message = std::string("")) : Exception(message) {
-        std::cerr << "Parse aborted!";
-    }
-};
-
+/** A basic Pratt Parser.
+ * http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
+ *
+ * @tparam TExpression
+ */
 template<typename TExpression>
 class PrattParser {
-    gc_unordered_map<TokenKind, prefix_parselet_t> prefixParseletMap_;
+    gc_unordered_map<TokenKind, generic_parselet_t> prefixParseletMap_;
     gc_unordered_map<TokenKind, infix_parselet_t> infixParseletMap_;
 protected:
     error::ErrorStream &errorStream_;
     Lexer &lexer_;
 
-    void registerPrefixParselet(TokenKind tokenKind, prefix_parselet_t parselet) {
+    void registerGenericParselet(TokenKind tokenKind, generic_parselet_t parselet) {
         auto found = prefixParseletMap_.find(tokenKind);
         if(found != prefixParseletMap_.end()) {
             ASSERT_FAIL("Specified tokenKind already exists in prefixParseletMap_.")
@@ -65,7 +71,7 @@ protected:
         return consume(tokenKind1, tokenKind2, msg);
     }
 
-    Token *consume(TokenKind tokenKind1, TokenKind tokenKind2, std::string humanReadableExpectedText) {
+    Token *consume(TokenKind tokenKind1, TokenKind tokenKind2, const std::string &humanReadableExpectedText) {
         Token *token = lexer_.nextToken();
         if(token->kind() != tokenKind1 && token->kind() != tokenKind2) {
             errorStream_.error(
@@ -76,7 +82,7 @@ protected:
         return token;
     }
 
-    Token *consume(TokenKind tokenKind, std::string humanReadableExpectedText) {
+    Token *consume(TokenKind tokenKind, const std::string &humanReadableExpectedText) {
         Token *token = lexer_.nextToken();
         if(token->kind()!= tokenKind) {
             errorStream_.error(

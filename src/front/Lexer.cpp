@@ -44,6 +44,7 @@ std::vector<std::pair<string_t, TokenKind>> MultiCharacterTokens =
     { "func", TokenKind::KW_FUNC },
     { "cast", TokenKind::KW_CAST },
     { "class", TokenKind::KW_CLASS},
+    { "assert", TokenKind::KW_ASSERT},
 };
 
 Token *Lexer::extractLiteralNumber() {

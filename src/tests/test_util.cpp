@@ -1,7 +1,8 @@
 #include "test_util.h"
-#include "front/parse.h"
 
 #include <chrono>
+#include <catch.hpp>
+#include <front/parse.h>
 
 namespace lwnn { namespace test_util {
 
@@ -21,8 +22,12 @@ std::vector<lwnn::execute::StmtResult> testWithResults(std::shared_ptr<execute::
     std::string module_name = string::format("test_%d", ++testCount);
     auto testStartTime = std::chrono::high_resolution_clock::now();
 
-    ast::Module *module = parse::parseModule(source, module_name);
-    ASSERT(module && "If module is null, a syntax error probably occurred!");
+    ast::Module *module;
+    try {
+        module = front::parseModule(source, module_name);
+    } catch(lwnn::front::ParseAbortedException&) {
+        FAIL("Parse aborted.");
+    }
 
     executionContext->prepareModule(module);
 

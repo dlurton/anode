@@ -12,30 +12,6 @@
 #include <memory>
 
 namespace lwnn { namespace ast {
-//enum class StmtKind : unsigned char {
-//    FunctionDeclStmt,
-//    ReturnStmt,
-//    ExprStmt,
-//    CompoundStmt,
-//    ClassDefinition,
-//    AssertExprStmt
-//};
-//std::string to_string(StmtKind kind);
-
-//enum class ExprKind : unsigned char {
-//    VariableDeclExpr,
-//    LiteralBoolExpr,
-//    LiteralInt32Expr,
-//    LiteralFloatExpr,
-//    VariableRefExpr,
-//    BinaryExpr,
-//    ConditionalExpr,
-//    CastExpr,
-//    CompoundExpr,
-//    DotExpr,
-//    FuncCallExpr
-//};
-//std::string to_string(ExprKind kind);
 
 enum class BinaryOperationKind : unsigned char {
     Assign,
@@ -58,7 +34,6 @@ class AstNode;
 class Stmt;
 class ReturnStmt;
 class ExprStmt;
-class CompoundStmt;
 class CompoundExpr;
 class ParameterDef;
 class FuncDefStmt;
@@ -75,7 +50,6 @@ class BinaryExpr;
 class DotExpr;
 class VariableDeclExpr;
 class VariableRefExpr;
-class AssignExpr;
 class CastExpr;
 class TypeRef;
 class AssertExprStmt;
@@ -103,9 +77,6 @@ public:
 
     virtual void visitingReturnStmt(ReturnStmt *) { }
     virtual void visitedReturnStmt(ReturnStmt *) { }
-
-    virtual bool visitingCompoundStmt(CompoundStmt *) { return true;}
-    virtual void visitedCompoundStmt(CompoundStmt*) { }
 
     //////////// Expressions
     /** Executes before every ExprStmt is visited. Return false to prevent visitation of the node's descendants. */
@@ -629,46 +600,6 @@ public:
     }
 };
 
-/** Contains a series of expressions, i.e. those contained within { and }. */
-class CompoundStmt : public Stmt {
-    scope::SymbolTable scope_;
-protected:
-    gc_vector<Stmt*> statements_;
-public:
-    CompoundStmt(source::SourceSpan sourceSpan, scope::StorageKind storageKind) : Stmt(sourceSpan), scope_{storageKind} { }
-    virtual ~CompoundStmt() {}
-
-    //StmtKind stmtKind() const override { return StmtKind::CompoundStmt; }
-
-    scope::SymbolTable *scope() { return &scope_; }
-
-    void addStmt(Stmt* stmt) {
-        statements_.push_back(stmt);
-    }
-
-    gc_vector<Stmt*> statements() const {
-        gc_vector<Stmt*> retval;
-        retval.reserve(statements_.size());
-        for(auto &stmt : statements_) {
-            retval.push_back(stmt);
-        }
-        return retval;
-    }
-
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingStmt(this);
-        visitChildren = visitor->visitingCompoundStmt(this) ? visitChildren : false;
-        if(visitChildren) {
-            for (Stmt *stmt : statements_) {
-                stmt->accept(visitor);
-            }
-        }
-        visitor->visitedCompoundStmt(this);
-        visitor->visitedStmt(this);
-    }
-};
-
-
 /** Represents a return statement.  */
 class ReturnStmt : public Stmt {
     ExprStmt* valueExpr_;
@@ -999,7 +930,10 @@ class DotExpr : public ExprStmt {
     type::ClassField *field_ = nullptr;
     bool isWrite_ = false;
 public:
-    DotExpr(const source::SourceSpan &sourceSpan, const source::SourceSpan &dotSourceSpan, ExprStmt *lValue, const std::string &memberName)
+    DotExpr(const source::SourceSpan &sourceSpan,
+            const source::SourceSpan &dotSourceSpan,
+            ExprStmt *lValue,
+            const std::string &memberName)
         : ExprStmt(sourceSpan), dotSourceSpan_{dotSourceSpan}, lValue_{lValue}, memberName_{memberName} { }
 
     source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
@@ -1035,10 +969,9 @@ public:
 
 class AssertExprStmt : public ExprStmt {
     ast::ExprStmt *condition_;
-    std::string expression_;
 public:
-    AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt *condition, const std::string &expression)
-        : ExprStmt(sourceSpan), condition_{condition}, expression_{expression} { }
+    AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt *condition)
+        : ExprStmt(sourceSpan), condition_{condition} { }
 
     virtual type::Type *type() const { return &type::Primitives::Void; }
     virtual bool canWrite() const { return false; };
@@ -1048,7 +981,6 @@ public:
     void setCondition(ast::ExprStmt *condition) {
         condition_ = condition;
     }
-    std::string expression() { return expression_; }
 
     virtual void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingExprStmt(this);

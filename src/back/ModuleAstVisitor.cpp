@@ -47,6 +47,13 @@ public:
 
     virtual bool visitingExprStmt(ExprStmt *expr) override {
 
+        // Skip globally scoped CompoundExpr and allow it's children to be visited
+        auto maybeCompoundExpr = dynamic_cast<ast::CompoundExpr*>(expr);
+        if(maybeCompoundExpr) {
+            if(maybeCompoundExpr->scope()->storageKind() == scope::StorageKind::Global)
+                return true;
+        }
+
         if (!expr->type()->isPrimitive()) {
             //eventually, we'll call toString() or somesuch.
             return false;
@@ -211,19 +218,16 @@ private:
             ASSERT_FAILED_FUNC_NAME,
             llvm::Type::getVoidTy(cc().llvmContext()),      //Return type
             llvm::Type::getInt8PtrTy(cc().llvmContext()),   //char * to source filename
-            llvm::Type::getInt32Ty(cc().llvmContext()),     //line number
-            llvm::Type::getInt8PtrTy(cc().llvmContext()))   //char * to expression
-        );
+            llvm::Type::getInt32Ty(cc().llvmContext())     //line number
+        ));
 
         auto paramItr = assertFunc->arg_begin();
         llvm::Value *executionContext = paramItr++;
         executionContext->setName("filename");
 
-        llvm::Value *primitiveType = paramItr++;
+        llvm::Value *primitiveType = paramItr;
         primitiveType->setName("lineNo");
 
-        llvm::Value *valuePtr = paramItr;
-        valuePtr->setName("expression");
 
         cc().setAssertFunc(assertFunc);
     }
