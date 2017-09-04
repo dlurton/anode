@@ -5,9 +5,7 @@ set(LINK_LLVM_DYLIB yes)
 set(EXTERNS_DIR "${CMAKE_SOURCE_DIR}/externs")
 set(LWNN_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include/lwnn")
 
-# NOTE:  I would also like to enable -Wpedantic here but some warnings come out of ANTLR4s generated header files
-# and it seems the "#pragma GCC diagnostic ignored \"-Wpedantic\"" does't work for pedantic warnings.  (Grrr...)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3 -Wall -Werror -Wextra -O0 ")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3 -Wall -Werror -Wextra -O0 -Wpedantic")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
@@ -21,11 +19,6 @@ include_directories(${LWNN_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/externs/bdwgc/usr/local/lib/include)
 find_library(LIB_GC gc PATHS ${EXTERNS_DIR}/bdwgc/usr/local/lib/lib NO_DEFAULT_PATH)
 message(STATUS "Found libgc: ${LIB_GC}")
-
-
-find_library(LIB_ANTLR4_RUNTIME antlr4-runtime PATHS ${EXTERNS_DIR}/antlr4/usr/local/lib NO_DEFAULT_PATH)
-message(STATUS "Found libantlr4-runtime: ${LIB_ANTLR4_RUNTIME}")
-
 
 ###########################################################################################################
 # Setup LLVM.  This function is provided so that components which need to link with LLVM may easily do so.

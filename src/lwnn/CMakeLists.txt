@@ -3,7 +3,7 @@
 setup_llvm()
 
 #linenoise
-include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
+include_directories(${EXTERNS_DIR}/linenoise-ng/include)
 find_library(LIB_LINENOISE linenoise PATHS ${EXTERNS_DIR}/linenoise-ng/lib)
 
 set(LWNN_SOURCE_FILES main.cpp ../include/lwnn/common/containers.h ../front/parser/LwnnParser.h ../include/lwnn/front/parse.h)
