@@ -560,23 +560,23 @@ class CompoundExpr : public ExprStmt {
 protected:
     gc_vector<ExprStmt*> expressions_;
 public:
-    CompoundExpr(source::SourceSpan sourceSpan, scope::StorageKind storageKind) : ExprStmt(sourceSpan), scope_{storageKind} { }
-    CompoundExpr(source::SourceSpan sourceSpan, scope::StorageKind storageKind, const gc_vector<ExprStmt*> expressions)
-        : ExprStmt(sourceSpan), scope_{storageKind}, expressions_{expressions} { }
+    CompoundExpr(
+        source::SourceSpan sourceSpan,
+        scope::StorageKind storageKind,
+        const gc_vector<ExprStmt*> &expressions)
+        : ExprStmt(sourceSpan),
+          scope_{storageKind},
+          expressions_{expressions}
+    { }
 
     virtual ~CompoundExpr() {}
     scope::SymbolTable *scope() { return &scope_; }
 
-    //virtual ExprKind exprKind() const { return ExprKind::CompoundExpr; };
     virtual type::Type *type() const {
         ASSERT(expressions_.size() > 0);
         return expressions_.back()->type();
     };
     virtual bool canWrite() const { return false; };
-
-    void addExpr(ExprStmt* stmt) {
-        expressions_.push_back(stmt);
-    }
 
     gc_vector<ExprStmt*> expressions() const {
         gc_vector<ExprStmt*> retval;
@@ -774,7 +774,10 @@ public:
         returnTypeRef_{returnTypeRef},
         parameters_{parameters},
         body_{body},
-        functionType_{createFunctionType(returnTypeRef->type(), parameters)} { }
+        functionType_{createFunctionType(returnTypeRef->type(), parameters)}
+    {
+        parameterScope_.name() = name_ + "-parameters";
+    }
 
     type::Type *type() const override { return &type::Primitives::Void; }
     bool canWrite() const override { return false; }
@@ -881,20 +884,11 @@ class ClassDefinition : public ExprStmt {
     CompoundExpr *body_;
 
     type::ClassType *classType_;
-
-    inline static CompoundExpr *possiblyWrapExprInCompoundExpr(ast::ExprStmt *expr) {
-        CompoundExpr *compoundExpr = dynamic_cast<CompoundExpr*>(expr);
-        if(compoundExpr) return compoundExpr;
-        compoundExpr = new CompoundExpr(expr->sourceSpan(), scope::StorageKind::Instance);
-        compoundExpr->addExpr(expr);
-        return compoundExpr;
-    }
-
 public:
-    ClassDefinition(source::SourceSpan span, std::string name, ast::ExprStmt *body)
+    ClassDefinition(source::SourceSpan span, std::string name, ast::CompoundExpr *body)
         : ExprStmt{span},
           name_{name},
-          body_{possiblyWrapExprInCompoundExpr(body)},
+          body_{body},
           classType_{new type::ClassType(name)} { }
 
     type::Type *type() const override { return &type::Primitives::Void; }

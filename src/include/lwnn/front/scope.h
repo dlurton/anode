@@ -8,6 +8,8 @@
 
 namespace lwnn {  namespace scope {
 
+extern std::string createRandomUniqueName();
+
 /** Indicates type of storage for this variable. */
 enum class StorageKind : unsigned char {
     NotSet,
@@ -90,6 +92,7 @@ class SymbolTable {
     gc_unordered_map<std::string, scope::Symbol*> symbols_;
     gc_vector<scope::Symbol*> orderedSymbols_;
     StorageKind storageKind_;
+    std::string name_;
 public:
     SymbolTable(StorageKind storageKind) : storageKind_(storageKind) {}
 
@@ -98,8 +101,24 @@ public:
         parent_ = parent;
     }
 
+    std::string name() {
+        if(name_.size() == 0) {
+            name_ = createRandomUniqueName();
+        }
+        return name_;
+    }
+
+    void setName(const std::string &name) {
+        ASSERT(name_.size() == 0 && "Shouldn't mutate name after it has been set.");
+        name_ = name;
+    }
+
     StorageKind storageKind() {
         return storageKind_;
+    }
+
+    void setStorageKind(StorageKind kind) {
+        storageKind_ = kind;
     }
 
     /** Finds the named symbol in the current scope */

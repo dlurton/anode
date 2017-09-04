@@ -15,6 +15,7 @@
 #include <cstring>
 #include <fstream>
 
+
 //static const char* examples[] = {
 //        "db", "hello", "hallo", "hans", "hansekogge", "seamann", "quetzalcoatl", "quit", "power", NULL
 //};
@@ -210,6 +211,8 @@ void generateSomeGarbage() {
 }
 
 int main(int argc, char **argv) {
+    std::cout << "cwd: " << get_current_dir_name() << "\n";
+
     GC_set_all_interior_pointers(1);
     //GC_enable_incremental();
     GC_INIT();

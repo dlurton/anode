@@ -1,5 +1,7 @@
+
+#include "common/exception.h"
 #include "front/parse.h"
-#include "LwnnParser.h"
+#include "parser/LwnnParser.h"
 
 
 namespace lwnn { namespace front {
@@ -18,9 +20,8 @@ namespace lwnn { namespace front {
     ast::Module *parseModule(const std::string &filename)
     {
         std::ifstream inputFileStream{filename};
-        inputFileStream.open(filename, std::ios_base::in);
-        if(!inputFileStream.is_open()) {
-            throw std::runtime_error(std::string("Couldn't open input file: ") + filename);
+        if(!inputFileStream) {
+            throw ParseAbortedException(std::string("Couldn't open input file: ") + filename);
         }
 
         return parseModule(inputFileStream, filename);

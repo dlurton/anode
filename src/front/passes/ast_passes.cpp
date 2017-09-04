@@ -132,7 +132,8 @@ public:
     ResolveSymbolsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
     virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-        if(expr->symbol() && expr->symbol()->storageKind() == scope::StorageKind::Local) {
+        ASSERT(expr->symbol() && "Symbol must be resolved before this point.");
+        if(expr->symbol()->storageKind() == scope::StorageKind::Local) {
             definedSymbols_.emplace(expr->symbol());
         }
     }
@@ -145,11 +146,14 @@ public:
             errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Symbol '%s' was not defined in this scope.",
                 expr->name().c_str());
         } else {
-            if(found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
-                errorStream_.error(
-                    error::ErrorKind::VariableUsedBeforeDefinition, expr->sourceSpan(),  "Variable '%s' used before its definition.",
-                    expr->name().c_str());
-                return;
+
+            if(!found->type()->isClass() && !found->type()->isFunction()) {
+                if (found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
+                    errorStream_.error(
+                        error::ErrorKind::VariableUsedBeforeDefinition, expr->sourceSpan(), "Variable '%s' used before its definition.",
+                        expr->name().c_str());
+                    return;
+                }
             }
 
             expr->setSymbol(found);

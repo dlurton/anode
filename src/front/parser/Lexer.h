@@ -7,7 +7,7 @@
 
 #include "Token.h"
 #include "char.h"
-#include "SourceReader.h"
+#include "../SourceReader.h"
 
 #include <vector>
 #include <fstream>
@@ -149,9 +149,7 @@ private:
     }
 
     Token *extractToken();
-
     Token *extractIdentifier();
-
     Token *extractLiteralNumber();
 };
 

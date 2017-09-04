@@ -20,6 +20,10 @@ namespace lwnn {
                 return valueStack_.top();
             }
 
+            virtual bool visitingFuncDefStmt(ast::FuncDefStmt *) override {
+                return false;
+            }
+
             virtual void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
                 //Pop arguments off first since they are evaulated before the function ptr.
                 std::vector<llvm::Value*> args;

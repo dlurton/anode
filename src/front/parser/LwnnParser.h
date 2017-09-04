@@ -241,10 +241,20 @@ class LwnnParser : public PrattParser<ast::ExprStmt> {
         Token *className = consumeIdentifier();
         ast::ExprStmt *classBody = parseExprStmt();
 
+        ast::CompoundExpr *compoundExpr = dynamic_cast<ast::CompoundExpr*>(classBody);
+        if(!compoundExpr) {
+            gc_vector<ast::ExprStmt*> stmts;
+            stmts.push_back(classBody);
+            compoundExpr = new ast::CompoundExpr(classBody->sourceSpan(), scope::StorageKind::Instance, stmts);
+        } else {
+            compoundExpr->scope()->setStorageKind(scope::StorageKind::Instance);
+        }
+        compoundExpr->scope()->setName(className->text());
+
         return new ast::ClassDefinition(
             getSourceSpan(classKeyword->span(), classBody->sourceSpan()),
             className->text(),
-            classBody
+            compoundExpr
         );
     }
 

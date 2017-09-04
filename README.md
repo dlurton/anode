@@ -143,25 +143,26 @@ languages and that are needed for basic usefulness and then come back and add so
 
 ## Building
 
-### Dependencies First
-
-#### Install Build Dependencies
-
-These are needed to build ANTLR4 and LLVM which must be done once before LWNN can be built.
+### Prerequisites
 
  - [cmake](https://cmake.org/) (3.4.3 or later) 
- - gcc.  (7.1.1 is known to work however earlier versions are likely to as well.)
- - libuuid (and development headers, under Fedora the package name is libuuid-devel)
- - For building ANTLR4:
-    - [maven](https://maven.apache.org/what-is-maven.html) (version 3.5.0 is known to work)
-    - Java 7 or later
+ - gcc.  (a version supporting C++14 or later)
+ - libuuid (development headers, needed for LLVM)
+
+### Building Dependencies
 
 The script `tools/build-all-dependencies` will clone all of the repositories of each `lwnn` dependency and build
 all of them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.
 This directory may be deleted to conserve disk space after everything has successfully built, if desired.  If
 successful, the libraries and headers of each dependency will be installed in sub-directories of `externs`.
 
+### First Time Building
+
+Use the script `tools/build-all` to build all dependencies and lwnn.
+
 ### Building LWNN
+
+After building the first time, you can just build lwnn like so:
 
     mkdir cmake-build
     cd cmake-build

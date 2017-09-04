@@ -13,19 +13,17 @@ set(FRONT_SRC_FILES
         passes/ast_passes.cpp
         source.cpp
         passes/AddImplicitCastsPass.h
-        Lexer.cpp
-        Lexer.h
-        PrattParser.h
-        Token.h
-        char.h
+        parser/Lexer.cpp
+        parser/Lexer.h
+        parser/PrattParser.h
+        parser/Token.h
+        parser/char.h
         SourceReader.h
-        LwnnParser.cpp
-        parse.cpp)
+        parser/LwnnParser.cpp
+        parse.cpp scope.cpp)
 
-include_directories(${EXTERNS_DIR}/antlr4/usr/local/include/antlr4-runtime ${EXTERNS_DIR}/linenoise-ng/include)
-
-find_library(LIB_ANTLR4_RUNTIME antlr4-runtime PATHS ${EXTERNS_DIR}/antlr4/usr/local/lib)
+find_library(LIB_UUID uuid)
 
 add_library(lwnn-front ${FRONT_SRC_FILES})
 
-target_link_libraries(lwnn-front ${LIB_ANTLR4_RUNTIME} )
+target_link_libraries(lwnn-front ${LIB_UUID})

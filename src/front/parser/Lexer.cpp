@@ -102,7 +102,7 @@ Token *Lexer::extractToken() {
 
     //Search for a match among the multi-character tokens
     //(because some of the multi-character tokens will start with the same character as a single-character token.)
-    for(std::pair<string_t, TokenKind> multiCharToken : MultiCharacterTokens) {
+    for(const std::pair<string_t, TokenKind> &multiCharToken : MultiCharacterTokens) {
         if(reader_.match(multiCharToken.first)) {
             return newToken(multiCharToken.second, multiCharToken.first);
         }

@@ -16,8 +16,7 @@ using namespace lwnn::ast;
  * then examine the IR that's generated.
  */
 
-namespace lwnn {
-namespace back {
+namespace lwnn { namespace back {
 
 void createLlvmStructsForClasses(ast::Module *lwnnModule, CompileContext &cc) {
     CreateStructsAstVisitor visitor{cc};
@@ -131,33 +130,6 @@ public:
 
             globalVar->setAlignment(ALIGNMENT);
         }
-
-        //Create all functions and symbol to value mappings...  Here, this happens for functions declared in this module
-        //and in previous modules, however, no BasicBlock is ever created for external functions and no IR is ever emitted.
-        //LLVM always searches external modules when linking such functions.
-        gc_vector<scope::FunctionSymbol*> functions = module->scope()->functions();
-        for(scope::FunctionSymbol *functionSymbol : functions) {
-
-            //Map all LWNN argument types to LLVM types.
-            gc_vector<type::Type*> lwnnParamTypes = functionSymbol->functionType()->parameterTypes();
-            std::vector<llvm::Type*> llvmParamTypes;
-            llvmParamTypes.reserve(lwnnParamTypes.size());
-            for(auto lwnnType : lwnnParamTypes) {
-                llvmParamTypes.push_back(cc().typeMap().toLlvmType(lwnnType));
-            }
-
-            llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(functionSymbol->functionType()->returnType());
-            //Create the LLVM FunctionType
-            llvm::FunctionType *functionType = llvm::FunctionType::get(returnLlvmType, llvmParamTypes, /*isVarArg*/ false);
-
-            llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
-                cc().llvmModule().getOrInsertFunction(functionSymbol->name(), functionType));
-
-            llvmFunc->setCallingConv(llvm::CallingConv::C);
-
-            cc().mapSymbolToValue(functionSymbol, llvmFunc);
-        }
-
         emitFuncDefs(module, cc());
 
         return true;
@@ -167,6 +139,8 @@ public:
         cc().irBuilder().CreateRetVoid();
         llvm::raw_ostream &os = llvm::errs();
         if (llvm::verifyModule(cc().llvmModule(), &os)) {
+            std::cerr << "Module dump: \n";
+            std::cerr.flush();
             cc().llvmModule().dump();
             ASSERT_FAIL("Failed LLVM module verification.");
         }
@@ -233,8 +207,13 @@ private:
     }
 };
 
-std::unique_ptr<llvm::Module> emitModule(lwnn::ast::Module *module, lwnn::back::TypeMap &typeMap, llvm::LLVMContext &llvmContext,
-                                         llvm::TargetMachine *targetMachine) {
+std::unique_ptr<llvm::Module> emitModule(
+    lwnn::ast::Module *module,
+    lwnn::back::TypeMap &typeMap,
+    llvm::LLVMContext &llvmContext,
+    llvm::TargetMachine *targetMachine
+) {
+
     std::unique_ptr<llvm::Module> llvmModule = std::make_unique<llvm::Module>(module->name(), llvmContext);
     llvm::IRBuilder<> irBuilder{llvmContext};
 

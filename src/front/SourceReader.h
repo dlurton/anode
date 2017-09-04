@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "char.h"
+#include "parser/char.h"
 #include "lwnn.h"
 
 #include <deque>
@@ -19,9 +19,8 @@ class SourceReader : no_new, no_copy, no_assign {
     std::deque<char_t> lookahead_;
 
     char_t readChar() {
-        char_t c;
-        inputStream_.get(c);
-        return c;
+        int c = inputStream_.get();
+        return static_cast<char_t>(c);
     }
 
     void primeLookahead(size_t toSize) {
@@ -31,12 +30,12 @@ class SourceReader : no_new, no_copy, no_assign {
     }
 
 public:
-    SourceReader(const string_t &inputName_, std::istream &inputStream_)
-        : inputName_(inputName_), inputStream_(inputStream_) {  }
+    SourceReader(const string_t &inputName_, std::istream &inputStream)
+        : inputName_(inputName_), inputStream_(inputStream) {  }
 
     string_t inputName() { return inputName_; }
 
-    bool eof() { return (lookahead_.size() == 0 || lookahead_.front() == 0) && inputStream_.eof(); }
+    bool eof() { return (lookahead_.size() == 0 || lookahead_.front() == -1) && inputStream_.eof(); }
 
     source::SourceLocation getCurrentSourceLocation() {
         return source::SourceLocation(lineNo_, charPositionInLine_);

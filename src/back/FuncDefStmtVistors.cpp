@@ -6,9 +6,60 @@
 
 namespace lwnn { namespace back {
 
-class FuncDefStmtVistors : public CompileAstVisitor {
+class DeclareFuncsAstVisitor : public CompileAstVisitor {
+private:
+
+    void declareFunction(scope::FunctionSymbol *functionSymbol) {
+        //Map all LWNN argument types to LLVM types.
+        gc_vector<type::Type*> lwnnParamTypes = functionSymbol->functionType()->parameterTypes();
+        std::vector<llvm::Type*> llvmParamTypes;
+        llvmParamTypes.reserve(lwnnParamTypes.size());
+        for(auto lwnnType : lwnnParamTypes) {
+            llvmParamTypes.push_back(cc().typeMap().toLlvmType(lwnnType));
+        }
+
+        llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(functionSymbol->functionType()->returnType());
+        //Create the LLVM FunctionType
+        llvm::FunctionType *functionType = llvm::FunctionType::get(returnLlvmType, llvmParamTypes, /*isVarArg*/ false);
+
+        llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
+            cc().llvmModule().getOrInsertFunction(functionSymbol->name(), functionType));
+
+        llvmFunc->setCallingConv(llvm::CallingConv::C);
+
+        cc().mapSymbolToValue(functionSymbol, llvmFunc);
+    }
+
 public:
-    FuncDefStmtVistors(CompileContext &cc) : CompileAstVisitor(cc) {}
+    DeclareFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {
+
+    }
+
+    virtual bool visitingModule(ast::Module *module) {
+
+        //All external functions must be added to the current llvm module.
+        gc_vector<scope::FunctionSymbol*> functions = module->scope()->functions();
+        for(scope::FunctionSymbol *functionSymbol : functions) {
+            //Skip functions that are not defined externally - we do that in visitingFuncDefStmt, below...
+            if(functionSymbol->isExternal())
+                declareFunction(functionSymbol);
+        }
+
+        return true;
+    }
+
+    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
+        scope::FunctionSymbol *functionSymbol = funcDef->symbol();
+
+        declareFunction(functionSymbol);
+
+        return true;
+    }
+};
+
+class DefineFuncsAstVisitor : public CompileAstVisitor {
+public:
+    DefineFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
 
     bool visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
         //Save the state of the IRBuilder so it can be restored later
@@ -58,8 +109,13 @@ public:
         return true;
     }
 };
+
+
 void emitFuncDefs(lwnn::ast::Module *module, CompileContext &cc) {
-    FuncDefStmtVistors definingVisitor{cc};
+    DeclareFuncsAstVisitor declaringVisitor{cc};
+    module->accept(&declaringVisitor);
+
+    DefineFuncsAstVisitor definingVisitor{cc};
     module->accept(&definingVisitor);
 }
 

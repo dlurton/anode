@@ -1,7 +1,7 @@
 
 #define CATCH_CONFIG_FAST_COMPILE
 #include "catch.hpp"
-#include "../front/Lexer.h"
+#include "../front/parser/Lexer.h"
 #include <limits>
 
 #include "common/containers.h"
