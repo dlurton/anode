@@ -5,6 +5,7 @@
 #include "front/error.h"
 #include "common/string_format.h"
 #include "execute/execute.h"
+#include "runtime/builtins.h"
 
 
 #include "gc/gc.h"
@@ -95,6 +96,8 @@ void runInteractive() {
     //linenoiseSetCompletionCallback(completionHook);
 
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
+    executionContext->setPrettyPrintAst(true);
+    executionContext->setDumpIROnLoad(true);
 
     executionContext->setResultCallback(resultCallback);
 
@@ -142,8 +145,6 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
     ASSERT(executionContext);
     ASSERT(lwnnModule);
 
-//    executionContext->setPrettyPrintAst(true);
-//    executionContext->setDumpIROnLoad(true);
 
     try {
         executionContext->prepareModule(lwnnModule);
@@ -257,5 +258,10 @@ int main(int argc, char **argv) {
     }
 
     linenoiseHistoryFree();
+
+    if(lwnn::runtime::AssertPassCount > 0) {
+        std::cerr << lwnn::runtime::AssertPassCount << " assertion(s) passed.\n";
+    }
+
     return 0;
 }

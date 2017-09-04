@@ -7,8 +7,13 @@
 
 namespace lwnn { namespace runtime {
 
+unsigned int AssertPassCount;
 
 extern "C" {
+    void assert_pass() {
+        AssertPassCount++;
+    }
+
     void assert_fail(char *filename, unsigned int lineNo) {
         std::stringstream out;
         out << filename << ":" << lineNo << ": " << "ASSERTION FAILED" << std::endl;
@@ -20,7 +25,8 @@ extern "C" {
 std::unordered_map<std::string, void*> getBuiltins() {
 
     std::unordered_map<std::string, void*> builtins {
-        { "__assert_failed__", (void*)assert_fail }
+        { "__assert_failed__", (void*)assert_fail },
+        { "__assert_passed__", (void*)assert_pass }
     };
 
     return builtins;

@@ -18,7 +18,8 @@ class CompileContext : no_copy, no_assign {
     llvm::IRBuilder<> &irBuilder_;
     TypeMap &typeMap_;
     gc_unordered_map<scope::Symbol *, llvm::Value *> symbolValueMap_;
-    llvm::Function *assertFunc_ = nullptr;
+    llvm::Function *assertFailFunc_ = nullptr;
+    llvm::Function *assertPassFunc_ = nullptr;
     std::unordered_map<std::string, llvm::Value*> stringConstants_;
 public:
 
@@ -32,13 +33,13 @@ public:
 
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
 
-    llvm::Function *assertFunc() {
-        ASSERT(assertFunc_);
-        return assertFunc_;
+    llvm::Function *assertFailFunc() {
+        ASSERT(assertFailFunc_);
+        return assertFailFunc_;
     }
 
-    void setAssertFunc(llvm::Function *assertFunc) {
-        assertFunc_ = assertFunc;
+    void setAssertFailFunc(llvm::Function *assertFunc) {
+        assertFailFunc_ = assertFunc;
     }
 
     void mapSymbolToValue(scope::Symbol *symbol, llvm::Value *value) {
@@ -46,6 +47,16 @@ public:
         symbolValueMap_[symbol] = value;
     }
 
+    llvm::Function *assertPassFunc() {
+        ASSERT(assertPassFunc_);
+        return assertPassFunc_;
+    }
+
+    void setAssertPassFunc(llvm::Function *assertFunc) {
+        assertPassFunc_ = assertFunc;
+    }
+
+    
     llvm::Value *getMappedValue(scope::Symbol *symbol) {
         llvm::Value *found = symbolValueMap_[symbol];
         ASSERT(found && "Symbol must be mapped to an LLVM value.");

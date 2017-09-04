@@ -3,6 +3,7 @@
 {
     func foo:int(bar:int) bar * 10;
     assert(foo(10) == 100);
+    assert(foo(11) == 110);
 }
 
 

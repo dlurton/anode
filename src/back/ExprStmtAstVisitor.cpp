@@ -454,25 +454,33 @@ namespace lwnn {
 
                 //Prepare the BasicBlocks
                 llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
-                llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc().llvmContext(), "assertFailBlock");
+                llvm::BasicBlock *passBlock = llvm::BasicBlock::Create(cc().llvmContext(), "assertPassBlock");
+                llvm::BasicBlock *failBlock = llvm::BasicBlock::Create(cc().llvmContext(), "assertFailBlock");
                 llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "assertEndBlock");
 
                 //Branch to then or else blocks, depending on condition.
-                cc().irBuilder().CreateCondBr(condValue, endBlock, thenBlock);
+                cc().irBuilder().CreateCondBr(condValue, passBlock, failBlock);
 
-                //Emit the thenBlock
-                currentFunc->getBasicBlockList().push_back(thenBlock);
-                cc().irBuilder().SetInsertPoint(thenBlock);
+                //Emit the passBlock
+                currentFunc->getBasicBlockList().push_back(passBlock);
+                cc().irBuilder().SetInsertPoint(passBlock);
+                cc().irBuilder().CreateCall(cc().assertPassFunc());
+
+                //Jump to the endBlock, skipping the failBlock
+                cc().irBuilder().CreateBr(endBlock);
+
+                //Emit the failBlock
+                currentFunc->getBasicBlockList().push_back(failBlock);
+                cc().irBuilder().SetInsertPoint(failBlock);
 
                 //Call the assert_failed function
                 std::vector<llvm::Value*> arguments;
                 source::SourceSpan span = assert->condition()->sourceSpan();
                 arguments.push_back(cc().getDeduplicatedStringConstant(span.name()));
                 arguments.push_back(getLiteralUIntLLvmValue((unsigned int)span.start().line()));
-                //arguments.push_back(cc().getDeduplicatedStringConstant(assert->expression()));
-                cc().irBuilder().CreateCall(cc().assertFunc(), arguments);
+                cc().irBuilder().CreateCall(cc().assertFailFunc(), arguments);
 
-                //Jump to the endBlock, skipping the elseBlock
+                //Jump to the endBlock,
                 cc().irBuilder().CreateBr(endBlock);
 
                 //Emit the endBlock

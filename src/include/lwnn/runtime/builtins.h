@@ -7,5 +7,6 @@ namespace lwnn { namespace runtime {
 
 std::unordered_map<std::string, void*> getBuiltins();
 
+extern unsigned int AssertPassCount;
 
 }}

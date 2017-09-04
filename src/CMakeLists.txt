@@ -14,7 +14,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 include_directories(${LWNN_INCLUDE_DIR})
 
 # NOTE: yes, the "lib/include" and "lib/lib" here is stupid -- libgc also builds libcords which complains if it's not
-# being installed in a path that doesn't end with /usr/local/lib.  Of course that means everything is installed in silly paths when
+# being installed in a path that doesn't end with /usr/local/lib.  Of course that means everything is installed in these silly paths when
 # I'm not using the defaults.
 include_directories(${CMAKE_SOURCE_DIR}/externs/bdwgc/usr/local/lib/include)
 find_library(LIB_GC gc PATHS ${EXTERNS_DIR}/bdwgc/usr/local/lib/lib NO_DEFAULT_PATH)

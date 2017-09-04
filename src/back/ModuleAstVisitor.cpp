@@ -86,7 +86,7 @@ public:
     virtual bool visitingModule(Module *module) override {
         cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
-        declareAssertFunction();
+        declareAssertFunctions();
         declareResultFunction();
 
         startModuleInitFunc(module);
@@ -187,7 +187,7 @@ private:
         executionContextPtrValue_ = globalVar;
     }
 
-    void declareAssertFunction() {
+    void declareAssertFunctions() {
         llvm::Function *assertFunc = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
             ASSERT_FAILED_FUNC_NAME,
             llvm::Type::getVoidTy(cc().llvmContext()),      //Return type
@@ -202,8 +202,14 @@ private:
         llvm::Value *primitiveType = paramItr;
         primitiveType->setName("lineNo");
 
+        cc().setAssertFailFunc(assertFunc);
 
-        cc().setAssertFunc(assertFunc);
+        assertFunc = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
+            ASSERT_PASSED_FUNC_NAME,
+            llvm::Type::getVoidTy(cc().llvmContext())      //Return type
+        ));
+        cc().setAssertPassFunc(assertFunc);
+
     }
 };
 
