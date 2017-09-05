@@ -1,4 +1,4 @@
-# ANODE Programming Language
+# Anode Programming Language
 
 Anode is yet another embryonic programming language using LLVM as a back-end.
   
