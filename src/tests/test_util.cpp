@@ -1,7 +1,7 @@
 #include "test_util.h"
 
 #include <chrono>
-#include <catch.hpp>
+#include "catch.hpp"
 #include <front/parse.h>
 
 namespace anode { namespace test_util {

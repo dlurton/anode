@@ -4,6 +4,7 @@
 #include "front/visualize.h"
 #include "front/error.h"
 #include "common/string_format.h"
+#include "common/stacktrace.h"
 #include "execute/execute.h"
 #include "runtime/builtins.h"
 
@@ -15,8 +16,6 @@
 #include <linenoise.h>
 #include <cstring>
 #include <fstream>
-
-
 
 //static const char* examples[] = {
 //        "db", "hello", "hallo", "hans", "hansekogge", "seamann", "quetzalcoatl", "quit", "power", NULL
@@ -199,30 +198,40 @@ bool executeScript(const std::string &startScriptFilename) {
 
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
     executionContext->setResultCallback(resultCallback);
+//    executionContext->setPrettyPrintAst(true);
+//    executionContext->setDumpIROnLoad(true);
+
     return runModule(executionContext, module);
 }
 
 } //namespace anode
+//
+//volatile int destructionCount = 0;
+//class SomeGarbage : public gc_cleanup
+//{
+//public:
+//    ~SomeGarbage() {
+//        destructionCount++;
+//    }
+//    int randomWahteverIdoncare;
+//
+//    void foo() { randomWahteverIdoncare++; }
+//};
+//
+//
+//void generateSomeGarbage() {
+//
+//    for(int i = 0; i < 100000; ++i) {
+//        SomeGarbage *garbage = new SomeGarbage();
+//        garbage->foo();
+//    }
+//}
 
-volatile int destructionCount = 0;
-class SomeGarbage : public gc_cleanup
-{
-public:
-    ~SomeGarbage() {
-        destructionCount++;
-    }
-    int randomWahteverIdoncare;
 
-    void foo() { randomWahteverIdoncare++; }
-};
-
-
-void generateSomeGarbage() {
-
-    for(int i = 0; i < 100000; ++i) {
-        SomeGarbage *garbage = new SomeGarbage();
-        garbage->foo();
-    }
+void sigsegv_handler(int) {
+    std::cerr << "SIGSEGV!\n";
+    print_stacktrace();
+    exit(1);
 }
 
 int main(int argc, char **argv) {
@@ -232,16 +241,16 @@ int main(int argc, char **argv) {
     //GC_enable_incremental();
     GC_INIT();
 
-    generateSomeGarbage();
-    while (GC_collect_a_little());
-
-    //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
-    std::cout << "destructionCount: " << destructionCount << std::endl;
-    if (destructionCount == 0) {
-        std::cout << "**************************************************************************\n";
-        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
-        std::cout << "**************************************************************************\n";
-    }
+    //generateSomeGarbage();
+//    while (GC_collect_a_little());
+//
+//    //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
+//    std::cout << "destructionCount: " << destructionCount << std::endl;
+//    if (destructionCount == 0) {
+//        std::cout << "**************************************************************************\n";
+//        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
+//        std::cout << "**************************************************************************\n";
+//    }
 
     //anode::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();

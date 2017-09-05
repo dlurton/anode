@@ -23,7 +23,7 @@ private:
         llvm::FunctionType *functionType = llvm::FunctionType::get(returnLlvmType, llvmParamTypes, /*isVarArg*/ false);
 
         llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
-            cc().llvmModule().getOrInsertFunction(functionSymbol->name(), functionType));
+            cc().llvmModule().getOrInsertFunction(functionSymbol->fullyQualifiedName(), functionType));
 
         llvmFunc->setCallingConv(llvm::CallingConv::C);
 

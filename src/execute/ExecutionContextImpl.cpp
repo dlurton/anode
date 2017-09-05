@@ -82,7 +82,7 @@ public:
         }
 
         for(auto symbolToExport : module->scope()->symbols()) {
-            auto found = exportedSymbols_.find(symbolToExport->name());
+            auto found = exportedSymbols_.find(symbolToExport->fullyQualifiedName());
             if(found == exportedSymbols_.end()) {
                 exportedSymbols_.emplace(symbolToExport->name(), symbolToExport);
             }

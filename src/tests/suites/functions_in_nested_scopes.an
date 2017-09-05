@@ -1,0 +1,64 @@
+#!/home/dave/projects/anode/bin/anode
+
+func outerFunction:int() 101;
+assert(outerFunction() == 101);
+
+# outerFunction defined within anonymous scope overrides outer scope
+{
+    func outerFunction:int() 102;
+    assert(outerFunction() == 102);
+}
+
+
+# foo:int() in nested scopes are different functions (part 1 of 2)
+{
+    someVariable:int = 1;
+    assert(someVariable == 1);
+    func foo:int(bar:int) bar * 10;
+    assert(foo(10) == 100);
+    assert(foo(11) == 110);
+}
+
+# foo:int() in nested scopes are different functions (part 2 of 2)
+{
+    someVariable:int = 2;
+    assert(someVariable == 2);
+    func foo:int(bar:int) bar * 5;
+    assert(foo(10) == 50);
+    assert(foo(11) == 55);
+}
+
+# foo:int() defined in doubly nested scopes are different functions
+{
+    # part 1
+    {
+        someVariable:int = 1;
+        assert(someVariable == 1);
+        func foo:int(bar:int) bar * 10;
+        assert(foo(10) == 100);
+        assert(foo(11) == 110);
+    }
+    # part 2
+    {
+        someVariable:int = 2;
+        assert(someVariable == 2);
+        func foo:int(bar:int) bar * 5;
+        assert(foo(10) == 50);
+        assert(foo(11) == 55);
+    }
+}
+
+# nested function works as expected
+{
+    func outerFunc:int(n:int) {
+        # TODO: need to arrange the nesting of scopes or create semantic rules such that functions cannot reference those of their
+        # TODO: parents...  or we need to actually support this since doing so now will almost certainly create an invalid LLVM module.
+        # TODO: not sure how we would wrangle LLVM into doing that, however...
+        # Note: same parameter name is intentional the inner most "n" shadows the outer "n".
+        func nestedFunc:int(n:int) n * 2;
+        nestedFunc(n) * 4;
+    }
+
+    assert(outerFunc(2) == 16);
+}
+

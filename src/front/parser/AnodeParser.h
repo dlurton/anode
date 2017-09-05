@@ -133,9 +133,9 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt *parseConditional(Token *openingOp) {
         ast::ExprStmt *condExpr = parseExpr();
-        consumeComma();
+        consumeEndOfStatment();
         ast::ExprStmt *thenExpr = parseExpr();
-        consumeComma();
+        consumeEndOfStatment();
         ast::ExprStmt *elseExpr = parseExpr();
         Token *closingParen = consumeCloseParen();
 
@@ -334,6 +334,7 @@ public:
         }
 
         ast::CompoundExpr *body = new ast::CompoundExpr(source::SourceSpan::Any, scope::StorageKind::Global, exprs);
+        body->scope()->setName(lexer_.inputName());
 
         return new ast::Module(lexer_.inputName(), body);
     }

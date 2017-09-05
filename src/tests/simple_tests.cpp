@@ -5,7 +5,7 @@
 
 //#define CATCH_CONFIG_FAST_COMPILE
 #define CATCH_CONFIG_RUNNER
-#include <catch.hpp>
+#include "catch.hpp"
 
 #include <common/stacktrace.h>
 
@@ -24,13 +24,13 @@ int main( int argc, char* argv[]) {
     //GC_enable_incremental();
 
 
-    int result = Catch::Session().run( argc, argv );
+    int result = Catch::Session().run(argc, argv);
 
     std::cout.flush();
     if(testCount > 0) {
         double avgDuration = (double) totalDuration / (double) testCount;
         std::cerr << "\nExecution count: " << testCount<< "\n";
-        std::cerr << "Average execution duration in ms: " << avgDuration << "\n";
+        std::cerr << "Average executiond duration in ms: " << avgDuration << "\n";
         std::cerr.flush();
     }
 
@@ -460,37 +460,37 @@ TEST_CASE("compound expressions with local variables") {
 
 
 TEST_CASE("conditional expressions") {
-    REQUIRE(test<int>("(? true, 1, 2);") == 1);
-    REQUIRE(test<int>("(? false, 1, 2);") == 2);
+    REQUIRE(test<int>("(? true; 1; 2);") == 1);
+    REQUIRE(test<int>("(? false; 1; 2);") == 2);
 
     //Implicit casting of true part / false part
-    REQUIRE(test<float>("(? true, 1.0, 2);") == 1.0);
-    REQUIRE(test<float>("(? false, 1, 2.0);") == 2.0);
+    REQUIRE(test<float>("(? true; 1.0; 2);") == 1.0);
+    REQUIRE(test<float>("(? false; 1; 2.0);") == 2.0);
 
     //Implicit casting of condition from int to bool
-    REQUIRE(test<int>("(? 1, 2, 3);") == 2);
-    REQUIRE(test<int>("(? 2, 2, 3);") == 2);
-    REQUIRE(test<int>("(? 0, 2, 3);") == 3);
+    REQUIRE(test<int>("(? 1; 2; 3);") == 2);
+    REQUIRE(test<int>("(? 2; 2; 3);") == 2);
+    REQUIRE(test<int>("(? 0; 2; 3);") == 3);
 
     //Implicit casting of condition from float to bool
-    REQUIRE(test<int>("(? 1.0, 2, 3);") == 2);
-    REQUIRE(test<int>("(? 0, 2, 3);") == 3);
+    REQUIRE(test<int>("(? 1.0; 2; 3);") == 2);
+    REQUIRE(test<int>("(? 0; 2; 3);") == 3);
 
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    REQUIRE(test<int>(ec, "foo:int = (? 1.0, 2, 3);") == 2);
+    REQUIRE(test<int>(ec, "foo:int = (? 1.0; 2; 3);") == 2);
     REQUIRE(test<int>(ec, "foo;") == 2);
-    REQUIRE(test<int>(ec, "foo = (? 0, 2, 3);") == 3);
+    REQUIRE(test<int>(ec, "foo = (? 0; 2; 3);") == 3);
 }
 
 TEST_CASE("Nested conditional expressions") {
     //std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
-    REQUIRE(test<int>("(? true, (? true, 1, 2), 3);") == 1);
-    REQUIRE(test<int>("(? true, (? false, 1, 2), 3);") == 2);
-    REQUIRE(test<int>("(? false, (? true, 1, 2), 3);") == 3);
+    REQUIRE(test<int>("(? true; (? true; 1; 2); 3);") == 1);
+    REQUIRE(test<int>("(? true; (? false; 1; 2); 3);") == 2);
+    REQUIRE(test<int>("(? false; (? true; 1; 2); 3);") == 3);
 
-    REQUIRE(test<int>("(? true, 1, (? true, 2, 3));") == 1);
-    REQUIRE(test<int>("(? false, 1, (? true, 2, 3));") == 2);
-    REQUIRE(test<int>("(? false, 1, (? false, 2, 3));") == 3);
+    REQUIRE(test<int>("(? true, 1; (? true; 2; 3));") == 1);
+    REQUIRE(test<int>("(? false, 1; (? true; 2; 3));") == 2);
+    REQUIRE(test<int>("(? false, 1; (? false; 2; 3));") == 3);
 }
 
 TEST_CASE("Nested conditional expressions with variables") {
@@ -685,7 +685,6 @@ TEST_CASE("class, stack allocated, with another class inside it") {
     REQUIRE(test<bool>(ec, "instance.a1.c = true;"));
     REQUIRE(test<bool>(ec, "instance.a1.c;"));
 
-    
     REQUIRE(test<int>(ec, "instance.a2.a;") == 0);
     REQUIRE(test<int>(ec, "instance.a2.a = 345;") == 345);
     REQUIRE(test<int>(ec, "instance.a2.a;") == 345);
