@@ -3,17 +3,26 @@
 #include "back/compile.h"
 #include "test_util.h"
 
-#define CATCH_CONFIG_FAST_COMPILE
+//#define CATCH_CONFIG_FAST_COMPILE
 #define CATCH_CONFIG_RUNNER
-#include "catch.hpp"
+#include <catch.hpp>
+
+#include <common/stacktrace.h>
 
 using namespace anode;
 using namespace anode::test_util;
 
-int main( int argc, char* argv[] )
-{
-    //GC_set_all_interior_pointers(1);
+void sigsegv_handler(int) {
+    std::cerr << "SIGSEGV!\n";
+    print_stacktrace();
+    exit(1);
+}
+
+int main( int argc, char* argv[]) {
+    signal(SIGSEGV, sigsegv_handler);
     GC_INIT();
+    //GC_enable_incremental();
+
 
     int result = Catch::Session().run( argc, argv );
 
@@ -811,3 +820,9 @@ TEST_CASE("assert") {
     REQUIRE_NOTHROW(exec("assert(1);"));
     REQUIRE_NOTHROW(exec("assert(1.0);"));
 }
+//
+//
+//TEST_CASE("eek") {
+//    char *foo = nullptr;
+//    foo[0] = 10;
+//}

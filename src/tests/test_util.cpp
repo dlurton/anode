@@ -10,6 +10,9 @@ unsigned int testCount = 0;
 unsigned int totalDuration = 0;
 
 std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
+    //The idea of this is to force garbage collection to occur as early as possible so that premature collection bugs are exposed sooner.
+    while(GC_collect_a_little());
+
 #ifdef VISUALIZE_AST
     executionContext->setPrettyPrintAst(true);
 #endif

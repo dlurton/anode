@@ -110,6 +110,7 @@ protected:
     }
 
     TExpression *parseExpr(int precedence) {
+
         Token *t = lexer_.nextToken();
         if(t->kind() == TokenKind::END_OF_INPUT) {
             throw ParseAbortedException("Unexpected end of input!");

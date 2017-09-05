@@ -17,6 +17,7 @@
 #include <fstream>
 
 
+
 //static const char* examples[] = {
 //        "db", "hello", "hallo", "hans", "hansekogge", "seamann", "quetzalcoatl", "quit", "power", NULL
 //};
@@ -157,14 +158,22 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
 
 void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName,
                  bool shouldExecute) {
-    anode::ast::Module *module = anode::front::parseModule(lineOfCode, moduleName);
 
-    //If no Module returned, parsing failed.
-    if(!module) {
+    anode::ast::Module *module;
+    try {
+        module = anode::front::parseModule(lineOfCode, moduleName);
+    } catch(anode::front::ParseAbortedException &e) {
+        std::cerr << "Parse aborted!\n";
+        std::cerr << e.what();
         return;
     }
 
-    if(shouldExecute) {
+    //If no Module returned, parsing failed.
+    if (!module) {
+        return;
+    }
+
+    if (shouldExecute) {
         runModule(executionContext, module);
     }
 }
@@ -175,10 +184,15 @@ bool executeScript(const std::string &startScriptFilename) {
         module = anode::front::parseModule(startScriptFilename);
 
         //If no Module returned, parsing failed.
-        if(!module) {
+        if (!module) {
             return true;
         }
-    } catch(std::runtime_error &err) {
+    }
+    catch(anode::front::ParseAbortedException &e) {
+        std::cerr << "Parse aborted!\n";
+        std::cerr << e.what();
+    }
+    catch(std::runtime_error &err) {
         std::cerr << err.what();
         return true;
     }
@@ -214,7 +228,7 @@ void generateSomeGarbage() {
 int main(int argc, char **argv) {
     std::cout << "cwd: " << get_current_dir_name() << "\n";
 
-    GC_set_all_interior_pointers(1);
+    //GC_set_all_interior_pointers(1);
     //GC_enable_incremental();
     GC_INIT();
 

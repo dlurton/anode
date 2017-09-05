@@ -130,7 +130,6 @@ public:
 extern unsigned long astNodesDestroyedCount;
 
 /** Base class for all nodes */
-//class AstNode : public gc_cleanup, no_copy, no_assign {
 class AstNode : public gc , no_copy, no_assign {
 public:
     virtual ~AstNode() {

@@ -98,63 +98,63 @@ namespace anode {
                                                         std::move(Resolver)));
             }
 
-            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDefStmt> FnAST) {
-                // Create a CompileCallback - this is the re-entry point into the compiler
-                // for functions that haven't been compiled yet.
-                auto CCInfo = CompileCallbackMgr->getCompileCallback();
-
-                // Create an indirect stub. This serves as the functions "canonical
-                // definition" - an unchanging (constant address) entry point to the
-                // function implementation.
-                // Initially we point the stub's function-pointer at the compile callback
-                // that we just created. In the compile action for the callback (see below)
-                // we will update the stub's function pointer to point at the function
-                // implementation that we just implemented.
-                if (auto Err = IndirectStubsMgr->createStub(mangle(FnAST->name()),
-                                                            CCInfo.getAddress(),
-                                                            llvm::JITSymbolFlags::Exported))
-                    return Err;
-
-                // Move ownership of FnAST to a shared pointer - C++11 lambdas don't support
-                // capture-by-move, which is be required for unique_ptr.
-                auto SharedFnAST = std::shared_ptr<ast::FuncDefStmt>(std::move(FnAST));
-
-                // Set the action to compile our AST. This lambda will be run if/when
-                // execution hits the compile callback (via the stub).
-                //
-                // The steps to compile are:
-                // (1) IRGen the function.
-                // (2) Add the IR module to the JIT to make it executable like any other
-                //     module.
-                // (3) Use findSymbol to get the address of the compiled function.
-                // (4) Update the stub pointer to point at the implementation so that
-                ///    subsequent calls go directly to it and bypass the compiler.
-                // (5) Return the address of the implementation: this lambda will actually
-                //     be run inside an attempted call to the function, and we need to
-                //     continue on to the implementation to complete the attempted call.
-                //     The JIT runtime (the resolver block) will use the return address of
-                //     this function as the address to continue at once it has reset the
-                //     CPU state to what it was immediately before the call.
-                CCInfo.setCompileAction(
-                    [this, SharedFnAST]() {
-                        auto M = irgenAndTakeOwnership(*SharedFnAST, "$impl");
-                        addModule(std::move(M));
-                        auto Sym = findSymbol(SharedFnAST->name() + "$impl");
-                        assert(Sym && "Couldn't find compiled function?");
-                        llvm::JITTargetAddress SymAddr = cantFail(Sym.getAddress());
-                        if (auto Err =
-                            IndirectStubsMgr->updatePointer(mangle(SharedFnAST->name()),
-                                                            SymAddr)) {
-                            logAllUnhandledErrors(std::move(Err), llvm::errs(),
-                                                  "Error updating function pointer: ");
-                            exit(1);
-                        }
-
-                        return SymAddr;
-                    });
-
-                return llvm::Error::success();
-            }
+//            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDefStmt> FnAST) {
+//                // Create a CompileCallback - this is the re-entry point into the compiler
+//                // for functions that haven't been compiled yet.
+//                auto CCInfo = CompileCallbackMgr->getCompileCallback();
+//
+//                // Create an indirect stub. This serves as the functions "canonical
+//                // definition" - an unchanging (constant address) entry point to the
+//                // function implementation.
+//                // Initially we point the stub's function-pointer at the compile callback
+//                // that we just created. In the compile action for the callback (see below)
+//                // we will update the stub's function pointer to point at the function
+//                // implementation that we just implemented.
+//                if (auto Err = IndirectStubsMgr->createStub(mangle(FnAST->name()),
+//                                                            CCInfo.getAddress(),
+//                                                            llvm::JITSymbolFlags::Exported))
+//                    return Err;
+//
+//                // Move ownership of FnAST to a shared pointer - C++11 lambdas don't support
+//                // capture-by-move, which is be required for unique_ptr.
+//                auto SharedFnAST = std::shared_ptr<ast::FuncDefStmt>(std::move(FnAST));
+//
+//                // Set the action to compile our AST. This lambda will be run if/when
+//                // execution hits the compile callback (via the stub).
+//                //
+//                // The steps to compile are:
+//                // (1) IRGen the function.
+//                // (2) Add the IR module to the JIT to make it executable like any other
+//                //     module.
+//                // (3) Use findSymbol to get the address of the compiled function.
+//                // (4) Update the stub pointer to point at the implementation so that
+//                ///    subsequent calls go directly to it and bypass the compiler.
+//                // (5) Return the address of the implementation: this lambda will actually
+//                //     be run inside an attempted call to the function, and we need to
+//                //     continue on to the implementation to complete the attempted call.
+//                //     The JIT runtime (the resolver block) will use the return address of
+//                //     this function as the address to continue at once it has reset the
+//                //     CPU state to what it was immediately before the call.
+//                CCInfo.setCompileAction(
+//                    [this, SharedFnAST]() {
+//                        auto M = irgenAndTakeOwnership(*SharedFnAST, "$impl");
+//                        addModule(std::move(M));
+//                        auto Sym = findSymbol(SharedFnAST->name() + "$impl");
+//                        assert(Sym && "Couldn't find compiled function?");
+//                        llvm::JITTargetAddress SymAddr = cantFail(Sym.getAddress());
+//                        if (auto Err =
+//                            IndirectStubsMgr->updatePointer(mangle(SharedFnAST->name()),
+//                                                            SymAddr)) {
+//                            logAllUnhandledErrors(std::move(Err), llvm::errs(),
+//                                                  "Error updating function pointer: ");
+//                            exit(1);
+//                        }
+//
+//                        return SymAddr;
+//                    });
+//
+//                return llvm::Error::success();
+//            }
 
             llvm::JITSymbol findSymbol(const std::string Name) {
                 return OptimizeLayer.findSymbol(mangle(Name), true);
