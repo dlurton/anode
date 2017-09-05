@@ -1,10 +1,10 @@
-# LWNN - The Language With No Name
+# ANODE Programming Language
 
-The Language With No Name is yet another embryonic programming language using LLVM as a back-end.
+Anode is yet another embryonic programming language using LLVM as a back-end.
   
 There's a basic REPL you can use.  Statements entered there will be parsed and then:
 
- - The LWNN AST will be displayed.
+ - The AST will be displayed.
  - If all passes against the AST succeed LLVM IR will be generated and displayed.
  - The statement will be executed and the result will be displayed.
  
@@ -19,7 +19,7 @@ Goals of the language:
 - Don't needlessly exclude features (post/pre increment operators, ternary operator, generics, etc)
 - Have fun
 
-Examination of [integration_tests.cpp](https://github.com/dlurton/lwnn/blob/master/src/tests/integration_tests.cpp) will give a complete
+Examination of [integration_tests.cpp](https://github.com/dlurton/anode/blob/master/src/tests/integration_tests.cpp) will give a complete
 and up-to-date picture of supported syntax and features, however, here's a short summary:
 
 - Single-line comment:
@@ -67,9 +67,9 @@ and up-to-date picture of supported syntax and features, however, here's a short
  - Built-in assert function: `assert(someExpression)`
     - This is not an actual function, it's part of the syntax!
     - If `someExpression` is non-zero, execution continues unimpeded
-    - If `someExpression` is zero, an error message is printed to stderr including the lwnn source file, line number, and expression that 
+    - If `someExpression` is zero, an error message is printed to stderr including the anode source file, line number, and expression that 
         evaluated to false and the process is terminated.
-    - This expression is/will be heavily used during testing of LWNNs languages features. 
+    - This expression is/will be heavily used during testing of Andoe languages features. 
  - While loops:
     - `while(condition) expression;` or `while(condition) { expression1; expression2; ...}`
  - Classes:
@@ -151,18 +151,18 @@ languages and that are needed for basic usefulness and then come back and add so
 
 ### Building Dependencies
 
-The script `tools/build-all-dependencies` will clone all of the repositories of each `lwnn` dependency and build
+The script `tools/build-all-dependencies` will clone all of the repositories of each `anode` dependency and build
 all of them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.
 This directory may be deleted to conserve disk space after everything has successfully built, if desired.  If
 successful, the libraries and headers of each dependency will be installed in sub-directories of `externs`.
 
 ### First Time Building
 
-Use the script `tools/build-all` to build all dependencies and lwnn.
+Use the script `tools/build-all` to build all dependencies and Anode.
 
-### Building LWNN
+### Building Anode
 
-After building the first time, you can just build lwnn like so:
+After building the first time, you can just build Anode like so:
 
     mkdir cmake-build
     cd cmake-build

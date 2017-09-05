@@ -4,12 +4,12 @@
 
 #pragma once
 
-namespace lwnn {
+namespace anode {
     namespace back {
         const int ALIGNMENT = 4;
 
-        llvm::Value *emitExpr(lwnn::ast::ExprStmt *exprStmt, CompileContext &);
-        void emitFuncDefs(lwnn::ast::Module *module, CompileContext &cc);
+        llvm::Value *emitExpr(anode::ast::ExprStmt *exprStmt, CompileContext &);
+        void emitFuncDefs(anode::ast::Module *module, CompileContext &cc);
 
     }
 }

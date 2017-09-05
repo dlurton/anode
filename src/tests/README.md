@@ -1,4 +1,4 @@
 
-# LWNN Tests
+# Anode Tests
 
-This is LWNN's test suite.
+This is Anode's test suite.

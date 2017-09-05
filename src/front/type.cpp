@@ -1,7 +1,7 @@
 #include "front/type.h"
 #include "common/exception.h"
 
-namespace lwnn { namespace type {
+namespace anode { namespace type {
 
 namespace Primitives {
     ScalarType Int32("int", PrimitiveType::Int32, true);

@@ -2,11 +2,11 @@
 #pragma once
 
 #include "parser/char.h"
-#include "lwnn.h"
+#include "anode.h"
 
 #include <deque>
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
 /** This is a kind of "stream" which is used by the lexer to read characters.
  * It can lookahead an unlimited number of characters and also keeps track of the current line and character index.

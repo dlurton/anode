@@ -4,10 +4,10 @@
 #include "front/visualize.h"
 #include "runtime/builtins.h"
 
-#include "LwnnJit.h"
+#include "AnodeJit.h"
 
 
-namespace lwnn { namespace execute {
+namespace anode { namespace execute {
 /** This function is called by the JITd code to deliver the result of an expression entered at the REPL. */
 extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, void *valuePtr);
 
@@ -16,7 +16,7 @@ extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveT
  * so that it's memory is scanned for  pointers to live objects, otherwise these may get collected prematurely. */
 class ExecutionContextImpl : public ExecutionContext, public gc_cleanup, no_copy, no_assign {
     llvm::LLVMContext context_;
-    std::unique_ptr<LwnnJit> jit_ = std::make_unique<LwnnJit>();
+    std::unique_ptr<AnodeJit> jit_ = std::make_unique<AnodeJit>();
     bool dumpIROnModuleLoad_ = false;
     bool setPrettyPrintAst_ = false;
     gc_unordered_map<std::string, scope::Symbol*> exportedSymbols_;
@@ -28,7 +28,7 @@ public:
         jit_->setEnableOptimization(false);
         jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, (void*)receiveReplResult);
 
-        auto builtins = lwnn::runtime::getBuiltins();
+        auto builtins = anode::runtime::getBuiltins();
         for(auto &pair : builtins) {
             jit_->putExport(pair.first, pair.second);
         }
@@ -69,7 +69,7 @@ public:
         }
 
         error::ErrorStream errorStream {std::cerr};
-        lwnn::front::passes::runAllPasses(module, errorStream);
+        anode::front::passes::runAllPasses(module, errorStream);
 
         if(errorStream.errorCount() > 0) {
             throw ExecutionException(

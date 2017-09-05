@@ -7,7 +7,7 @@
 
 #include <execute/execute.h>
 
-namespace lwnn { namespace test_util {
+namespace anode { namespace test_util {
 
 extern unsigned int testCount;
 extern unsigned int totalDuration;
@@ -15,12 +15,12 @@ extern unsigned int totalDuration;
 void exec(std::string source);
 void exec(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source);
 
-std::vector<lwnn::execute::StmtResult> testWithResults(std::shared_ptr<lwnn::execute::ExecutionContext> executionContext, std::string source);
+std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<anode::execute::ExecutionContext> executionContext, std::string source);
 
 /** This variant expects there to be only one result */
 template<typename T>
 T test(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
-    std::vector<lwnn::execute::StmtResult> results = testWithResults(executionContext, source);
+    std::vector<anode::execute::StmtResult> results = testWithResults(executionContext, source);
     ASSERT(results.size() == 1);
     return results[0].get<T>();
 }

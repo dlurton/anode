@@ -4,7 +4,7 @@
 #include <string>
 
 
-namespace lwnn { namespace scope {
+namespace anode { namespace scope {
 
 std::string createRandomUniqueName() {
     uuid_t uuid;

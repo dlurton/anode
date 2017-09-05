@@ -3,7 +3,7 @@
 
 #include "llvm.h"
 
-namespace lwnn {
+namespace anode {
     namespace execute {
 
         std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDefStmt &FnAST, const std::string &Suffix);
@@ -20,7 +20,7 @@ namespace lwnn {
          * https://github.com/llvm-mirror/llvm/tree/master/examples/Kaleidoscope/BuildingAJIT/Chapter4
          * http://llvm.org/docs/tutorial/BuildingAJIT4.html
          */
-        class LwnnJit {
+        class AnodeJit {
         private:
             std::unique_ptr<llvm::TargetMachine> TM;
             const llvm::DataLayout DL;
@@ -39,7 +39,7 @@ namespace lwnn {
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
-            LwnnJit()
+            AnodeJit()
                 : TM(llvm::EngineBuilder().selectTarget()),
                   DL(TM->createDataLayout()),
                   ObjectLayer([]() { return std::make_shared<llvm::SectionMemoryManager>(); }),

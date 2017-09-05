@@ -8,8 +8,8 @@
 
 #include <sstream>
 
-using namespace lwnn;
-using namespace lwnn::front::parser;
+using namespace anode;
+using namespace anode::front::parser;
 
 
 gc_vector<Token*> extractAllTokens(const std::string &fromStr) {

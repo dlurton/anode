@@ -1,4 +1,4 @@
-#include "lwnn.h"
+#include "anode.h"
 #include "front/parse.h"
 #include "front/ast_passes.h"
 #include "front/visualize.h"
@@ -31,7 +31,7 @@
 //    }
 //}
 
-namespace lwnn {
+namespace anode {
 
 void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName, bool shouldExecute);
 bool executeScript(const std::string &startScriptFilename);
@@ -42,11 +42,11 @@ void runScript(std::string startScriptFilename);
 
 std::string getHistoryFilePath() {
     std::string home{getenv("HOME")};
-    return home + "/.lwnn_history";
+    return home + "/.anode_history";
 }
 
 std::string readLineOfCode() {
-    char const* prompt = "\x1b[1;32mlwnn\x1b[0m> ";
+    char const* prompt = "\x1b[1;32manode\x1b[0m> ";
     char* lineOfCodeChar = linenoise(prompt);
     if (lineOfCodeChar == NULL) {
         return "";
@@ -61,8 +61,8 @@ void help() {
     std::cout << "/help             Displays this text.\n";
     std::cout << "/compile          Toggles compilation.  When disabled, the LLVM IR will not be generated.\n";
     std::cout << "/history          Displays command history.\n";
-    std::cout << "/exit             Exits the lwnn REPL.\n\n";
-    std::cout << "Valid lwnn statements may also be entered.\n";
+    std::cout << "/exit             Exits the anode REPL.\n\n";
+    std::cout << "Valid anode statements may also be entered.\n";
 }
 
 void resultCallback(execute::ExecutionContext*, type::PrimitiveType primitiveType, void *valuePtr) {
@@ -103,7 +103,7 @@ void runInteractive() {
 
 
     const char* NUDGE = "Type '/help' for help or '/exit' to exit.";
-    std::cout << "Welcome to the lwnn REPL. " << NUDGE << "\n";
+    std::cout << "Welcome to the anode REPL. " << NUDGE << "\n";
 
     bool keepGoing = true;
     bool shouldCompile = true;
@@ -141,23 +141,23 @@ void runInteractive() {
     }
 }
 
-bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast::Module *lwnnModule) {
+bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast::Module *anodeModule) {
     ASSERT(executionContext);
-    ASSERT(lwnnModule);
+    ASSERT(anodeModule);
 
 
     try {
-        executionContext->prepareModule(lwnnModule);
+        executionContext->prepareModule(anodeModule);
     } catch (execute::ExecutionException &e) {
         return true; //Don't try to compile a module that doesn't even pass semantics checks.
     }
-    executionContext->executeModule(lwnnModule);
+    executionContext->executeModule(anodeModule);
     return false;
 }
 
 void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName,
                  bool shouldExecute) {
-    lwnn::ast::Module *module = lwnn::front::parseModule(lineOfCode, moduleName);
+    anode::ast::Module *module = anode::front::parseModule(lineOfCode, moduleName);
 
     //If no Module returned, parsing failed.
     if(!module) {
@@ -170,9 +170,9 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
 }
 
 bool executeScript(const std::string &startScriptFilename) {
-    lwnn::ast::Module *module;
+    anode::ast::Module *module;
     try {
-        module = lwnn::front::parseModule(startScriptFilename);
+        module = anode::front::parseModule(startScriptFilename);
 
         //If no Module returned, parsing failed.
         if(!module) {
@@ -188,7 +188,7 @@ bool executeScript(const std::string &startScriptFilename) {
     return runModule(executionContext, module);
 }
 
-} //namespace lwnn
+} //namespace anode
 
 volatile int destructionCount = 0;
 class SomeGarbage : public gc_cleanup
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
         std::cout << "**************************************************************************\n";
     }
 
-    //lwnn::backtrace::initBacktraceDumper();
+    //anode::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();
 
     char *startScriptFilename = nullptr;
@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
     }
 
     if(startScriptFilename) {
-        if(lwnn::executeScript(startScriptFilename)) {
+        if(anode::executeScript(startScriptFilename)) {
             return -1;
         }
     } else {
@@ -254,13 +254,13 @@ int main(int argc, char **argv) {
             std::cout << "stdin is not a terminal\n";
             return -1;
         }
-        lwnn::runInteractive();
+        anode::runInteractive();
     }
 
     linenoiseHistoryFree();
 
-    if(lwnn::runtime::AssertPassCount > 0) {
-        std::cerr << lwnn::runtime::AssertPassCount << " assertion(s) passed.\n";
+    if(anode::runtime::AssertPassCount > 0) {
+        std::cerr << anode::runtime::AssertPassCount << " assertion(s) passed.\n";
     }
 
     return 0;

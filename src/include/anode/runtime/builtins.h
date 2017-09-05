@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 
-namespace lwnn { namespace runtime {
+namespace anode { namespace runtime {
 
 std::unordered_map<std::string, void*> getBuiltins();
 

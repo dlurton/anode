@@ -2,7 +2,7 @@
 #include "CompileAstVisitor.h"
 #include "common/containers.h"
 
-namespace lwnn {
+namespace anode {
     namespace back {
 
         class ExprStmtAstVisitor : public CompileAstVisitor {
@@ -339,7 +339,7 @@ namespace lwnn {
 
                 // The result of the DotExpr is a pointer if field is not being assigned to because the store instruction
                 // expects a pointer at which to store the value.
-                // We also do not attempt to load "values" of any classes because so far we lwnn only operates on class pointers or
+                // We also do not attempt to load "values" of any classes because so far we anode only operates on class pointers or
                 // their fields, not entire classes.
                 if(expr->isWrite() || expr->type()->isClass()) {
                     valueStack_.push(ptrOrValue);

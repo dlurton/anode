@@ -4,18 +4,18 @@
 #include "front/ast.h"
 #include "emit.h"
 
-namespace lwnn { namespace back {
+namespace anode { namespace back {
 
 class DeclareFuncsAstVisitor : public CompileAstVisitor {
 private:
 
     void declareFunction(scope::FunctionSymbol *functionSymbol) {
-        //Map all LWNN argument types to LLVM types.
-        gc_vector<type::Type*> lwnnParamTypes = functionSymbol->functionType()->parameterTypes();
+        //Map all Anode argument types to LLVM types.
+        gc_vector<type::Type*> anodeParamTypes = functionSymbol->functionType()->parameterTypes();
         std::vector<llvm::Type*> llvmParamTypes;
-        llvmParamTypes.reserve(lwnnParamTypes.size());
-        for(auto lwnnType : lwnnParamTypes) {
-            llvmParamTypes.push_back(cc().typeMap().toLlvmType(lwnnType));
+        llvmParamTypes.reserve(anodeParamTypes.size());
+        for(auto anodeType : anodeParamTypes) {
+            llvmParamTypes.push_back(cc().typeMap().toLlvmType(anodeType));
         }
 
         llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(functionSymbol->functionType()->returnType());
@@ -78,8 +78,8 @@ public:
         // http://ellcc.org/demo/index.cgi to discover this...
         //    int foo(int a, int b) { return a + b + 1; }
         //    int main() { foo(1, 2); }
-        // The reason LWNN needs to do this is because LLVM weirdly treats its arguments as values while all other
-        // variables are pointers.  This allows the lwnn front-end to treat *all* variables as pointers and we don't need to include
+        // The reason Anode needs to do this is because LLVM weirdly treats its arguments as values while all other
+        // variables are pointers.  This allows the anode front-end to treat *all* variables as pointers and we don't need to include
         // special logic to determine if the values referenced by pointers need to be loaded.
         // I don't think this is very much of a performance hit because LLVM should optimize this out...  I mean, clang does it.
         auto funcParameters = funcDef->parameters();
@@ -111,7 +111,7 @@ public:
 };
 
 
-void emitFuncDefs(lwnn::ast::Module *module, CompileContext &cc) {
+void emitFuncDefs(anode::ast::Module *module, CompileContext &cc) {
     DeclareFuncsAstVisitor declaringVisitor{cc};
     module->accept(&declaringVisitor);
 

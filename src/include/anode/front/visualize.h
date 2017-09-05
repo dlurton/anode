@@ -3,7 +3,7 @@
 
 #include "ast.h"
 
-namespace lwnn {
+namespace anode {
     namespace visualize {
         void prettyPrint(ast::AstNode *module);
 

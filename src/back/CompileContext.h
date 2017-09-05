@@ -7,7 +7,7 @@
 #include "common/containers.h"
 
 
-namespace lwnn { namespace back {
+namespace anode { namespace back {
 
 /** CompileContext is a place to keep track of values that need to be shared among the AstVisitors that make up the
  * IR generation phase.  A new CompileContext must be created for each module being compiled.

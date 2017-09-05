@@ -30,7 +30,7 @@
 //inline void operator delete[](void *)  { }
 //inline void operator delete[](void *, size_t ) { }
 
-namespace lwnn {
+namespace anode {
 
 class no_new {
 private:

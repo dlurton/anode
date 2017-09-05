@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(LINK_LLVM_DYLIB yes)
 
 set(EXTERNS_DIR "${CMAKE_SOURCE_DIR}/externs")
-set(LWNN_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include/lwnn")
+set(ANODE_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include/anode")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3 -Wall -Werror -Wextra -O0 -Wpedantic")
 
@@ -11,7 +11,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-include_directories(${LWNN_INCLUDE_DIR})
+include_directories(${ANODE_INCLUDE_DIR})
+
 
 # NOTE: yes, the "lib/include" and "lib/lib" here is stupid -- libgc also builds libcords which complains if it's not
 # being installed in a path that doesn't end with /usr/local/lib.  Of course that means everything is installed in these silly paths when
@@ -45,7 +46,7 @@ endfunction()
 add_subdirectory(front)
 add_subdirectory(back)
 add_subdirectory(execute)
-add_subdirectory(lwnn)
+add_subdirectory(anode)
 add_subdirectory(runtime)
 add_subdirectory(tests)
 

@@ -1,4 +1,4 @@
-#!/home/dave/projects/lwnn/bin/lwnn
+#!/home/dave/projects/anode/bin/anode
 
 {
     func foo:int(bar:int) bar * 10;

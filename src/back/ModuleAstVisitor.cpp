@@ -8,7 +8,7 @@
 #include "llvm.h"
 
 
-using namespace lwnn::ast;
+using namespace anode::ast;
 
 /**
  * The best way I have found to figure out what instructions to use with LLVM is to
@@ -16,11 +16,11 @@ using namespace lwnn::ast;
  * then examine the IR that's generated.
  */
 
-namespace lwnn { namespace back {
+namespace anode { namespace back {
 
-void createLlvmStructsForClasses(ast::Module *lwnnModule, CompileContext &cc) {
+void createLlvmStructsForClasses(ast::Module *anodeModule, CompileContext &cc) {
     CreateStructsAstVisitor visitor{cc};
-    lwnnModule->accept(&visitor);
+    anodeModule->accept(&visitor);
 }
 
 class ModuleAstVisitor : public CompileAstVisitor {
@@ -214,8 +214,8 @@ private:
 };
 
 std::unique_ptr<llvm::Module> emitModule(
-    lwnn::ast::Module *module,
-    lwnn::back::TypeMap &typeMap,
+    anode::ast::Module *module,
+    anode::back::TypeMap &typeMap,
     llvm::LLVMContext &llvmContext,
     llvm::TargetMachine *targetMachine
 ) {

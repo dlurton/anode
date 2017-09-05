@@ -5,7 +5,7 @@
 
 #pragma once
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
 /** Defines a function signature which is invoked by PrattParser when it encounters a specific symbol.
  * Such as a prefix operator (i.e. ++i), or a keyword (i.e. 'if' or 'while') to parse the appropriate language construct.

@@ -3,8 +3,8 @@
 setup_llvm()
 
 set(COMPILE_SOURCE_FILES
-        ${LWNN_INCLUDE_DIR}/common
-        ${LWNN_INCLUDE_DIR}/back
+        ${ANODE_INCLUDE_DIR}/common
+        ${ANODE_INCLUDE_DIR}/back
         ModuleAstVisitor.cpp
         CompileContext.h
         llvm.h
@@ -12,5 +12,5 @@ set(COMPILE_SOURCE_FILES
         emit.h
         ExprStmtAstVisitor.cpp CreateStructsAstVisitor.h FuncDefStmtVistors.cpp)
 
-add_library(lwnn-back ${COMPILE_SOURCE_FILES})
-target_link_libraries(lwnn-back lwnn-front ${LLVM_LIBS})
+add_library(anode-back ${COMPILE_SOURCE_FILES})
+target_link_libraries(anode-back anode-front ${LLVM_LIBS})

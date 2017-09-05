@@ -12,9 +12,9 @@
 #include <vector>
 #include <fstream>
 
-using namespace lwnn::source;
+using namespace anode::source;
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
 inline bool isWhite(char_t c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';

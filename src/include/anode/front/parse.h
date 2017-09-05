@@ -1,5 +1,5 @@
 /**
- * This file defines the public interface used by all parts of LWNN to convert a series of characters to an AST.
+ * This file defines the public interface used by all parts of Anode to convert a series of characters to an AST.
  */
 
 #pragma once
@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace lwnn { namespace front {
+namespace anode { namespace front {
 
 ast::Module *parseModule(const std::string &filename);
 ast::Module *parseModule(std::istream &inputStream, const std::string &name);
@@ -24,4 +24,4 @@ public:
 };
 
 
-}}
+}}`

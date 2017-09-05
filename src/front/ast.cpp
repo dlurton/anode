@@ -2,7 +2,7 @@
 #include "front/ast.h"
 
 
-namespace lwnn { namespace ast {
+namespace anode { namespace ast {
 
 unsigned long astNodesDestroyedCount = 0;
 

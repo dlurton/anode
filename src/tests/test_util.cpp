@@ -4,12 +4,12 @@
 #include <catch.hpp>
 #include <front/parse.h>
 
-namespace lwnn { namespace test_util {
+namespace anode { namespace test_util {
 
 unsigned int testCount = 0;
 unsigned int totalDuration = 0;
 
-std::vector<lwnn::execute::StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
+std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<execute::ExecutionContext> executionContext, std::string source) {
 #ifdef VISUALIZE_AST
     executionContext->setPrettyPrintAst(true);
 #endif
@@ -25,13 +25,13 @@ std::vector<lwnn::execute::StmtResult> testWithResults(std::shared_ptr<execute::
     ast::Module *module;
     try {
         module = front::parseModule(source, module_name);
-    } catch(lwnn::front::ParseAbortedException&) {
+    } catch(anode::front::ParseAbortedException&) {
         FAIL("Parse aborted.");
     }
 
     executionContext->prepareModule(module);
 
-    std::vector<lwnn::execute::StmtResult> results;
+    std::vector<anode::execute::StmtResult> results;
 
     executionContext->setResultCallback(
         [&](execute::ExecutionContext*, type::PrimitiveType primitiveType, void* valuePtr) {

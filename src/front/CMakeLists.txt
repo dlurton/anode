@@ -1,12 +1,9 @@
-cmake_minimum_required(VERSION 3.5)
-project(lwnn-front CXX)
-
 ##############################################################
-# Build lwnn
+# Build anode
 ##############################################################
 set(FRONT_SRC_FILES
-        ${LWNN_INCLUDE_DIR}/common
-        ${LWNN_INCLUDE_DIR}/front
+        ${ANODE_INCLUDE_DIR}/common
+        ${ANODE_INCLUDE_DIR}/front
         ast.cpp
         visualize.cpp
         type.cpp
@@ -18,12 +15,12 @@ set(FRONT_SRC_FILES
         parser/PrattParser.h
         parser/Token.h
         parser/char.h
+        parser/AnodeParser.cpp
         SourceReader.h
-        parser/LwnnParser.cpp
         parse.cpp scope.cpp)
 
 find_library(LIB_UUID uuid)
 
-add_library(lwnn-front ${FRONT_SRC_FILES})
+add_library(anode-front ${FRONT_SRC_FILES})
 
-target_link_libraries(lwnn-front ${LIB_UUID})
+target_link_libraries(anode-front ${LIB_UUID})

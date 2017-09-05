@@ -1,7 +1,7 @@
 #pragma once
 #pragma once
 
-#include "lwnn.h"
+#include "anode.h"
 
 #include "type.h"
 #include "scope.h"
@@ -11,7 +11,7 @@
 #include <functional>
 #include <memory>
 
-namespace lwnn { namespace ast {
+namespace anode { namespace ast {
 
 enum class BinaryOperationKind : unsigned char {
     Assign,

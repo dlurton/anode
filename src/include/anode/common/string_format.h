@@ -1,10 +1,10 @@
 
 #pragma once
-#include "lwnn.h"
+#include "anode.h"
 #include <string>
 #include <memory>
 
-namespace lwnn {
+namespace anode {
     namespace string {
 
         template<typename ... Args>

@@ -1,7 +1,7 @@
 
 #include "Lexer.h"
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
 std::unordered_map<char_t, TokenKind> SingleCharacterTokens =
 {

@@ -4,7 +4,7 @@
 
 #include "AddImplicitCastsPass.h"
 
-namespace lwnn { namespace front  { namespace passes {
+namespace anode { namespace front  { namespace passes {
 
 class ScopeFollowingVisitor : public ast::AstVisitor {
 

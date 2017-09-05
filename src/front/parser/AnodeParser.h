@@ -11,13 +11,13 @@
 
 using namespace std::placeholders;
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
 static source::SourceSpan getSourceSpan(const SourceSpan &start, const SourceSpan &end) {
     return source::SourceSpan(start.name(), start.start(), end.end());
 }
 
-class LwnnParser : public PrattParser<ast::ExprStmt> {
+class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     Token *consumeComma() {
         return consume(TokenKind::COMMA, ',');
@@ -286,44 +286,44 @@ class LwnnParser : public PrattParser<ast::ExprStmt> {
 
 public:
 
-    LwnnParser(Lexer &lexer, error::ErrorStream &errorStream) : PrattParser(lexer, errorStream) {
+    AnodeParser(Lexer &lexer, error::ErrorStream &errorStream) : PrattParser(lexer, errorStream) {
         //Prefix parselets
-        registerGenericParselet(TokenKind::LIT_INT, std::bind(&LwnnParser::parseLiteralInt32, this, _1));
-        registerGenericParselet(TokenKind::LIT_FLOAT, std::bind(&LwnnParser::parseLiteralFloat, this, _1));
-        registerGenericParselet(TokenKind::KW_TRUE, std::bind(&LwnnParser::parseLiteralBool, this, _1));
-        registerGenericParselet(TokenKind::KW_FALSE, std::bind(&LwnnParser::parseLiteralBool, this, _1));
-        registerGenericParselet(TokenKind::ID, std::bind(&LwnnParser::parseVariableRef, this, _1));
+        registerGenericParselet(TokenKind::LIT_INT, std::bind(&AnodeParser::parseLiteralInt32, this, _1));
+        registerGenericParselet(TokenKind::LIT_FLOAT, std::bind(&AnodeParser::parseLiteralFloat, this, _1));
+        registerGenericParselet(TokenKind::KW_TRUE, std::bind(&AnodeParser::parseLiteralBool, this, _1));
+        registerGenericParselet(TokenKind::KW_FALSE, std::bind(&AnodeParser::parseLiteralBool, this, _1));
+        registerGenericParselet(TokenKind::ID, std::bind(&AnodeParser::parseVariableRef, this, _1));
 
-        registerGenericParselet(TokenKind::OP_NOT, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
-        registerGenericParselet(TokenKind::OP_INC, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
-        registerGenericParselet(TokenKind::OP_DEC, std::bind(&LwnnParser::parsePrefixUnaryExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_NOT, std::bind(&AnodeParser::parsePrefixUnaryExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_INC, std::bind(&AnodeParser::parsePrefixUnaryExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_DEC, std::bind(&AnodeParser::parsePrefixUnaryExpr, this, _1));
 
-        registerGenericParselet(TokenKind::OPEN_CURLY, std::bind(&LwnnParser::parseCompoundStmt, this, _1));
-        registerGenericParselet(TokenKind::OPEN_PAREN, std::bind(&LwnnParser::parseParensExpr, this, _1));
-        registerGenericParselet(TokenKind::KW_CAST, std::bind(&LwnnParser::parseCastExpr, this, _1));
-        registerGenericParselet(TokenKind::OP_COND, std::bind(&LwnnParser::parseConditional, this, _1));
-        registerGenericParselet(TokenKind::KW_IF, std::bind(&LwnnParser::parseIfExpr, this, _1));
-        registerGenericParselet(TokenKind::KW_WHILE, std::bind(&LwnnParser::parseWhile, this, _1));
-        registerGenericParselet(TokenKind::KW_FUNC, std::bind(&LwnnParser::parseFuncDef, this, _1));
-        registerGenericParselet(TokenKind::KW_CLASS, std::bind(&LwnnParser::parseClassDef, this, _1));
-        registerGenericParselet(TokenKind::KW_ASSERT, std::bind(&LwnnParser::parseAssert, this, _1));
+        registerGenericParselet(TokenKind::OPEN_CURLY, std::bind(&AnodeParser::parseCompoundStmt, this, _1));
+        registerGenericParselet(TokenKind::OPEN_PAREN, std::bind(&AnodeParser::parseParensExpr, this, _1));
+        registerGenericParselet(TokenKind::KW_CAST, std::bind(&AnodeParser::parseCastExpr, this, _1));
+        registerGenericParselet(TokenKind::OP_COND, std::bind(&AnodeParser::parseConditional, this, _1));
+        registerGenericParselet(TokenKind::KW_IF, std::bind(&AnodeParser::parseIfExpr, this, _1));
+        registerGenericParselet(TokenKind::KW_WHILE, std::bind(&AnodeParser::parseWhile, this, _1));
+        registerGenericParselet(TokenKind::KW_FUNC, std::bind(&AnodeParser::parseFuncDef, this, _1));
+        registerGenericParselet(TokenKind::KW_CLASS, std::bind(&AnodeParser::parseClassDef, this, _1));
+        registerGenericParselet(TokenKind::KW_ASSERT, std::bind(&AnodeParser::parseAssert, this, _1));
 
         //Infix parselets
-        registerInfixParselet(TokenKind::OP_ADD, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_SUB, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_MUL, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_DIV, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_EQ, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_NEQ, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_GT, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_GTE, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_LT, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_LTE, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_LAND, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_LOR, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_ASSIGN, std::bind(&LwnnParser::parseBinaryExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OP_DOT, std::bind(&LwnnParser::parseDotExpr, this, _1, _2));
-        registerInfixParselet(TokenKind::OPEN_PAREN, std::bind(&LwnnParser::parseFuncCallExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_ADD, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_SUB, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_MUL, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_DIV, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_EQ, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_NEQ, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_GT, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_GTE, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_LT, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_LTE, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_LAND, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_LOR, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_ASSIGN, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OP_DOT, std::bind(&AnodeParser::parseDotExpr, this, _1, _2));
+        registerInfixParselet(TokenKind::OPEN_PAREN, std::bind(&AnodeParser::parseFuncCallExpr, this, _1, _2));
     }
 
     ast::Module *parseModule() {

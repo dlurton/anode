@@ -1,16 +1,16 @@
 #pragma once
-#include "lwnn.h"
+#include "anode.h"
 #include <string>
 #include <iostream>
 
 #define ASSERT_FAIL(message) \
-    throw ::lwnn::exception::DebugAssertionFailedException(string::format("%s:%d: Debug assertion failed: %s", __FILE__, __LINE__, message));
+    throw ::anode::exception::DebugAssertionFailedException(string::format("%s:%d: Debug assertion failed: %s", __FILE__, __LINE__, message));
 
 #define ASSERT(arg) if(!(arg)) { \
-    throw ::lwnn::exception::DebugAssertionFailedException( \
+    throw ::anode::exception::DebugAssertionFailedException( \
         string::format("%s:%d: Debug assertion failed.  Expression: %s", __FILE__, __LINE__, #arg)); };
 
-namespace lwnn { namespace exception {
+namespace anode { namespace exception {
 
 class Exception : public std::runtime_error {
 public:
@@ -27,9 +27,9 @@ public:
 };
 
 /** Thrown by runtime libraries when an `assert()` has failed. */
-class LwnnAssertionFailedException : public std::runtime_error {
+class AnodeAssertionFailedException : public std::runtime_error {
 public:
-    LwnnAssertionFailedException(const std::string &message) : runtime_error(message) {
+    AnodeAssertionFailedException(const std::string &message) : runtime_error(message) {
     }
 };
 

@@ -2,7 +2,7 @@
 
 #include "front/source.h"
 
-namespace lwnn {
+namespace anode {
     namespace source {
         SourceSpan SourceSpan::Any("?", SourceLocation(-1, -1), SourceLocation(-1, -1));
 

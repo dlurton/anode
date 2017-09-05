@@ -1,11 +1,11 @@
 
 #pragma once
-#include "lwnn.h"
+#include "anode.h"
 #include "../front/ast.h"
 
 #include <functional>
 
-namespace lwnn { namespace execute {
+namespace anode { namespace execute {
 //        typedef float (*FloatFuncPtr)(void);
 //        typedef int (*IntFuncPtr)(void);
 //        typedef void (*VoidFuncPtr)(void);
@@ -47,7 +47,7 @@ struct StmtResult {
 
         ASSERT_FAIL("T may be only bool, int, float or double");
     }
-    void set(lwnn::type::PrimitiveType primitiveType, void *valuePtr) {
+    void set(anode::type::PrimitiveType primitiveType, void *valuePtr) {
         this->primitiveType = primitiveType;
         switch (primitiveType) {
             case type::PrimitiveType::Bool:

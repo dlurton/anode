@@ -8,7 +8,7 @@
 #include <common/string_format.h>
 
 
-namespace lwnn { namespace type {
+namespace anode { namespace type {
 
 /** Each type of primitive is listed here.
  * IMPORTANT NOTE:  the are listed in order of operand priority (except for the NotAPrimitive and Void values).

@@ -4,9 +4,9 @@
 #include <iostream>
 #include <algorithm>
 
-namespace lwnn { namespace visualize {
+namespace anode { namespace visualize {
 
-using namespace lwnn::ast;
+using namespace anode::ast;
 
 class PrettyPrinterVisitor : public AstVisitor {
     IndentWriter writer_;
@@ -213,7 +213,7 @@ public:
 };
 
 void prettyPrint(AstNode *module) {
-    std::cerr<< "LWNN AST:\n";
+    std::cerr<< "AST:\n";
     PrettyPrinterVisitor visitor{ std::cerr };
     module->accept(&visitor);
     std::cerr << "\n";

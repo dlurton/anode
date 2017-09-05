@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace lwnn { namespace source {
+namespace anode { namespace source {
     /** Represents a location within a source file. */
     class SourceLocation : no_new {
         std::size_t line_;

@@ -5,7 +5,7 @@
 #include "front/source.h"
 #include "char.h"
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
 
 //The only reason this is an unsigned short and not an unsigned char is because catch.hpp will try to give me literal characters

@@ -1,6 +1,6 @@
 
 #pragma once
-#include "lwnn.h"
+#include "anode.h"
 #include "front/ast.h"
 
 #pragma GCC diagnostic push
@@ -17,7 +17,7 @@
 //    class TargetMachine;
 //}
 
-namespace lwnn { namespace back {
+namespace anode { namespace back {
     const char * const MODULE_INIT_SUFFIX = "__initModule__";
     const char * const RECEIVE_RESULT_FUNC_NAME = "__receive_result__";
     const char * const ASSERT_FAILED_FUNC_NAME = "__assert_failed__";
@@ -36,21 +36,21 @@ namespace lwnn { namespace back {
             mapTypes(&type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext));
         }
 
-        void mapTypes(type::Type *lwnnType, llvm::Type *llvmType) {
-            typeMap_[lwnnType] = llvmType;
+        void mapTypes(type::Type *anodeType, llvm::Type *llvmType) {
+            typeMap_[anodeType] = llvmType;
         }
 
-        llvm::Type *toLlvmType(type::Type *lwnnType) {
-            ASSERT(lwnnType);
-            llvm::Type *foundType = typeMap_[lwnnType->actualType()];
+        llvm::Type *toLlvmType(type::Type *anodeType) {
+            ASSERT(anodeType);
+            llvm::Type *foundType = typeMap_[anodeType->actualType()];
 
-            ASSERT(foundType && "LWNN type to LLVM type Mapping must exist!");
+            ASSERT(foundType && "Anode type to LLVM type Mapping must exist!");
             return foundType;
         }
     };
 
     std::unique_ptr<llvm::Module> emitModule(
-        lwnn::ast::Module *module,
+        anode::ast::Module *module,
         TypeMap &typeMap,
         llvm::LLVMContext &llvmContext,
         llvm::TargetMachine *targetMachine);

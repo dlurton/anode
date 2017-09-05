@@ -2,7 +2,7 @@
 
 #include "CompileContext.h"
 
-namespace lwnn {
+namespace anode {
     namespace back {
         class CompileAstVisitor : public ast::AstVisitor {
             CompileContext &cc_;

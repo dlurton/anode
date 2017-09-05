@@ -3,7 +3,7 @@
 #include "front/ast.h"
 #include "front/error.h"
 
-namespace lwnn { namespace front { namespace passes {
+namespace anode { namespace front { namespace passes {
 
 class AddImplicitCastsPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;

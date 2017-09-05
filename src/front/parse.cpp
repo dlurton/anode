@@ -1,17 +1,17 @@
 
 #include "common/exception.h"
 #include "front/parse.h"
-#include "parser/LwnnParser.h"
+#include "parser/AnodeParser.h"
 
 
-namespace lwnn { namespace front {
+namespace anode { namespace front {
 
     ast::Module *parseModule(std::istream &inputStream, const std::string &name) {
 
         parser::SourceReader reader{name, inputStream};
         error::ErrorStream errorStream{std::cerr};
         parser::Lexer lexer{reader, errorStream};
-        parser::LwnnParser parser{lexer, errorStream};
+        parser::AnodeParser parser{lexer, errorStream};
         ast::Module *expr = parser.parseModule();
 
         return expr;

@@ -7,8 +7,8 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 
-using namespace lwnn;
-using namespace lwnn::test_util;
+using namespace anode;
+using namespace anode::test_util;
 
 int main( int argc, char* argv[] )
 {
@@ -804,9 +804,9 @@ TEST_CASE("function with implicitly cast float parameter") {
 }
 
 TEST_CASE("assert") {
-    REQUIRE_THROWS_AS(exec("assert(false);"), exception::LwnnAssertionFailedException);
-    REQUIRE_THROWS_AS(exec("assert(0);"), exception::LwnnAssertionFailedException);
-    REQUIRE_THROWS_AS(exec("assert(0.0);"), exception::LwnnAssertionFailedException);
+    REQUIRE_THROWS_AS(exec("assert(false);"), exception::AnodeAssertionFailedException);
+    REQUIRE_THROWS_AS(exec("assert(0);"), exception::AnodeAssertionFailedException);
+    REQUIRE_THROWS_AS(exec("assert(0.0);"), exception::AnodeAssertionFailedException);
     REQUIRE_NOTHROW(exec("assert(true);"));
     REQUIRE_NOTHROW(exec("assert(1);"));
     REQUIRE_NOTHROW(exec("assert(1.0);"));

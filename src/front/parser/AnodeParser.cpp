@@ -1,8 +1,8 @@
-#include "LwnnParser.h"
+#include "AnodeParser.h"
 
-namespace lwnn { namespace front { namespace parser {
+namespace anode { namespace front { namespace parser {
 
-Associativity LwnnParser::getOperatorAssociativity(TokenKind kind) {
+Associativity AnodeParser::getOperatorAssociativity(TokenKind kind) {
     switch(kind) {
         case TokenKind::OP_DOT:
         case TokenKind::OP_MUL:
@@ -26,7 +26,7 @@ Associativity LwnnParser::getOperatorAssociativity(TokenKind kind) {
     }
 }
 
-int LwnnParser::getOperatorPrecedence(TokenKind kind) {
+int AnodeParser::getOperatorPrecedence(TokenKind kind) {
 
     //The reason we subtract precedences from MAX_PRECEDENCE is so that
     //we can use the same values from the table here:
@@ -64,7 +64,7 @@ int LwnnParser::getOperatorPrecedence(TokenKind kind) {
     }
 }
 
-ast::ExprStmt *LwnnParser::parseBinaryExpr(ast::ExprStmt *lValue, Token *operatorToken) {
+ast::ExprStmt *AnodeParser::parseBinaryExpr(ast::ExprStmt *lValue, Token *operatorToken) {
     ast::BinaryOperationKind opKind;
 
     switch(operatorToken->kind()) {

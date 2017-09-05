@@ -6,5 +6,5 @@ source $SCRIPT_DIR/util.sh
 say "Building Dependencies"
 $SCRIPT_DIR/build-dependencies
 
-say "Building LWNN"
-$SCRIPT_DIR/build-lwnn
+say "Building Anode"
+$SCRIPT_DIR/build-anode

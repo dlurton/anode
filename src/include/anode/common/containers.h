@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "lwnn.h"
+#include "anode.h"
 
 #include <stack>
 #include <vector>
@@ -11,7 +11,7 @@
 
 
 
-namespace lwnn {
+namespace anode {
 
 template<typename T>
 class gc_deque : public std::deque<T, gc_allocator<T>> { };

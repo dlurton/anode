@@ -5,9 +5,9 @@
 #include "CompileAstVisitor.h"
 #include "CompileContext.h"
 
-namespace lwnn { namespace back {
+namespace anode { namespace back {
 
-/** For each class in the AST, constructs an LLVM type and maps it to its corresponding LWNN type in the CompileContext. */
+/** For each class in the AST, constructs an LLVM type and maps it to its corresponding Anode type in the CompileContext. */
 class CreateStructsAstVisitor : public CompileAstVisitor {
 public:
     CreateStructsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {

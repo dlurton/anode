@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace lwnn {  namespace scope {
+namespace anode {  namespace scope {
 
 extern std::string createRandomUniqueName();
 

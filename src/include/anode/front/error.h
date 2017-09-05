@@ -8,7 +8,7 @@
 
 #pragma once
 
-namespace lwnn { namespace error {
+namespace anode { namespace error {
 
 /**Every distinct type of compilation error is listed here.  Currently, this is mainly used for integration testing.  It
  * allows assertions that that the semantic checks under test are indeed failing.  Potentially, we may also want to

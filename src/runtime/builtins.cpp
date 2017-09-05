@@ -5,7 +5,7 @@
 #include <sstream>
 #include <common/exception.h>
 
-namespace lwnn { namespace runtime {
+namespace anode { namespace runtime {
 
 unsigned int AssertPassCount;
 
@@ -17,7 +17,7 @@ extern "C" {
     void assert_fail(char *filename, unsigned int lineNo) {
         std::stringstream out;
         out << filename << ":" << lineNo << ": " << "ASSERTION FAILED" << std::endl;
-        throw exception::LwnnAssertionFailedException(out.str());
+        throw exception::AnodeAssertionFailedException(out.str());
         //std::abort();
     }
 }
