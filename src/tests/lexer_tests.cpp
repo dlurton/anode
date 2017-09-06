@@ -1,7 +1,7 @@
 
 #define CATCH_CONFIG_FAST_COMPILE
 #include "catch.hpp"
-#include "../front/parser/Lexer.h"
+#include "../front/parser/AnodeLexer.h"
 #include <limits>
 
 #include "common/containers.h"
@@ -16,7 +16,7 @@ gc_vector<Token*> extractAllTokens(const std::string &fromStr) {
     std::stringstream inputStream{fromStr};
     SourceReader reader{"integration_test", inputStream};
     error::ErrorStream errorStream{std::cerr};
-    Lexer lexer{reader, errorStream};
+    AnodeLexer lexer{reader, errorStream};
 
     gc_vector<Token*> tokens;
     Token *t;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Lexer.h"
+#include "AnodeLexer.h"
 #include "PrattParser.h"
 #include "front/ast.h"
 
@@ -18,6 +18,7 @@ static source::SourceSpan getSourceSpan(const SourceSpan &start, const SourceSpa
 }
 
 class AnodeParser : public PrattParser<ast::ExprStmt> {
+    std::stack<scope::StorageKind> storageKindStack_;
 
     Token *consumeComma() {
         return consume(TokenKind::COMMA, ',');
@@ -113,7 +114,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             stmts.push_back(parseExprStmt());
         } while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY)));
 
-        return new ast::CompoundExpr(getSourceSpan(openCurly->span(), closeCurly->span()), scope::StorageKind::Local, stmts);
+        return new ast::CompoundExpr(getSourceSpan(openCurly->span(), closeCurly->span()), storageKindStack_.top(), stmts);
     }
 
     ast::ExprStmt *parseCastExpr(Token *castKeyword) {
@@ -225,8 +226,10 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
                 closeParen = consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, ',', ')');
             } while(closeParen->kind() != TokenKind::CLOSE_PAREN);        }
 
-        ast::ExprStmt *funcBody = parseExprStmt();
 
+        storageKindStack_.push(scope::StorageKind::Local);
+        ast::ExprStmt *funcBody = parseExprStmt();
+        storageKindStack_.pop();
 
         return new ast::FuncDefStmt(
             getSourceSpan(funcKeyword->span(), funcBody->sourceSpan()),
@@ -239,9 +242,10 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt *parseClassDef(Token *classKeyword) {
         Token *className = consumeIdentifier();
+        storageKindStack_.push(scope::StorageKind::Instance);
         ast::ExprStmt *classBody = parseExprStmt();
 
-        ast::CompoundExpr *compoundExpr = dynamic_cast<ast::CompoundExpr*>(classBody);
+        auto *compoundExpr = dynamic_cast<ast::CompoundExpr*>(classBody);
         if(!compoundExpr) {
             gc_vector<ast::ExprStmt*> stmts;
             stmts.push_back(classBody);
@@ -249,6 +253,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         } else {
             compoundExpr->scope()->setStorageKind(scope::StorageKind::Instance);
         }
+
+        storageKindStack_.pop();
         compoundExpr->scope()->setName(className->text());
 
         return new ast::ClassDefinition(
@@ -286,7 +292,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
 public:
 
-    AnodeParser(Lexer &lexer, error::ErrorStream &errorStream) : PrattParser(lexer, errorStream) {
+    AnodeParser(AnodeLexer &lexer, error::ErrorStream &errorStream) : PrattParser(lexer, errorStream) {
         //Prefix parselets
         registerGenericParselet(TokenKind::LIT_INT, std::bind(&AnodeParser::parseLiteralInt32, this, _1));
         registerGenericParselet(TokenKind::LIT_FLOAT, std::bind(&AnodeParser::parseLiteralFloat, this, _1));
@@ -327,6 +333,7 @@ public:
     }
 
     ast::Module *parseModule() {
+        storageKindStack_.push(scope::StorageKind::Global);
         gc_vector<ast::ExprStmt*> exprs;
 
         while(!lexer_.eof()) {
@@ -335,6 +342,9 @@ public:
 
         ast::CompoundExpr *body = new ast::CompoundExpr(source::SourceSpan::Any, scope::StorageKind::Global, exprs);
         body->scope()->setName(lexer_.inputName());
+
+        ASSERT(storageKindStack_.size() == 1);
+        storageKindStack_.pop();
 
         return new ast::Module(lexer_.inputName(), body);
     }

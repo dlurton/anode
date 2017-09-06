@@ -9,10 +9,9 @@ namespace anode {
         protected:
             CompileContext &cc() { return cc_; }
         public:
-            CompileAstVisitor(CompileContext &cc) : cc_(cc) {
+            explicit CompileAstVisitor(CompileContext &cc) : cc_(cc) { }
 
-            }
+
         };
-
     }
 }

@@ -6,6 +6,7 @@
 #include "CompileAstVisitor.h"
 #include "CreateStructsAstVisitor.h"
 #include "llvm.h"
+#include "GlobalVariableAstVisitor.h"
 
 
 using namespace anode::ast;
@@ -26,30 +27,31 @@ void createLlvmStructsForClasses(ast::Module *anodeModule, CompileContext &cc) {
 class ModuleAstVisitor : public CompileAstVisitor {
     llvm::TargetMachine &targetMachine_;
 
-    llvm::Function *initFunc_;
+    llvm::Function *initFunc_ = nullptr;
     int resultExprStmtCount_ = 0;
-    llvm::Function *resultFunc_;
-    llvm::Value *executionContextPtrValue_;
+    llvm::Function *resultFunc_ = nullptr;
+    llvm::Value *executionContextPtrValue_ = nullptr;
+    scope::SymbolTable *globalScope_ = nullptr;
 
 public:
     ModuleAstVisitor(CompileContext &cc, llvm::TargetMachine &targetMachine)
         : CompileAstVisitor{cc},
           targetMachine_{targetMachine} {}
 
-    virtual bool visitingClassDefinition(ClassDefinition *) {
+    bool visitingClassDefinition(ClassDefinition *) override {
         return false;
     }
 
-    virtual bool visitingFuncDefStmt(FuncDefStmt *) override {
+    bool visitingFuncDefStmt(FuncDefStmt *) override {
         return false;
     }
 
-    virtual bool visitingExprStmt(ExprStmt *expr) override {
+    bool visitingExprStmt(ExprStmt *expr) override {
 
         // Skip globally scoped CompoundExpr and allow it's children to be visited
         auto maybeCompoundExpr = dynamic_cast<ast::CompoundExpr*>(expr);
         if(maybeCompoundExpr) {
-            if(maybeCompoundExpr->scope()->storageKind() == scope::StorageKind::Global)
+            if(maybeCompoundExpr->scope() == globalScope_)
                 return true;
         }
 
@@ -83,7 +85,9 @@ public:
         return false;
     }
 
-    virtual bool visitingModule(Module *module) override {
+    bool visitingModule(Module *module) override {
+        globalScope_ = module->scope();
+
         cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
         declareAssertFunctions();
@@ -95,41 +99,8 @@ public:
 
         createLlvmStructsForClasses(module, cc());
 
-        //Define all the global variables now...
-        //The reason for doing this here instead of in visitVariableDeclExpr is we do not
-        //have VariableDeclExprs for the imported global variables but they do exist as symbols in the global scope.
-        gc_vector<scope::VariableSymbol *> globals = module->scope()->variables();
-        for (scope::VariableSymbol *symbol : globals) {
-            //next step:  make this call to .toLlvmType() return the previously created llvm::StructType
-            llvm::Type *llvmType = cc().typeMap().toLlvmType(symbol->type());
-            cc().llvmModule().getOrInsertGlobal(symbol->name(), llvmType);
-            llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol->name());
-            cc().mapSymbolToValue(symbol, globalVar);
+        emitGlobals(module, cc());
 
-            if(symbol->type()->isClass()) {
-
-                if (symbol->isExternal()) {
-                    //ExternalWeakLinkage defines a symbol in the current module that can be
-                    //overridden by a regular ExternalLinkage, it would seem from the LLVM language reference.
-                    //https://llvm.org/docs/LangRef.html#linkage-types
-                    //HOWEVER...  in my experience this acts *much* more like the C "extern" keyword,
-                    //meaning that LLVM seems to expect global variables with ExternalWeakLinkage to be defined
-                    //in another module, period.  I also note that ExternalWinkLinkage global variables
-                    //cannot have an initializer without causing assertion failure within the LLVM source.
-                    globalVar->setLinkage(llvm::GlobalValue::ExternalWeakLinkage);
-                } else {
-                    //Fills the struct instance with zeros
-                    globalVar->setInitializer(llvm::ConstantAggregateZero::get(llvmType));
-
-                    //ExternalLinkage as far as I can tell is not to be confused with the "extern" C keyword.
-                    //It seems to mean that the symbol is exposed to other modules, like when the "extern"
-                    //and "static" keywords are omitted in C.
-                    globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
-                }
-            }
-
-            globalVar->setAlignment(ALIGNMENT);
-        }
         emitFuncDefs(module, cc());
 
         return true;

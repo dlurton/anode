@@ -104,10 +104,10 @@ namespace anode {
                 valueStack_.push(castedValue);
             }
 
-            virtual void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
+            void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
                 switch(expr->symbol()->storageKind()) {
                     case scope::StorageKind::Global: {
-                        llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->name());
+                        llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->symbol()->fullyQualifiedName());
                         ASSERT(globalVariable);
                         globalVariable->setAlignment(ALIGNMENT);
                         if (expr->type()->isPrimitive()) {

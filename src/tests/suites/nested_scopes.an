@@ -62,3 +62,18 @@ assert(outerFunction() == 101);
     assert(outerFunc(2) == 16);
 }
 
+# function in nested scope accesses variable defined in anonymous scope
+{
+    someGlobal:int = 1001;
+    func someFunc:int() someGlobal;
+    assert(someFunc() == 1001);
+}
+
+# assign result of anonymous scope to variable
+{
+    someInt:int = {
+        anotherInt:int = 67;
+        anotherInt + 32;
+    };
+    assert(someInt == 99);
+}

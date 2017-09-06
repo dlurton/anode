@@ -1,5 +1,5 @@
 
-#include "Lexer.h"
+#include "AnodeLexer.h"
 
 namespace anode { namespace front { namespace parser {
 
@@ -47,7 +47,7 @@ std::vector<std::pair<string_t, TokenKind>> MultiCharacterTokens =
     { "assert", TokenKind::KW_ASSERT},
 };
 
-Token *Lexer::extractLiteralNumber() {
+Token *AnodeLexer::extractLiteralNumber() {
     string_t number;
     number += reader_.next();
     int c = reader_.peek();
@@ -81,7 +81,7 @@ Token *Lexer::extractLiteralNumber() {
     }
 }
 
-Token *Lexer::extractIdentifier() {
+Token *AnodeLexer::extractIdentifier() {
     std::string id;
     id += reader_.next();
     char_t c = reader_.peek();
@@ -92,7 +92,7 @@ Token *Lexer::extractIdentifier() {
     return newToken(TokenKind::ID, id);
 }
 
-Token *Lexer::extractToken() {
+Token *AnodeLexer::extractToken() {
     discardWhite();
     markTokenStart();
 
@@ -140,7 +140,7 @@ Token *Lexer::extractToken() {
     return newUnexpectedToken(c);
 }
 
-bool Lexer::discardMultilineComment() {
+bool AnodeLexer::discardMultilineComment() {
     if(!reader_.match("(#")) return false;
 
     int nestDepth = 1;
@@ -163,7 +163,7 @@ bool Lexer::discardMultilineComment() {
     return true;
 }
 
-void Lexer::discardWhite() {
+void AnodeLexer::discardWhite() {
     while(true) {
         if(discardSingleLineComment()) {
             continue;
@@ -181,7 +181,7 @@ void Lexer::discardWhite() {
     }
 }
 
-bool Lexer::discardSingleLineComment() {
+bool AnodeLexer::discardSingleLineComment() {
     if(!reader_.match("#")) return false;
 
     while(reader_.peek() != '\n' && !reader_.eof()) {

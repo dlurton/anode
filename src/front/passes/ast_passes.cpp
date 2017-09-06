@@ -20,22 +20,22 @@ protected:
     size_t scopeDepth() { return symbolTableStack_.size(); }
 
 public:
-    virtual bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         symbolTableStack_.push_back(funcDeclStmt->parameterScope());
         return true;
     }
 
-    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    void visitedFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
         ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
         symbolTableStack_.pop_back();
     }
 
-    virtual bool visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
+    bool visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
         symbolTableStack_.push_back(compoundExpr->scope());
         return true;
     }
 
-    virtual void visitedCompoundExpr(ast::CompoundExpr *compoundExpr) override {
+    void visitedCompoundExpr(ast::CompoundExpr *compoundExpr) override {
         ASSERT(compoundExpr->scope() == symbolTableStack_.back());
         symbolTableStack_.pop_back();
     }
@@ -129,16 +129,16 @@ class ResolveSymbolsPass : public ScopeFollowingVisitor {
     error::ErrorStream &errorStream_;
     gc_unordered_set<scope::Symbol*> definedSymbols_;
 public:
-    ResolveSymbolsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit ResolveSymbolsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
-    virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
+    void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
         ASSERT(expr->symbol() && "Symbol must be resolved before this point.");
         if(expr->symbol()->storageKind() == scope::StorageKind::Local) {
             definedSymbols_.emplace(expr->symbol());
         }
     }
 
-    virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
+    void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
         if(expr->symbol()) return;
 
         scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name());
@@ -164,17 +164,17 @@ public:
 class ResolveTypesPass : public ScopeFollowingVisitor {
     error::ErrorStream &errorStream_;
 public:
-    ResolveTypesPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) {
+    explicit ResolveTypesPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) {
 
     }
 
-    virtual void visitTypeRef(ast::TypeRef *typeRef) override {
+    void visitTypeRef(ast::TypeRef *typeRef) override {
         //This will eventually be a lot more sophisticated than this
         type::Type* type = type::Primitives::fromKeyword(typeRef->name());
         //If it wasn't a primitive type...
         if(type == nullptr) {
             scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
-            scope::TypeSymbol *classSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
+            auto *classSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
 
             if(classSymbol == nullptr) {
                 errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
@@ -196,8 +196,9 @@ public:
 class CastExprSemanticPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
 public:
-    CastExprSemanticPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
-    virtual void visitingCastExpr(ast::CastExpr *expr) {
+    explicit CastExprSemanticPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+
+    void visitingCastExpr(ast::CastExpr *expr) override {
         //Note:  we are not excluding implicit casts here...
         //This is a form of "double-checking" the AddImplicitCastsVisitor that we
         //get for free as long as we don't exclude implicit casts.
@@ -225,9 +226,9 @@ public:
 class ResolveDotExprMemberPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
 public:
-    ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
+    explicit ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
 
-    virtual void visitedDotExpr(ast::DotExpr *expr) override {
+    void visitedDotExpr(ast::DotExpr *expr) override {
         if(!expr->lValue()->type()->isClass()) {
             errorStream_.error(
                 error::ErrorKind::LeftOfDotNotClass,
@@ -253,9 +254,9 @@ public:
 class BinaryExprSemanticsPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
 public:
-    BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
-    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
+    void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
         if(binaryExpr->isComparison()) {
             return;
         }
@@ -279,20 +280,22 @@ public:
 };
 
 class MarkDotExprWritesPass : public ast::AstVisitor {
-    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
-        auto dotExpr = dynamic_cast<ast::DotExpr*>(binaryExpr->lValue());
-        if(dotExpr && binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
-            dotExpr->setIsWrite(true);
-        }
-    }
+    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override;
 };
+
+void MarkDotExprWritesPass::visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
+    auto dotExpr = dynamic_cast<ast::DotExpr*>(binaryExpr->lValue());
+    if(dotExpr && binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
+        dotExpr->setIsWrite(true);
+    }
+}
 
 class FuncCallSemanticsPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
 public:
-    FuncCallSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit FuncCallSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
-    virtual void visitedFuncCallExpr(ast::FuncCallExpr *funcCallExpr) override {
+    void visitedFuncCallExpr(ast::FuncCallExpr *funcCallExpr) override {
         if(!funcCallExpr->funcExpr()->type()->isFunction()) {
             errorStream_.error(
                 error::ErrorKind::OperatorCannotBeUsedWithType,
@@ -301,7 +304,7 @@ public:
             return;
         }
 
-        type::FunctionType *funcType = dynamic_cast<type::FunctionType*>(funcCallExpr->funcExpr()->type());
+        auto *funcType = dynamic_cast<type::FunctionType*>(funcCallExpr->funcExpr()->type());
         ASSERT(funcType);
 
         //When we do function overloading, this is going to get a whole lot more complicated.

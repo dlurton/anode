@@ -224,7 +224,6 @@ class LiteralBoolExpr : public ExprStmt {
 public:
     LiteralBoolExpr(source::SourceSpan sourceSpan, const bool value) : ExprStmt(sourceSpan), value_(value) {}
     virtual ~LiteralBoolExpr() {}
-    //virtual ExprKind exprKind() const override { return ExprKind::LiteralBoolExpr; }
     type::Type *type() const override { return &type::Primitives::Bool; }
     bool value() const { return value_; }
 
@@ -261,7 +260,6 @@ class LiteralFloatExpr : public ExprStmt {
 public:
     LiteralFloatExpr(source::SourceSpan sourceSpan, const float value) : ExprStmt(sourceSpan), value_(value) {}
     virtual ~LiteralFloatExpr() {}
-    //ExprKind exprKind() const override { return ExprKind::LiteralFloatExpr; }
     type::Type *type() const override {  return &type::Primitives::Float; }
     float value() const { return value_; }
 
@@ -358,8 +356,6 @@ public:
 
     source::SourceSpan operatorSpan() { return operatorSpan_; }
 
-    //ExprKind exprKind() const override { return ExprKind::BinaryExpr; }
-
     /** This is the type of the result, which may be different than the type of the operands depending on the operation type,
      * because some operation types (e.g. equality, logical and, or, etc) always yield boolean values.  */
     type::Type *type() const override {
@@ -448,7 +444,6 @@ public:
     VariableRefExpr(source::SourceSpan sourceSpan, const std::string &name) : ExprStmt(sourceSpan), name_{ name } {
         ASSERT(name.size() > 0);
     }
-    //ExprKind exprKind() const override { return ExprKind::VariableRefExpr; }
 
     virtual type::Type *type() const override {
         ASSERT(symbol_);
@@ -486,17 +481,14 @@ public:
     {
     }
 
-    virtual std::string name() const override { return VariableRefExpr::name(); }
+    std::string name() const override { return VariableRefExpr::name(); }
 
-    //ExprKind exprKind() const override { return ExprKind::VariableDeclExpr; }
     TypeRef *typeRef() { return typeRef_; }
     virtual type::Type *type() const override { return typeRef_->type(); }
 
-    //virtual std::string toString() const override {  return this->name() + ":" + typeRef_->name(); }
-
     virtual bool canWrite() const override { return true; };
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingExprStmt(this);
         visitor->visitingVariableDeclExpr(this);
 
@@ -531,7 +523,6 @@ public:
 
     static CastExpr *createImplicit(ExprStmt *valueExpr, type::Type *toType);
 
-    //ExprKind exprKind() const override { return ExprKind::CastExpr; }
     type::Type *type() const  override{ return toType_->type(); }
     CastKind castKind() const { return castKind_; }
 
@@ -640,8 +631,6 @@ public:
         ASSERT(thenExpr_);
     }
 
-    //virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
-
     type::Type *type() const override {
         if(elseExpr_ == nullptr || !thenExpr_->type()->isSameType(elseExpr_->type())) {
             return &type::Primitives::Void;
@@ -661,7 +650,7 @@ public:
 
     virtual bool canWrite() const override { return false; };
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingExprStmt(this);
         visitChildren = visitor->visitingIfExpr(this) ? visitChildren : false;
 
@@ -693,8 +682,6 @@ public:
         ASSERT(body_)
     }
 
-    //virtual ExprKind exprKind() const override {  return ExprKind::ConditionalExpr; }
-
     type::Type *type() const override {
         //For now, while expressions will not return a value.
         return &type::Primitives::Void;
@@ -708,7 +695,7 @@ public:
 
     virtual bool canWrite() const override { return false; };
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingExprStmt(this);
         visitChildren = visitor->visitingWhileExpr(this) ? visitChildren : false;
 
@@ -837,7 +824,6 @@ public:
         arguments_{arguments} { }
     ExprStmt *funcExpr() { return funcExpr_; }
 
-    //virtual ExprKind exprKind() const override { return ExprKind::FuncCallExpr; };
     virtual bool canWrite() const override { return false; };
 
     type::Type *type() const override {
@@ -931,7 +917,6 @@ public:
 
     source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
 
-    //virtual ExprKind exprKind() const override { return ExprKind::DotExpr; };
     virtual bool canWrite() const override { return true; };
 
     bool isWrite() { return isWrite_; }

@@ -10,7 +10,7 @@ namespace anode { namespace front {
 
         parser::SourceReader reader{name, inputStream};
         error::ErrorStream errorStream{std::cerr};
-        parser::Lexer lexer{reader, errorStream};
+        parser::AnodeLexer lexer{reader, errorStream};
         parser::AnodeParser parser{lexer, errorStream};
         ast::Module *expr = parser.parseModule();
 

@@ -1,5 +1,5 @@
 
-#include "Lexer.h"
+#include "AnodeLexer.h"
 #include "front/ast.h"
 #include "front/parse.h"
 
@@ -33,7 +33,7 @@ class PrattParser {
     gc_unordered_map<TokenKind, infix_parselet_t> infixParseletMap_;
 protected:
     error::ErrorStream &errorStream_;
-    Lexer &lexer_;
+    AnodeLexer &lexer_;
 
     void registerGenericParselet(TokenKind tokenKind, generic_parselet_t parselet) {
         auto found = prefixParseletMap_.find(tokenKind);
@@ -101,7 +101,7 @@ protected:
     }
 
 protected:
-    PrattParser (Lexer &lexer, error::ErrorStream &errorStream) : errorStream_{errorStream}, lexer_{lexer} { }
+    PrattParser (AnodeLexer &lexer, error::ErrorStream &errorStream) : errorStream_{errorStream}, lexer_{lexer} { }
 
     virtual int getOperatorPrecedence(TokenKind kind) = 0;
 

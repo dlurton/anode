@@ -51,16 +51,16 @@ extern std::unordered_map<char_t, TokenKind> SingleCharacterTokens;
 //This is a vector and not a map because they must be evaluated in order.
 extern std::vector<std::pair<string_t, TokenKind>> MultiCharacterTokens;
 
-class Lexer : no_new, no_copy, no_assign {
+class AnodeLexer : no_new, no_copy, no_assign {
     SourceReader &reader_;
     error::ErrorStream &errorStream_;
     gc_deque<Token*> lookahead_;
     SourceLocation startLocation_;
 public:
-    Lexer(SourceReader &reader, error::ErrorStream &errorStream) : reader_(reader), errorStream_{errorStream} { }
+    AnodeLexer(SourceReader &reader, error::ErrorStream &errorStream) : reader_(reader), errorStream_{errorStream} { }
 
     Token *nextToken() {
-        if(lookahead_.size() > 0) {
+        if(!lookahead_.empty()) {
             Token *next = lookahead_.front();
             lookahead_.pop_front();
             return next;
@@ -130,7 +130,7 @@ private:
         return SourceSpan(reader_.inputName(), startLocation_, reader_.getCurrentSourceLocation());
     }
 
-    Token *newToken(TokenKind kind, const string_t text) {
+    Token *newToken(TokenKind kind, const string_t &text) {
         return new Token(getSourceSpanForCurrentToken(), kind, text);
     }
 
