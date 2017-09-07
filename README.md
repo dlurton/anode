@@ -8,6 +8,14 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  - If all passes against the AST succeed LLVM IR will be generated and displayed.
  - The statement will be executed and the result will be displayed.
  
+It's also possible to execute scripts directly, i.e.
+
+    ./bin/anode path/to/source_file.an
+    
+A `.an` file may also include a shebang line, i.e.
+
+    #!/path/to/anode/executable 
+ 
 The compiler uses the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/) and eventually, the compiled code will too. 
 
 Goals of the language:
