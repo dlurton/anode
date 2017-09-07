@@ -19,8 +19,8 @@ Goals of the language:
 - Don't needlessly exclude features (post/pre increment operators, ternary operator, generics, etc)
 - Have fun
 
-Examination of [integration_tests.cpp](https://github.com/dlurton/anode/blob/master/src/tests/integration_tests.cpp) will give a complete
-and up-to-date picture of supported syntax and features, however, here's a short summary:
+Examination of [simple_tests.cpp](https://github.com/dlurton/anode/blob/master/src/tests/simple_tests.cpp) and the [these files](https://github.com/dlurton/anode/tree/master/src/tests/suites) 
+will give a complete and up-to-date picture of supported syntax and features, however, here's a summary:
 
 - Single-line comment:
     ```
