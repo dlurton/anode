@@ -97,7 +97,9 @@ protected:
 
         if(dumpIROnModuleLoad_) {
             std::cerr << "LLVM IR:\n";
+#ifdef ANODE_DEBUG
             llvmModule->dump();
+#endif
         }
 
         jit_->addModule(move(llvmModule));

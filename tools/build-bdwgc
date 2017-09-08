@@ -5,7 +5,7 @@ PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
 source $SCRIPT_DIR/util.sh
 
 EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
-INSTALL_DIR=$EXTERNS_DIR/bdwgc/usr/local/lib
+INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/bdwgc/usr/local/lib
 SCRATCH_DIR=$EXTERNS_DIR/scratch
 SRC_DIR=$SCRATCH_DIR/bdwgc
 BRANCH=release-7_6
@@ -16,9 +16,7 @@ echo "EXTERNS_DIR       " $EXTERNS_DIR
 echo "INSTALL_DIR       " $INSTALL_DIR
 echo "SCRATCH_DIR       " $SCRATCH_DIR
 echo "SRC_DIR           " $SRC_DIR
-echo "CMAKE_DIR         " $CMAKE_DIR
 echo "BRANCH            " $BRANCH
-echo "NUM_CORES         " $NUM_CORES
 #read -p "Press enter to continue"
 
 mkdir -p $SCRATCH_DIR
@@ -43,8 +41,13 @@ autoreconf -vif
 say "Running automake --add-missing"
 automake --add-missing
 say "Running configure"
+
+if [ $ANODE_BUILD_TYPE -neq "Release" ]; then
+    SHOULD_DEBUG="--enable-gc-debug"
+fi
+
 # http://www.hboehm.info/gc/simple_example.html
-./configure --prefix=$INSTALL_DIR --enable-cplusplus --enable-gc-debug
+./configure --prefix=$INSTALL_DIR --enable-cplusplus $SHOULD_DEBUG
 
 say "Running make"
 make

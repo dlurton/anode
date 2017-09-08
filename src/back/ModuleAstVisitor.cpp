@@ -112,7 +112,9 @@ public:
         if (llvm::verifyModule(cc().llvmModule(), &os)) {
             std::cerr << "Module dump: \n";
             std::cerr.flush();
+#ifdef ANODE_DEBUG
             cc().llvmModule().dump();
+#endif
             ASSERT_FAIL("Failed LLVM module verification.");
         }
     }

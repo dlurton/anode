@@ -15,7 +15,7 @@ say "Generating cmake cache"
 mkdir -p $ANODE_CMAKE_DIR
 cd $ANODE_CMAKE_DIR
 
-cmake $PROJECT_ROOT_DIR 
+cmake $PROJECT_ROOT_DIR -DCMAKE_BUILD_TYPE=$ANODE_BUILD_TYPE
 
 set -e
 say "Building Anode"

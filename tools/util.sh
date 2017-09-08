@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 
 NUM_CORES=`grep -c ^processor /proc/cpuinfo`
@@ -14,4 +15,3 @@ MSG=$@
 
     #sleep 1 #give time for the human running this script to read it... 
 }
-

@@ -178,14 +178,9 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
 }
 
 bool executeScript(const std::string &startScriptFilename) {
-    anode::ast::Module *module;
+    anode::ast::Module *module = nullptr;
     try {
         module = anode::front::parseModule(startScriptFilename);
-
-        //If no Module returned, parsing failed.
-        if (!module) {
-            return true;
-        }
     }
     catch(anode::front::ParseAbortedException &e) {
         std::cerr << "Parse aborted!\n";
@@ -196,36 +191,43 @@ bool executeScript(const std::string &startScriptFilename) {
         return true;
     }
 
+    //If no Module returned, parsing failed.
+    if (!module) {
+        return true;
+    }
+
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
     executionContext->setResultCallback(resultCallback);
+
 //    executionContext->setPrettyPrintAst(true);
 //    executionContext->setDumpIROnLoad(true);
-
     return runModule(executionContext, module);
 }
 
-} //namespace anode
-//
-//volatile int destructionCount = 0;
-//class SomeGarbage : public gc_cleanup
-//{
-//public:
-//    ~SomeGarbage() {
-//        destructionCount++;
-//    }
-//    int randomWahteverIdoncare;
-//
-//    void foo() { randomWahteverIdoncare++; }
-//};
-//
-//
-//void generateSomeGarbage() {
-//
-//    for(int i = 0; i < 100000; ++i) {
-//        SomeGarbage *garbage = new SomeGarbage();
-//        garbage->foo();
-//    }
-//}
+}
+
+
+
+volatile int destructionCount = 0;
+class SomeGarbage : public gc_cleanup
+{
+public:
+    ~SomeGarbage() {
+        destructionCount++;
+    }
+    int randomWahteverIdoncare;
+
+    void foo() { randomWahteverIdoncare++; }
+};
+
+
+void generateSomeGarbage() {
+
+    for(int i = 0; i < 100000; ++i) {
+        SomeGarbage *garbage = new SomeGarbage();
+        garbage->foo();
+    }
+}
 
 
 void sigsegv_handler(int) {
@@ -235,22 +237,24 @@ void sigsegv_handler(int) {
 }
 
 int main(int argc, char **argv) {
-    std::cout << "cwd: " << get_current_dir_name() << "\n";
+#ifdef ANODE_DEBUG
+    std::cout << "anode: this is a debug build.\n";
+#endif
 
     //GC_set_all_interior_pointers(1);
     //GC_enable_incremental();
     GC_INIT();
 
-    //generateSomeGarbage();
-//    while (GC_collect_a_little());
-//
-//    //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
-//    std::cout << "destructionCount: " << destructionCount << std::endl;
-//    if (destructionCount == 0) {
-//        std::cout << "**************************************************************************\n";
-//        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
-//        std::cout << "**************************************************************************\n";
-//    }
+    generateSomeGarbage();
+    while (GC_collect_a_little());
+
+    //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
+    std::cout << "destructionCount: " << destructionCount << std::endl;
+    if (destructionCount == 0) {
+        std::cout << "**************************************************************************\n";
+        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
+        std::cout << "**************************************************************************\n";
+    }
 
     //anode::backtrace::initBacktraceDumper();
     linenoiseInstallWindowChangeHandler();

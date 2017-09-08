@@ -38,7 +38,7 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     ```
     (# this is a multiline comment
         (# this is a nested comment which doesn't break the outer comment. #) 
-    #)
+    #)fd
     ```
 - Data types: `bool`, `int` and `float`.
 - Literal ints (`123`), floats (`123.0`) and booleans (`true` or `false`).
@@ -159,23 +159,29 @@ languages and that are needed for basic usefulness and then come back and add so
 
 ### Building Dependencies
 
-The script `tools/build-all-dependencies` will clone all of the repositories of each `anode` dependency and build
+The build scripts will clone all of the repositories of each `anode` dependency and build
 all of them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.
 This directory may be deleted to conserve disk space after everything has successfully built, if desired.  If
-successful, the libraries and headers of each dependency will be installed in sub-directories of `externs`.
+successful, the libraries and headers of each dependency will be installed in sub-directories of `externs/release` or 
+`externs/debug`, depending on if a release build has been selected or not.
+
+LLVM does change their public API frequently so you may have to do this every couple of weeks at least.  
 
 ### First Time Building
 
-Use the script `tools/build-all` to build all dependencies and Anode.
+Use the script `tools/build-all-debug` or `tools/build-all-release` to build all dependencies and Anode in Debug or Release modes, 
+respectively.
 
 ### Building Anode
 
 After building the first time, you can just build Anode like so:
 
-    mkdir cmake-build
-    cd cmake-build
-    cmake ..
+    mkdir cmake-build-$BUILD_TYPE
+    cd cmake-build-$BUILD_TYPE
+    cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE 
     
+Where `$BUILD_TYPE` is `Debug` or `Release`.
+
 To run the all the tests, from the `cmake-build` directory, execute:
 
     ctest --output-on-failure

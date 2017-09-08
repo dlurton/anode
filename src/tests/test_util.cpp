@@ -25,7 +25,7 @@ std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<execute:
     std::string module_name = string::format("test_%d", ++testCount);
     auto testStartTime = std::chrono::high_resolution_clock::now();
 
-    ast::Module *module;
+    ast::Module *module = nullptr;
     try {
         module = front::parseModule(source, module_name);
     } catch(anode::front::ParseAbortedException&) {

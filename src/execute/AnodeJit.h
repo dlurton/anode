@@ -49,9 +49,9 @@ namespace anode {
                                     return optimizeModule(std::move(M));
                                 }),
                   CompileCallbackMgr(
-                      llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), 0)) {
-                auto IndirectStubsMgrBuilder =
-                    llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple());
+                      llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), 0))
+            {
+                auto IndirectStubsMgrBuilder = llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple());
                 IndirectStubsMgr = IndirectStubsMgrBuilder();
                 llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
             }

@@ -5,10 +5,10 @@ PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
 source $SCRIPT_DIR/util.sh
 
 EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
-LLVM_INSTALL_DIR=$EXTERNS_DIR/llvm
+LLVM_INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/llvm
 SCRATCH_DIR=$EXTERNS_DIR/scratch
 LLVM_SRC_DIR=$SCRATCH_DIR/llvm
-LLVM_CMAKE_DIR=$SCRATCH_DIR/llvm-cmake
+LLVM_CMAKE_DIR=$SCRATCH_DIR/${ANODE_BUILD_TYPE,,}/llvm-cmake
 LLVM_BRANCH=master
 
 say "Directories:"
@@ -49,7 +49,12 @@ else
 
     set +e
 
-    cmake \
+    if [ $ANODE_BUILD_TYPE = "Release" ]; then
+        #https://llvm.org/docs/CMake.html
+        BUILD_CONFIG_FLAGS="-DCMAKE_BUILD_TYPE=MinSizeRel"
+    fi
+
+    cmake $BUILD_CONFIG_FLAGS \
 	    -DLLVM_TARGETS_TO_BUILD:STRING="X86" \
 	    -DLLVM_BUILD_32_BITS:BOOL=OFF \
 	    -DLLVM_BUILD_TOOLS:BOOL=ON \

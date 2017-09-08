@@ -8,6 +8,7 @@
 #pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <cstring>
+#include <llvm/Target/TargetMachine.h>
 #include "llvm/IR/Module.h"
 #pragma GCC diagnostic pop
 
