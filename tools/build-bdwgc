@@ -42,12 +42,17 @@ say "Running automake --add-missing"
 automake --add-missing
 say "Running configure"
 
-if [ $ANODE_BUILD_TYPE -neq "Release" ]; then
+if [ $ANODE_BUILD_TYPE="Release" ]; then
     SHOULD_DEBUG="--enable-gc-debug"
 fi
 
 # http://www.hboehm.info/gc/simple_example.html
 ./configure --prefix=$INSTALL_DIR --enable-cplusplus $SHOULD_DEBUG
+
+say "Running make clean"
+# this seems silly, but doing a make clean here will prevent a problem related to installing to a non-standard path prefix
+# https://stackoverflow.com/questions/10279829/installing-glib-in-non-standard-prefix-fails
+make clean
 
 say "Running make"
 make

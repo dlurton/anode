@@ -42,6 +42,7 @@ git checkout $LLVM_BRANCH
 # If the -D options below change then it will become necessary to delete $LLVM_CMAKE_DIR to completely rebuild LLVM
 if [ -d $LLVM_CMAKE_DIR ]; then
     say "LLVM cmake cache already exists."
+
 else
     say "Generating cmake cache"
     mkdir -p $LLVM_CMAKE_DIR
@@ -49,7 +50,7 @@ else
 
     set +e
 
-    if [ $ANODE_BUILD_TYPE = "Release" ]; then
+    if [ $ANODE_BUILD_TYPE="Release" ]; then
         #https://llvm.org/docs/CMake.html
         BUILD_CONFIG_FLAGS="-DCMAKE_BUILD_TYPE=MinSizeRel"
     fi

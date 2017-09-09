@@ -44,7 +44,7 @@ say "Generating cmake cache"
 mkdir -p $CMAKE_DIR
 cd $CMAKE_DIR
 
-if [ $ANODE_BUILD_TYPE -neq "Release" ]; then
+if [ $ANODE_BUILD_TYPE="Release" ]; then
     SHOULD_DEBUG="-DCMAKE_BUILD_TYPE=Release"
 fi
 
