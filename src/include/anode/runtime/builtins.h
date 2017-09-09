@@ -5,7 +5,9 @@
 
 namespace anode { namespace runtime {
 
-std::unordered_map<std::string, void*> getBuiltins();
+typedef uint64_t symbolptr_t;
+
+std::unordered_map<std::string, symbolptr_t> getBuiltins();
 
 extern unsigned int AssertPassCount;
 

@@ -34,7 +34,7 @@ namespace anode {
             std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackMgr;
             std::unique_ptr<llvm::orc::IndirectStubsManager> IndirectStubsMgr;
 
-            std::unordered_map<std::string, void*> exports_;
+            std::unordered_map<std::string, runtime::symbolptr_t> exports_;
             bool enableOptimization_ = true;
         public:
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
@@ -57,7 +57,7 @@ namespace anode {
             }
 
             /** Adds a symbol to be exported to the JIT'd modules, overwriting any previously added values.*/
-            void putExport(std::string name, void *address) {
+            void putExport(std::string name, runtime::symbolptr_t address) {
                 auto found = exports_.find(name);
                 if(found != exports_.end()) {
                     exports_.erase(found);

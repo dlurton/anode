@@ -24,9 +24,9 @@ class ExecutionContextImpl : public ExecutionContext, public gc_cleanup, no_copy
     back::TypeMap typeMap_;
 public:
     ExecutionContextImpl() : typeMap_{context_} {
-        jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, this);
         jit_->setEnableOptimization(false);
-        jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, (void*)receiveReplResult);
+        jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, reinterpret_cast<runtime::symbolptr_t>(this));
+        jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, reinterpret_cast<runtime::symbolptr_t>(receiveReplResult));
 
         auto builtins = anode::runtime::getBuiltins();
         for(auto &pair : builtins) {
@@ -49,19 +49,19 @@ public:
         return retval;
     }
 
-    virtual void setDumpIROnLoad(bool value) override {
+    void setDumpIROnLoad(bool value) override {
         dumpIROnModuleLoad_ = value;
     }
 
-    virtual void setPrettyPrintAst(bool value) override {
+    void setPrettyPrintAst(bool value) override {
         setPrettyPrintAst_ = value;
     }
 
-    virtual void setResultCallback(ResultCallbackFunctor functor)  {
+    void setResultCallback(ResultCallbackFunctor functor)  {
         resultFunctor_ = functor;
     }
 
-    virtual void prepareModule(ast::Module *module) override {
+    void prepareModule(ast::Module *module) override {
 
         for(auto &symbolToImport : exportedSymbols_) {
             symbolToImport.second->setIsExternal(true);

@@ -22,11 +22,11 @@ extern "C" {
     }
 }
 
-std::unordered_map<std::string, void*> getBuiltins() {
+std::unordered_map<std::string, symbolptr_t> getBuiltins() {
 
-    std::unordered_map<std::string, void*> builtins {
-        { "__assert_failed__", (void*)assert_fail },
-        { "__assert_passed__", (void*)assert_pass }
+    std::unordered_map<std::string, symbolptr_t> builtins {
+        { "__assert_failed__", reinterpret_cast<symbolptr_t>(assert_fail) },
+        { "__assert_passed__", reinterpret_cast<symbolptr_t>(assert_pass) }
     };
 
     return builtins;

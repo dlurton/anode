@@ -116,6 +116,8 @@ will give a complete and up-to-date picture of supported syntax and features, ho
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 
 
+- Reference types
+- Strings and their various operations
 - Explicit return, for when an exit before the last expression of the function body is desired.  Will use keyword `ret`
 - `for` loop
 - `switch` maybe with pattern matching.
@@ -153,19 +155,28 @@ languages and that are needed for basic usefulness and then come back and add so
 
 ### Prerequisites
 
+The following must be installed and available prior to building Anode.
+
  - [cmake](https://cmake.org/) (3.4.3 or later) 
- - gcc.  (a version supporting C++14 or later)
- - libuuid (development headers, needed for LLVM)
+ - gcc 6 or later
+ - libuuid
+ - cmake 3.4.3 or later
+ - autoconf
+ - libatomic (if using a version of gcc that doesn't have atomic operations built-in, required by libgc)
+ - libtool
 
 ### Building Dependencies
 
-The build scripts will clone all of the repositories of each `anode` dependency and build
-all of them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.
+A subset of Anode's dependencies are must be built before Anode itself can be built, i.e. LLVM.  In the case
+of LLVM, this is because Anode builds against LLVMs master branch in order to keep up more easily with LLVM's frequent
+API changes.  The other dependencies are either non-standard in linux distributions, (e.g. liblinenoise-ng) or are more
+recent versions than is frequently found in linux distributions (e.g. libgc). 
+    
+The build scripts will clone certain of the repositories of each `anode` of these dependencies and build
+them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.
 This directory may be deleted to conserve disk space after everything has successfully built, if desired.  If
 successful, the libraries and headers of each dependency will be installed in sub-directories of `externs/release` or 
 `externs/debug`, depending on if a release build has been selected or not.
-
-LLVM does change their public API frequently so you may have to do this every couple of weeks at least.  
 
 ### First Time Building
 
@@ -176,9 +187,9 @@ respectively.
 
 After building the first time, you can just build Anode like so:
 
-    mkdir cmake-build-$BUILD_TYPE
     cd cmake-build-$BUILD_TYPE
-    cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE 
+    cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+    make -j 
     
 Where `$BUILD_TYPE` is `Debug` or `Release`.
 

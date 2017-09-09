@@ -42,7 +42,7 @@ say "Running automake --add-missing"
 automake --add-missing
 say "Running configure"
 
-if [ $ANODE_BUILD_TYPE="Release" ]; then
+if [ $ANODE_BUILD_TYPE!="Release" ]; then
     SHOULD_DEBUG="--enable-gc-debug"
 fi
 
