@@ -39,6 +39,7 @@ matrix:
             - libatomic-ops-dev
             - libtool
             - pkg-config
+            - libc++-dev
       env:
         - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
 
