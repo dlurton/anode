@@ -37,7 +37,6 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
 bool executeScript(const std::string &startScriptFilename);
 
 void runInteractive();
-void runScript(std::string startScriptFilename);
 
 
 std::string getHistoryFilePath() {
@@ -89,7 +88,7 @@ void resultCallback(execute::ExecutionContext*, type::PrimitiveType primitiveTyp
 }
 
 void runInteractive() {
-    const std::__cxx11::string historyFilename = getHistoryFilePath();
+    const std::string historyFilename = getHistoryFilePath();
 
     linenoiseHistoryLoad(historyFilename.c_str());
 
