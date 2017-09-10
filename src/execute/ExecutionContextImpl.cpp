@@ -57,7 +57,7 @@ public:
         setPrettyPrintAst_ = value;
     }
 
-    void setResultCallback(ResultCallbackFunctor functor)  {
+    void setResultCallback(ResultCallbackFunctor functor) override {
         resultFunctor_ = functor;
     }
 

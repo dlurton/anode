@@ -63,7 +63,7 @@ public:
     ResolutionDeferredType() { }
     ResolutionDeferredType(Type *actualType) : actualType_{actualType} { }
 
-    virtual bool isActualType() { return false; }
+    bool isActualType() override { return false; }
 
     bool isResolved() { return actualType_ != nullptr; }
 
@@ -143,14 +143,14 @@ public:
 
     std::string name() const override { return name_; }
 
-    bool isSameType(const type::Type *other) const {
+    bool isSameType(const type::Type *other) const override {
         //We never create more than once instance of ScalarType for a given scalar data type
         //so this simple check suffices.
         return this == other->actualType();
     }
 
     bool canDoArithmetic() const override { return canDoArithmetic_; }
-    PrimitiveType primitiveType() const { return primitiveType_; }
+    PrimitiveType primitiveType() const override { return primitiveType_; }
 
     int operandPriority() const { return (int) primitiveType(); }
 
@@ -194,7 +194,7 @@ public:
 
     std::string name() const override { return "func:" + returnType_->name(); }
 
-    bool isSameType(const type::Type *other) const {
+    bool isSameType(const type::Type *other) const override {
         if(this == other) return true;
         if(!other->isFunction()) return false;
 
@@ -240,7 +240,7 @@ public:
 
     std::string name() const override { return name_; }
 
-    bool isSameType(const type::Type *other) const {
+    bool isSameType(const type::Type *other) const override {
         //We don't expect multiple instances of ClassType to be created which reference the same class
         //so this simple check suffices.
         return other->actualType() == this;

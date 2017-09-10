@@ -200,7 +200,7 @@ std::unique_ptr<llvm::Module> emitModule(
     ModuleAstVisitor visitor{cc, *targetMachine};
 
     module->accept(&visitor);
-    return std::move(llvmModule);
+    return llvmModule;
 }
 
 }}

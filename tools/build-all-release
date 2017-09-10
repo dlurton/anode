@@ -1,9 +1,9 @@
 #!/bin/bash -e
+export ANODE_BUILD_TYPE=Release
 
 SCRIPT_DIR=$(dirname $(readlink -f ${0}))
 source $SCRIPT_DIR/util.sh
 
-export ANODE_BUILD_TYPE=Release
 
 source $SCRIPT_DIR/build-all
 

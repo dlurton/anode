@@ -35,7 +35,7 @@ public:
 
     }
 
-    virtual bool visitingModule(ast::Module *module) {
+    virtual bool visitingModule(ast::Module *module) override {
 
         //All external functions must be added to the current llvm module.
         gc_vector<scope::FunctionSymbol*> functions = module->scope()->functions();

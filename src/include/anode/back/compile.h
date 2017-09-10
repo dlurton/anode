@@ -7,6 +7,7 @@
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wgnu-statement-expression"
 #include <cstring>
 #include <llvm/Target/TargetMachine.h>
 #include "llvm/IR/Module.h"

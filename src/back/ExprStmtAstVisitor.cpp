@@ -47,7 +47,7 @@ namespace anode {
             }
 
 
-            virtual void visitedCastExpr(ast::CastExpr *expr) {
+            virtual void visitedCastExpr(ast::CastExpr *expr) override {
                 llvm::Value *value = valueStack_.top();
                 valueStack_.pop();
 
@@ -162,7 +162,7 @@ namespace anode {
                 valueStack_.push(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr->value())));
             }
 
-            virtual void visitLiteralBoolExpr(ast::LiteralBoolExpr *expr) {
+            virtual void visitLiteralBoolExpr(ast::LiteralBoolExpr *expr) override {
                 valueStack_.push(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr->value(), true)));
             }
 
@@ -400,7 +400,7 @@ namespace anode {
                 return false;
             }
 
-            virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) {
+            virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) override {
 
                 //Prepare the BasicBlocks
                 llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();

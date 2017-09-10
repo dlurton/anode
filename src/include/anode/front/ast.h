@@ -562,11 +562,11 @@ public:
     virtual ~CompoundExpr() {}
     scope::SymbolTable *scope() { return &scope_; }
 
-    virtual type::Type *type() const {
+    virtual type::Type *type() const override {
         ASSERT(expressions_.size() > 0);
         return expressions_.back()->type();
     };
-    virtual bool canWrite() const { return false; };
+    virtual bool canWrite() const override { return false; };
 
     gc_vector<ExprStmt*> expressions() const {
         gc_vector<ExprStmt*> retval;
@@ -718,7 +718,7 @@ public:
     ParameterDef(source::SourceSpan span, const std::string &name, TypeRef *typeRef)
         : span_{span}, name_{name}, typeRef_{typeRef} { }
 
-    source::SourceSpan span() { return span(); }
+    source::SourceSpan span() { return span_; }
     std::string name() { return name_; }
     type::Type *type() { return typeRef_->type(); }
     TypeRef *typeRef() { return typeRef_; }
@@ -951,8 +951,8 @@ public:
     AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt *condition)
         : ExprStmt(sourceSpan), condition_{condition} { }
 
-    virtual type::Type *type() const { return &type::Primitives::Void; }
-    virtual bool canWrite() const { return false; };
+    virtual type::Type *type() const override { return &type::Primitives::Void; }
+    virtual bool canWrite() const override { return false; };
 
 
     ast::ExprStmt *condition() { return condition_; }

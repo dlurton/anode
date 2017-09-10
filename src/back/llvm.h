@@ -4,6 +4,7 @@
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wgnu-statement-expression"
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Mangler.h"

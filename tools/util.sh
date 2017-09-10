@@ -17,8 +17,8 @@ MSG=$@
 }
 
 
-if [[ ! -v "$ANODE_BUILD_TYPE" ]]; then
-    say "\$ANODE_BUILD_TYPE is not set, defaulting to 'Release'"
+if [ ! "$ANODE_BUILD_TYPE"="Debug" ]; then
+    say "\$ANODE_BUILD_TYPE is not set to 'Debug', defaulting to 'Release'"
     ANODE_BUILD_TYPE="Release"
 fi
 
