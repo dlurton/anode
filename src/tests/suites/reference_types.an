@@ -1,0 +1,26 @@
+
+
+# a stack allocated instance can be mutated when passed by reference.
+{
+    class SomeClass {
+        someField:int;
+        anotherField:int;
+    }
+
+    func mutateSomeClass:void(instance:SomeClass) {
+        instance.someField = 2;
+        instance.anotherField = 3;
+    }
+
+    anInstance:SomeClass();
+
+    anInstance.someField = 1;
+    anInstance.anotherField = 2;
+    assert(anInstance.someField == 1);
+    assert(anInstance.anotherField == 2);
+
+    mutateSomeClass(&anInstance);
+
+    assert(anInstance.someField == 2);
+    assert(anInstance.anotherField == 3);
+}

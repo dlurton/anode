@@ -1,25 +1,27 @@
-sudo: required
-before_install:
-#  - sudo apt-get update -qq
-  - sudo apt-get install g++-6
-  - sudo apt-get install cmake3
-  - sudo apt-get install uuid-dev
-  #required for bdwgc
-  - sudo apt-get install autoconf
-  - sudo apt-get install libatomic-ops-dev
-  - sudo apt-get install libtool
-  - sudo apt-get install pkg-config
-# build-essential
-install:
-  - export CXX="g++-6"
-  - export CC="gcc-6"
-  
-# Enable C++ support
-language: c++
+language: cpp
 
-# Compiler selection
-# compiler:
-#  - gcc-6
+matrix:
+  include:
+    # works on Precise and Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+            - cmake3
+            - uuid-dev
+            #required for bdwgc
+            - autoconf
+            - libatomic-ops-dev
+            - libtool
+            - pkg-config
+      env:
+        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+
+before_install:
+    - eval "${MATRIX_EVAL}"
 
 # Build steps
 script:
@@ -31,4 +33,6 @@ notifications:
       - anode.build@gmail.com
     on_success: always
     on_failure: always
+
+
 
