@@ -1,4 +1,6 @@
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 project(anode)
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
@@ -21,7 +23,7 @@ set(EXTERNS_DIR "${CMAKE_SOURCE_DIR}/externs/${CMAKE_BUILD_TYPE}")
 string(TOLOWER ${EXTERNS_DIR} EXTERNS_DIR)
 set(ANODE_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include/anode")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wextra -Wpedantic -stdlib=libstdc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wextra -Wpedantic -stdlib=libstdc++ -std=c++14")
 
 
 #https://github.com/ivmai/bdwgc/blob/76fd95b4803197954c60c585e4dfc795c4d5c533/doc/README.linux
