@@ -72,7 +72,7 @@ else
     EC=$?
     if [ $EC -ne 0 ]; then
 	    say "cmake reported an error.  Exit code was" $EC
-	    read -p "Review the output of cmake above and press enter if you want try to build LLVM anyway."
+	    exit -1
     fi
 
     set -e
@@ -80,7 +80,7 @@ fi
 
 say "Building LLVM"
 
-cmake --build $LLVM_CMAKE_DIR -- -j 4
+cmake --build $LLVM_CMAKE_DIR -- -j $NUM_CORES
 
 say "Installing LLVM at" $LLVM_INSTALL_DIR
 rm -rf $LLVM_INSTALL_DIR
