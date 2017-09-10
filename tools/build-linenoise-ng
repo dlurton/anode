@@ -52,7 +52,7 @@ cmake -DCMAKE_BUILD_TYPE=$ANODE_BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=$INSTALL_
 EC=$?
 if [ $EC -ne 0 ]; then
 	say "cmake reported an error.  Exit code was" $EC
-	read -p "Review the output of cmake above and press enter if you want try to build LLVM anyway."
+	exit -1
 fi
 
 set -e
