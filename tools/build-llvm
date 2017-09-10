@@ -80,7 +80,7 @@ fi
 
 say "Building LLVM"
 
-cmake --build $LLVM_CMAKE_DIR-- -j 4
+cmake --build $LLVM_CMAKE_DIR -- -j 4
 
 say "Installing LLVM at" $LLVM_INSTALL_DIR
 rm -rf $LLVM_INSTALL_DIR
