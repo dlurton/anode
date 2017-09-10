@@ -1,5 +1,7 @@
 # Anode Programming Language
 
+[[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)]](https://travis-ci.org/dlurton/anode)
+
 Anode is yet another embryonic programming language using LLVM as a back-end.
   
 There's a basic REPL you can use.  Statements entered there will be parsed and then:

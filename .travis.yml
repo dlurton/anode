@@ -1,0 +1,34 @@
+sudo: required
+before_install:
+#  - sudo apt-get update -qq
+  - sudo apt-get install g++-6
+  - sudo apt-get install cmake3
+  - sudo apt-get install uuid-dev
+  #required for bdwgc
+  - sudo apt-get install autoconf
+  - sudo apt-get install libatomic-ops-dev
+  - sudo apt-get install libtool
+  - sudo apt-get install pkg-config
+# build-essential
+install:
+  - export CXX="g++-6"
+  - export CC="gcc-6"
+  
+# Enable C++ support
+language: c++
+
+# Compiler selection
+# compiler:
+#  - gcc-6
+
+# Build steps
+script:
+ - $TRAVIS_BUILD_DIR/tools/build-all-release
+
+notifications:
+ email:
+    recipients:
+      - anode.build@gmail.com
+    on_success: always
+    on_failure: always
+
