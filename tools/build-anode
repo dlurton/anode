@@ -7,6 +7,8 @@ source $SCRIPT_DIR/util.sh
 ANODE_CMAKE_DIR=$PROJECT_ROOT_DIR/cmake-build
 
 say "Directories:"
+echo "CC                " $CC
+echo "CXX               " $CXX
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
 echo "ANODE_CMAKE_DIR   " $ANODE_CMAKE_DIR
 echo "NUM_CORES         " $NUM_CORES

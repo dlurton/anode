@@ -16,6 +16,8 @@ CMAKE_DIR=$SCRATCH_DIR/${ANODE_BUILD_TYPE,,}/linenoise-ng-cmake
 BRANCH=master
 
 say "Directories:"
+echo "CC                " $CC
+echo "CXX               " $CXX
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
 echo "EXTERNS_DIR       " $EXTERNS_DIR
 echo "INSTALL_DIR       " $INSTALL_DIR

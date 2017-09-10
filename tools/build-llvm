@@ -20,6 +20,9 @@ fi
 
 say "Variables:"
 echo "ANODE_BUILD_TYPE  " $ANODE_BUILD_TYPE
+echo "CC                " $CC
+echo "CXX               " $CXX
+echo "ANODE_BUILD_TYPE  " $ANODE_BUILD_TYPE
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
 echo "EXTERNS_DIR       " $EXTERNS_DIR
 echo "LLVM_INSTALL_DIR  " $LLVM_INSTALL_DIR
