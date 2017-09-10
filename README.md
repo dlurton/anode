@@ -1,6 +1,6 @@
 # Anode Programming Language
 
-[[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)]](https://travis-ci.org/dlurton/anode)
+[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)](https://travis-ci.org/dlurton/anode)
 
 Anode is yet another embryonic programming language using LLVM as a back-end.
   
