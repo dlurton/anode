@@ -11,7 +11,10 @@ LLVM_SRC_DIR=$SCRATCH_DIR/llvm
 LLVM_CMAKE_DIR=$SCRATCH_DIR/${ANODE_BUILD_TYPE,,}/llvm-cmake
 LLVM_BRANCH=master
 
-say "Directories:"
+
+say "Variables:"
+echo "ANODE_BUILD_TYPE  " $ANODE_BUILD_TYPE
+echo "BUILD_LLVM_TOOLS  " $BUILD_LLVM_TOOLS
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
 echo "EXTERNS_DIR       " $EXTERNS_DIR
 echo "LLVM_INSTALL_DIR  " $LLVM_INSTALL_DIR
@@ -38,48 +41,44 @@ say "Switching to LLVM branch $LLVM_BRANCH"
 cd $LLVM_SRC_DIR
 git checkout $LLVM_BRANCH
 
-# NOTE:
-# If the -D options below change then it will become necessary to delete $LLVM_CMAKE_DIR to completely rebuild LLVM
-if [ -d $LLVM_CMAKE_DIR ]; then
-    say "LLVM cmake cache already exists."
+say "Generating cmake cache"
+mkdir -p $LLVM_CMAKE_DIR
+cd $LLVM_CMAKE_DIR
 
-else
-    say "Generating cmake cache"
-    mkdir -p $LLVM_CMAKE_DIR
-    cd $LLVM_CMAKE_DIR
+set +e
 
-    set +e
-
-    if [ "$ANODE_BUILD_TYPE" -eq "Release" ]; then
-        #https://llvm.org/docs/CMake.html
-        BUILD_CONFIG_FLAGS="-DCMAKE_BUILD_TYPE=MinSizeRel"
-    fi
-
-#    -DLLVM_INCLUDE_TOOLS:BOOL=ON \
-    cmake $BUILD_CONFIG_FLAGS \
-	    -DLLVM_TARGETS_TO_BUILD:STRING="X86" \
-	    -DLLVM_BUILD_32_BITS:BOOL=OFF \
-	    -DLLVM_BUILD_TOOLS:BOOL=ON \
-	    -DLLVM_BUILD_EXAMPLES:BOOL=OFF \
-	    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
-	    -DLLVM_ENABLE_RTTI:BOOL=ON \
-	    -DLLVM_ENABLE_EH:BOOL=ON \
-	    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
-	    -DCMAKE_INSTALL_PREFIX:PATH=$LLVM_INSTALL_DIR \
-	    -DLLVM_BUILD_LLVM_DYLIB:BOOL=ON \
-	    $LLVM_SRC_DIR
-
-    EC=$?
-    if [ $EC -ne 0 ]; then
-	    say "cmake reported an error.  Exit code was" $EC
-	    exit -1
-    fi
-
-    set -e
+if [ "$ANODE_BUILD_TYPE" -eq "Release" ]; then
+    #https://llvm.org/docs/CMake.html
+    BUILD_CONFIG_FLAGS="-DCMAKE_BUILD_TYPE=MinSizeRel"
 fi
 
-say "Building LLVM"
+# Note:  we must build the LLVM tools.  At least while building against LLVM-master on 9/10/2017, without them we get strange
+# undefined references during linking Anode.
+cmake $BUILD_CONFIG_FLAGS \
+    -DLLVM_TARGETS_TO_BUILD:STRING="X86" \
+    -DLLVM_BUILD_32_BITS:BOOL=OFF \
+    -DLLVM_INCLUDE_TOOLS:BOOL=ON \
+    -DLLVM_BUILD_TOOLS:BOOL= \
+    -DLLVM_BUILD_EXAMPLES:BOOL=OFF \
+    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
+    -DLLVM_ENABLE_RTTI:BOOL=ON \
+    -DLLVM_ENABLE_EH:BOOL=ON \
+    -DLLVM_BUILD_TESTS:BOOL=OFF \
+    -DLLVM_INCLUDE_TESTS:BOOL=OFF \
+    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF \
+    -DCMAKE_INSTALL_PREFIX:PATH=$LLVM_INSTALL_DIR \
+    -DLLVM_BUILD_LLVM_DYLIB:BOOL=ON \
+    $LLVM_SRC_DIR
 
+EC=$?
+if [ $EC -ne 0 ]; then
+    say "cmake reported an error.  Exit code was" $EC
+    exit -1
+fi
+
+set -e
+
+say "Building LLVM"
 cmake --build $LLVM_CMAKE_DIR -- -j $NUM_CORES
 
 say "Installing LLVM at" $LLVM_INSTALL_DIR

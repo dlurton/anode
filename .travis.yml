@@ -3,6 +3,9 @@ sudo: required
 
 language: cpp
 
+env:
+  -
+
 matrix:
   include:
 #    - os: linux
