@@ -1,8 +1,11 @@
 #!/bin/bash -e
 
+
 SCRIPT_DIR=$(dirname $(readlink -f ${0}))
 PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
 source $SCRIPT_DIR/util.sh
+
+travis_fold start llvm-build
 
 EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
 LLVM_INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/llvm
@@ -87,3 +90,4 @@ cmake --build $LLVM_CMAKE_DIR --target install
 
 say "LLVM Built and Installed successfully at" $LLVM_INSTALL_DIR
 
+travis_fold end llvm-build

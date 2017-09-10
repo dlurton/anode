@@ -4,6 +4,10 @@ SCRIPT_DIR=$(dirname $(readlink -f ${0}))
 PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
 source $SCRIPT_DIR/util.sh
 
+travis_fold start linenoise-ng-build
+
+
+
 EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
 INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/linenoise-ng
 SCRATCH_DIR=$EXTERNS_DIR/scratch
@@ -38,8 +42,6 @@ say "Switching to linenoise-ng branch $BRANCH"
 cd $SRC_DIR
 git checkout $BRANCH
 
-
-
 say "Generating cmake cache"
 mkdir -p $CMAKE_DIR
 cd $CMAKE_DIR
@@ -66,3 +68,4 @@ make install
 
 say "linenoise-ng built and installed successfully at" $INSTALL_DIR
 
+travis_fold end linenoise-ng-build

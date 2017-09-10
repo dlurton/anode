@@ -4,6 +4,8 @@ SCRIPT_DIR=$(dirname $(readlink -f ${0}))
 PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
 source $SCRIPT_DIR/util.sh
 
+travis_fold start bdwgc-build
+
 EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
 INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/bdwgc/usr/local/lib
 SCRATCH_DIR=$EXTERNS_DIR/scratch
@@ -65,3 +67,4 @@ make install
 
 say "bdwgc built and installed successfully at" $INSTALL_DIR
 
+travis_fold end bdwgc-build

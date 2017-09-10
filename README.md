@@ -166,6 +166,7 @@ The following must be installed and available prior to building Anode.
  - autoconf
  - libatomic (if using a version of gcc that doesn't have atomic operations built-in, required by libgc)
  - libtool
+ - About 50gb+ of free disk space (for building LLVM, mainly)
 
 ### Building Dependencies
 

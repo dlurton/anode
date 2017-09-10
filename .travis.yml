@@ -48,9 +48,10 @@ before_install:
 script:
  - $TRAVIS_BUILD_DIR/tools/build-all-release
 
-#cache:
-#  directories:
-#    - externs
+cache:
+  timeout: 600
+  directories:
+    - externs
 
 notifications:
  email:
