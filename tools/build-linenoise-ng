@@ -46,16 +46,10 @@ say "Generating cmake cache"
 mkdir -p $CMAKE_DIR
 cd $CMAKE_DIR
 
-set +e
+export CFLAGS="-std=c99" # needed for liblinenois-ng/tst/example.c
+
 cmake -DCMAKE_BUILD_TYPE=$ANODE_BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=$INSTALL_DIR $SRC_DIR
 
-EC=$?
-if [ $EC -ne 0 ]; then
-	say "cmake reported an error.  Exit code was" $EC
-	exit -1
-fi
-
-set -e
 say "Building linenoise-ng"
 
 make
