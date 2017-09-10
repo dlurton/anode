@@ -12,12 +12,14 @@ LLVM_INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/llvm
 SCRATCH_DIR=$EXTERNS_DIR/scratch
 LLVM_SRC_DIR=$SCRATCH_DIR/llvm
 LLVM_CMAKE_DIR=$SCRATCH_DIR/${ANODE_BUILD_TYPE,,}/llvm-cmake
-LLVM_BRANCH=master
+
+if [ "$LLVM_BRANCH" = "" ]; then
+    LLVM_BRANCH=master
+fi
 
 
 say "Variables:"
 echo "ANODE_BUILD_TYPE  " $ANODE_BUILD_TYPE
-echo "BUILD_LLVM_TOOLS  " $BUILD_LLVM_TOOLS
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
 echo "EXTERNS_DIR       " $EXTERNS_DIR
 echo "LLVM_INSTALL_DIR  " $LLVM_INSTALL_DIR
@@ -37,6 +39,7 @@ if [ ! -d $LLVM_SRC_DIR ]; then
 else 
 	say "Pulling github llvm-mirror"
 	cd $LLVM_SRC_DIR
+	git checkout master
 	git pull
 fi
 
@@ -50,7 +53,7 @@ cd $LLVM_CMAKE_DIR
 
 set +e
 
-if [ "$ANODE_BUILD_TYPE" -eq "Release" ]; then
+if [ "$ANODE_BUILD_TYPE" = "Release" ]; then
     #https://llvm.org/docs/CMake.html
     BUILD_CONFIG_FLAGS="-DCMAKE_BUILD_TYPE=MinSizeRel"
 fi
@@ -91,3 +94,4 @@ cmake --build $LLVM_CMAKE_DIR --target install
 say "LLVM Built and Installed successfully at" $LLVM_INSTALL_DIR
 
 travis_fold end llvm-build
+
