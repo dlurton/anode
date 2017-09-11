@@ -12,7 +12,7 @@ SCRATCH_DIR=$EXTERNS_DIR/scratch
 SRC_DIR=$SCRATCH_DIR/bdwgc
 BRANCH=release-7_6
 
-say "Directories:"
+say "Variables:"
 echo "CC                " $CC
 echo "CXX               " $CXX
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR

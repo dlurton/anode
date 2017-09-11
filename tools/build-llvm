@@ -19,7 +19,6 @@ fi
 
 
 say "Variables:"
-echo "ANODE_BUILD_TYPE  " $ANODE_BUILD_TYPE
 echo "CC                " $CC
 echo "CXX               " $CXX
 echo "ANODE_BUILD_TYPE  " $ANODE_BUILD_TYPE

@@ -15,7 +15,7 @@ SRC_DIR=$SCRATCH_DIR/linenoise-ng
 CMAKE_DIR=$SCRATCH_DIR/${ANODE_BUILD_TYPE,,}/linenoise-ng-cmake
 BRANCH=master
 
-say "Directories:"
+say "Variables:"
 echo "CC                " $CC
 echo "CXX               " $CXX
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR

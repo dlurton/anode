@@ -6,7 +6,7 @@ source $SCRIPT_DIR/util.sh
 
 ANODE_CMAKE_DIR=$PROJECT_ROOT_DIR/cmake-build
 
-say "Directories:"
+say "Variables:"
 echo "CC                " $CC
 echo "CXX               " $CXX
 echo "PROJECT_ROOT_DIR  " $PROJECT_ROOT_DIR
