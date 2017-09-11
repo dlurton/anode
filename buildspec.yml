@@ -8,6 +8,7 @@ env:
 phases:
   install:
     commands:
+      - sudo apt-get install software-properties-common
       - sudo add-apt-repository "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main" -k https://apt.llvm.org/llvm-snapshot.gpg.key
       - sudo add-apt-repository "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu trusty main"
       - sudo apt-get install clang-4.0
