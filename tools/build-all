@@ -3,13 +3,13 @@
 SCRIPT_DIR=$(dirname $(readlink -f ${0}))
 source $SCRIPT_DIR/util.sh
 
+say "All Environment Variables"
+env
+
+
 say "Building Dependencies"
 $SCRIPT_DIR/build-dependencies
 
 say "Building Anode"
 $SCRIPT_DIR/build-anode
-
-say "All Environment Variables"
-env
-
 
