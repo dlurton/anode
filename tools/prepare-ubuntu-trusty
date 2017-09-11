@@ -1,0 +1,13 @@
+#!/bin/bash -e
+
+sudo add-apt-repository "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-4.0 main" -k https://apt.llvm.org/llvm-snapshot.gpg.key
+sudo add-apt-repository "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu trusty main"
+sudo apt-get install clang-4.0
+sudo apt-get install cmake3
+sudo apt-get install uuid-dev
+# reguired by bdwgc
+sudo apt-get install autoconf
+sudo apt-get install libatomic-ops-dev
+sudo apt-get install libtool
+sudo apt-get install pkg-config
+sudo apt-get install libc++-dev
