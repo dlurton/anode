@@ -2,8 +2,8 @@ version: 0.2
 
 env:
   variables:
-    CC="clang-4.0"
-    CXX="clang++-4.0"
+    CC: "clang-4.0"
+    CXX: "clang++-4.0"
 
 phases:
   install:
