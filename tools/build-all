@@ -8,3 +8,8 @@ $SCRIPT_DIR/build-dependencies
 
 say "Building Anode"
 $SCRIPT_DIR/build-anode
+
+say "All Environment Variables"
+env
+
+
