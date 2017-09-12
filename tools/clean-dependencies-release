@@ -1,0 +1,11 @@
+#!/bin/bash -e
+
+
+SCRIPT_DIR=$(dirname $(readlink -f ${0}))
+PROJECT_ROOT_DIR=`readlink -f $SCRIPT_DIR/..`
+source $SCRIPT_DIR/util.sh
+
+cd $PROJECT_ROOT_DIR/externs
+
+rm -rf ./scratch/release
+rm -rf ./release
