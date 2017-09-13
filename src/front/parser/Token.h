@@ -51,6 +51,8 @@ enum class TokenKind : unsigned short {
     KW_CLASS,
     KW_ASSERT,
     COMMA,
+
+    MAX_TOKEN_TYPES
 };
 
 class Token : public gc {

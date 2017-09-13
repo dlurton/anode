@@ -7,6 +7,7 @@ namespace anode { namespace front { namespace parser {
 // will make our lives easier if we ever decide to use UTF-16 or UTF-32 for input files.
 
 typedef char char_t;
+const unsigned int MAX_CHAR = 255;
 typedef std::string string_t;
 
 inline string_t to_string(char_t c) {

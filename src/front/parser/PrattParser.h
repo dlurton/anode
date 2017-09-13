@@ -29,26 +29,30 @@ enum class Associativity {
  */
 template<typename TExpression>
 class PrattParser {
-    gc_unordered_map<TokenKind, generic_parselet_t> prefixParseletMap_;
-    gc_unordered_map<TokenKind, infix_parselet_t> infixParseletMap_;
+    gc_vector<generic_parselet_t> genericParsers_;
+    gc_vector<infix_parselet_t> infixParsers_;
+
 protected:
     error::ErrorStream &errorStream_;
     AnodeLexer &lexer_;
 
+    PrattParser (AnodeLexer &lexer, error::ErrorStream &errorStream) : errorStream_{errorStream}, lexer_{lexer} {
+        genericParsers_.resize((int) TokenKind::MAX_TOKEN_TYPES, generic_parselet_t());
+        infixParsers_.resize((int)TokenKind::MAX_TOKEN_TYPES, infix_parselet_t());
+    }
+
     void registerGenericParselet(TokenKind tokenKind, generic_parselet_t parselet) {
-        auto found = prefixParseletMap_.find(tokenKind);
-        if(found != prefixParseletMap_.end()) {
-            ASSERT_FAIL("Specified tokenKind already exists in prefixParseletMap_.")
+        if(genericParsers_[(int)tokenKind] != nullptr) {
+            ASSERT_FAIL("Specified tokenKind already exists in genericParsers_.")
         }
-        prefixParseletMap_[tokenKind] = parselet;
+        genericParsers_[(int)tokenKind] = parselet;
     }
 
     void registerInfixParselet(TokenKind tokenKind, infix_parselet_t parselet) {
-        auto found = infixParseletMap_.find(tokenKind);
-        if(found != infixParseletMap_.end()) {
-            ASSERT_FAIL("Specified tokenKind already exists in infixParseletMap_.")
+        if(infixParsers_[(int)tokenKind] != nullptr) {
+            ASSERT_FAIL("Specified tokenKind already exists in infixParsers_.")
         }
-        infixParseletMap_[tokenKind] = parselet;
+        infixParsers_[(int)tokenKind] = parselet;
     }
 
     Token *consume(TokenKind tokenKind, char_t expectedCharacter) {
@@ -100,8 +104,6 @@ protected:
         return nullptr;
     }
 
-protected:
-    PrattParser (AnodeLexer &lexer, error::ErrorStream &errorStream) : errorStream_{errorStream}, lexer_{lexer} { }
 
     virtual int getOperatorPrecedence(TokenKind kind) = 0;
 
@@ -118,8 +120,8 @@ protected:
 
         const char *message = "The token '%s' came as a complete surprise to me.";
 
-        auto foundPrefixParselet = prefixParseletMap_.find(t->kind());
-        if(foundPrefixParselet == prefixParseletMap_.end()) {
+        auto foundPrefixParselet = genericParsers_[(int)t->kind()];
+        if(foundPrefixParselet == nullptr) {
             errorStream_.error(
                 error::ErrorKind::SurpriseToken,
                 t->span(),
@@ -129,7 +131,7 @@ protected:
             throw ParseAbortedException();
         }
 
-        ast::ExprStmt *left = foundPrefixParselet->second(t);
+        ast::ExprStmt *left = foundPrefixParselet(t);
 
         t = lexer_.peekToken();
         if(t->kind() == TokenKind::END_OF_INPUT) {
@@ -138,8 +140,8 @@ protected:
 
         while(precedence < getOperatorPrecedence(t->kind())) {
             lexer_.nextToken();
-            auto foundInfixParselet = infixParseletMap_.find(t->kind());
-            if(foundInfixParselet == infixParseletMap_.end()) {
+            auto foundInfixParselet = infixParsers_[(int)t->kind()];
+            if(foundInfixParselet == nullptr) {
                 errorStream_.error(
                     error::ErrorKind::SurpriseToken,
                     t->span(),
@@ -149,7 +151,7 @@ protected:
                 throw ParseAbortedException();
             }
 
-            left = foundInfixParselet->second(left, t);
+            left = foundInfixParselet(left, t);
 
             t = lexer_.peekToken();
             if(t->kind() == TokenKind::END_OF_INPUT) {

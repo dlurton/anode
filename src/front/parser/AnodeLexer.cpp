@@ -3,49 +3,58 @@
 
 namespace anode { namespace front { namespace parser {
 
-std::unordered_map<char_t, TokenKind> SingleCharacterTokens =
-{
-    { ';', TokenKind::END_OF_STATEMENT },
-    { '!', TokenKind::OP_NOT },
-    { '+', TokenKind::OP_ADD },
-    { '-', TokenKind::OP_SUB },
-    { '*', TokenKind::OP_MUL },
-    { '/', TokenKind::OP_DIV },
-    { '=', TokenKind::OP_ASSIGN },
-    { '>', TokenKind::OP_GT },
-    { '>', TokenKind::OP_DIV },
-    { '<', TokenKind::OP_LT },
-    { '.', TokenKind::OP_DOT },
-    { ':', TokenKind::OP_DEF },
-    { '(', TokenKind::OPEN_PAREN },
-    { ')', TokenKind::CLOSE_PAREN },
-    { '{', TokenKind::OPEN_CURLY },
-    { '}', TokenKind::CLOSE_CURLY },
-    { ',', TokenKind::COMMA },
-};
+/** Static token is the name I have chosen to indicate tokens that do not ever change. i.e. operators
+ * and keywords, etc.  Literal values, identifiers, etc would be dynamic. */
+std::vector<std::vector<std::pair<string_t, TokenKind>>> StaticTokenLookup;
 
-//These will be evaluated in the order the are specified.
-std::vector<std::pair<string_t, TokenKind>> MultiCharacterTokens =
-{
-    { "++", TokenKind::OP_INC },
-    { "--", TokenKind::OP_DEC },
-    { "==", TokenKind::OP_EQ },
-    { "!=", TokenKind::OP_NEQ },
-    { "&&", TokenKind::OP_LAND },
-    { "||", TokenKind::OP_LOR },
-    { ">=", TokenKind::OP_GTE },
-    { "<=", TokenKind::OP_LTE },
-    { "(?", TokenKind::OP_COND },
-    { "true", TokenKind::KW_TRUE },
-    { "false", TokenKind::KW_FALSE},
-    { "while", TokenKind::KW_WHILE },
-    { "if", TokenKind::KW_IF },
-    { "else", TokenKind::KW_ELSE },
-    { "func", TokenKind::KW_FUNC },
-    { "cast", TokenKind::KW_CAST },
-    { "class", TokenKind::KW_CLASS},
-    { "assert", TokenKind::KW_ASSERT},
-};
+void registerStaticToken(string_t text, TokenKind tokenKind) {
+    StaticTokenLookup.resize(MAX_CHAR, std::vector<std::pair<string_t, TokenKind>>());
+    char_t firstChar = text[0];
+    StaticTokenLookup[firstChar].emplace_back(text, tokenKind);
+}
+
+void InitStaticTokenLookup() {
+    if(StaticTokenLookup.size() > 0) { 
+        return;
+    }
+
+    //For tokens that start with the same character, the longer one must be registered first!
+    registerStaticToken("++", TokenKind::OP_INC );
+    registerStaticToken("--", TokenKind::OP_DEC );
+    registerStaticToken("==", TokenKind::OP_EQ );
+    registerStaticToken("!=", TokenKind::OP_NEQ );
+    registerStaticToken("&&", TokenKind::OP_LAND );
+    registerStaticToken("||", TokenKind::OP_LOR );
+    registerStaticToken(">=", TokenKind::OP_GTE );
+    registerStaticToken("<=", TokenKind::OP_LTE );
+    registerStaticToken("(?", TokenKind::OP_COND );
+    registerStaticToken("true", TokenKind::KW_TRUE );
+    registerStaticToken("false", TokenKind::KW_FALSE);
+    registerStaticToken("while", TokenKind::KW_WHILE );
+    registerStaticToken("if", TokenKind::KW_IF );
+    registerStaticToken("else", TokenKind::KW_ELSE );
+    registerStaticToken("func", TokenKind::KW_FUNC );
+    registerStaticToken("cast", TokenKind::KW_CAST );
+    registerStaticToken("class", TokenKind::KW_CLASS);
+    registerStaticToken("assert", TokenKind::KW_ASSERT);
+    registerStaticToken(";", TokenKind::END_OF_STATEMENT );
+    registerStaticToken("!", TokenKind::OP_NOT );
+    registerStaticToken("+", TokenKind::OP_ADD );
+    registerStaticToken("-", TokenKind::OP_SUB );
+    registerStaticToken("*", TokenKind::OP_MUL );
+    registerStaticToken("/", TokenKind::OP_DIV );
+    registerStaticToken("=", TokenKind::OP_ASSIGN );
+    registerStaticToken(">", TokenKind::OP_GT );
+    registerStaticToken(">", TokenKind::OP_DIV );
+    registerStaticToken("<", TokenKind::OP_LT );
+    registerStaticToken(".", TokenKind::OP_DOT );
+    registerStaticToken(":", TokenKind::OP_DEF );
+    registerStaticToken("(", TokenKind::OPEN_PAREN );
+    registerStaticToken(")", TokenKind::CLOSE_PAREN );
+    registerStaticToken("{", TokenKind::OPEN_CURLY );
+    registerStaticToken("}", TokenKind::CLOSE_CURLY );
+    registerStaticToken(",", TokenKind::COMMA );
+}
 
 Token *AnodeLexer::extractLiteralNumber() {
     string_t number;
@@ -100,24 +109,17 @@ Token *AnodeLexer::extractToken() {
         return newToken(TokenKind::END_OF_INPUT, "<EOF>");
     }
 
-    //Search for a match among the multi-character tokens
-    //(because some of the multi-character tokens will start with the same character as a single-character token.)
-    for(const std::pair<string_t, TokenKind> &multiCharToken : MultiCharacterTokens) {
+    char_t c = reader_.peek();
+    if(c == '-' && isDigit(reader_.peek(1))) {
+        return extractLiteralNumber();
+    }
+    const auto &candidates = StaticTokenLookup[c];
+    for(const std::pair<string_t, TokenKind> &multiCharToken : candidates) {
         if(reader_.match(multiCharToken.first)) {
             return newToken(multiCharToken.second, multiCharToken.first);
         }
     }
 
-    char_t c = reader_.peek();
-
-    if(c == '-' && isDigit(reader_.peek(1))) {
-        return extractLiteralNumber();
-    }
-
-    auto found = SingleCharacterTokens.find(c);
-    if(found != SingleCharacterTokens.end()) {
-        return newToken(found->second, reader_.next());
-    }
 
     //Extract an identifier
     if(isLetter(c) || c == '_') {

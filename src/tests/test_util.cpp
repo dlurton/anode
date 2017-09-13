@@ -43,8 +43,8 @@ std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<execute:
 
     executionContext->executeModule(module);
     auto elapsed = std::chrono::high_resolution_clock::now() - testStartTime;
-    long long milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-    std::cerr << milliseconds << "ms\n";
+    long long milliseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+    std::cerr << std::fixed << milliseconds << "us\n";
     totalDuration += milliseconds;
     //GC_collect_a_little();
     return results;

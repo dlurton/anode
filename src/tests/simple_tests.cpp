@@ -23,15 +23,17 @@ int main( int argc, char* argv[]) {
     GC_INIT();
     //GC_enable_incremental();
 
+    std::cerr.imbue(std::locale(""));
+    std::cout.imbue(std::locale(""));
 
     int result = Catch::Session().run(argc, argv);
 
     std::cout.flush();
     if(testCount > 0) {
         double avgDuration = (double) totalDuration / (double) testCount;
-        std::cerr << "\nExecution count: " << testCount<< "\n";
-        std::cerr << "Average executiond duration in ms: " << avgDuration << "\n";
-        std::cerr.flush();
+        std::cout << "\nExecution count: " << testCount<< "\n";
+        std::cout << "Average executiond duration in us: " << std::fixed << avgDuration << "\n";
+        std::cout.flush();
     }
 
     return ( result < 0xff ? result : 0xff );

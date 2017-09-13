@@ -46,18 +46,18 @@ inline bool isValidFloat(const string_t &str) {
     }
 }
 
-extern std::unordered_map<char_t, TokenKind> SingleCharacterTokens;
-
-//This is a vector and not a map because they must be evaluated in order.
-extern std::vector<std::pair<string_t, TokenKind>> MultiCharacterTokens;
+extern void InitStaticTokenLookup();
 
 class AnodeLexer : no_new, no_copy, no_assign {
+
     SourceReader &reader_;
     error::ErrorStream &errorStream_;
     gc_deque<Token*> lookahead_;
     SourceLocation startLocation_;
 public:
-    AnodeLexer(SourceReader &reader, error::ErrorStream &errorStream) : reader_(reader), errorStream_{errorStream} { }
+    AnodeLexer(SourceReader &reader, error::ErrorStream &errorStream) : reader_(reader), errorStream_{errorStream} {
+        InitStaticTokenLookup();
+    }
 
     Token *nextToken() {
         if(!lookahead_.empty()) {
@@ -83,6 +83,7 @@ public:
     }
 
 private:
+
 
     void primeLookahead(size_t size) {
         while(lookahead_.size() < size) {
