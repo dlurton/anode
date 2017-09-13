@@ -15,14 +15,18 @@ private:
         std::vector<llvm::Type*> llvmParamTypes;
         llvmParamTypes.reserve(anodeParamTypes.size());
         for(auto anodeType : anodeParamTypes) {
-            llvmParamTypes.push_back(cc().typeMap().toLlvmType(anodeType));
+            llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType);
+            if(anodeType->isClass()) {
+                llvmType = llvmType->getPointerTo(0);
+            }
+            llvmParamTypes.push_back(llvmType);
         }
 
         llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(functionSymbol->functionType()->returnType());
         //Create the LLVM FunctionType
         llvm::FunctionType *functionType = llvm::FunctionType::get(returnLlvmType, llvmParamTypes, /*isVarArg*/ false);
 
-        llvm::Function* llvmFunc = llvm::cast<llvm::Function>(
+        auto * llvmFunc = llvm::cast<llvm::Function>(
             cc().llvmModule().getOrInsertFunction(functionSymbol->fullyQualifiedName(), functionType));
 
         llvmFunc->setCallingConv(llvm::CallingConv::C);
@@ -31,11 +35,9 @@ private:
     }
 
 public:
-    DeclareFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {
+    explicit DeclareFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
-    }
-
-    virtual bool visitingModule(ast::Module *module) override {
+    bool visitingModule(ast::Module *module) override {
 
         //All external functions must be added to the current llvm module.
         gc_vector<scope::FunctionSymbol*> functions = module->scope()->functions();
@@ -59,7 +61,7 @@ public:
 
 class DefineFuncsAstVisitor : public CompileAstVisitor {
 public:
-    DefineFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
+    explicit DefineFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
 
     bool visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
         //Save the state of the IRBuilder so it can be restored later
@@ -68,12 +70,12 @@ public:
 
         llvm::Value *functionPtr = cc().getMappedValue(funcDef->symbol());
 
-        llvm::Function *llvmFunc = llvm::cast<llvm::Function>(functionPtr);
+        auto *llvmFunc = llvm::cast<llvm::Function>(functionPtr);
         auto startBlock = llvm::BasicBlock::Create(cc().llvmContext(), "begin", llvmFunc);
 
         cc().irBuilder().SetInsertPoint(startBlock);
 
-        // Copy parameters to local variables. If this seems weird, that's because it is...
+        // Copy parameters to local variables where needed and map them to their symbols.  If this seems weird, that's because it is...
         // However, this appears to be exactly what clang does with optimization disabled!  I compiled the following test program here:
         // http://ellcc.org/demo/index.cgi to discover this...
         //    int foo(int a, int b) { return a + b + 1; }
@@ -89,7 +91,13 @@ public:
             llvm::Argument &argument = (*llvmParamItr);
             argument.setName(parameterDef->name());
 
-            llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(argument.getType());
+            if(parameterDef->type()->isClass()) {
+                cc().mapSymbolToValue(parameterDef->symbol(), &argument);
+               continue;
+            }
+            llvm::Type *localParamType = cc().typeMap().toLlvmType(parameterDef->type());
+
+            llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);
             localParamValue->setName("local_" + parameterDef->name());
             cc().mapSymbolToValue(parameterDef->symbol(), localParamValue);
             cc().irBuilder().CreateStore(&argument, localParamValue);

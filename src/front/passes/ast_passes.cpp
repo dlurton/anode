@@ -323,9 +323,6 @@ public:
             auto argument = arguments[i];
             auto parameterType = parameterTypes[i];
 
-            ASSERT(!parameterType->isClass() && "TODO: class instances as arguments");
-            ASSERT(!parameterType->isClass() && "TODO: class instances as parameters");
-
             if(!parameterType->isSameType(argument->type())) {
                 if(!argument->type()->canImplicitCastTo(parameterType)) {
                     errorStream_.error(

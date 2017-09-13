@@ -31,9 +31,9 @@ int main( int argc, char* argv[]) {
     std::cout.flush();
     if(testCount > 0) {
         double avgDuration = (double) totalDuration / (double) testCount;
-        std::cout << "\nExecution count: " << testCount<< "\n";
-        std::cout << "Average executiond duration in us: " << std::fixed << avgDuration << "\n";
-        std::cout.flush();
+        std::cerr << "\nExecution count: " << testCount<< "\n";
+        std::cerr << "Average executiond duration in us: " << std::fixed << avgDuration << "\n";
+        std::cerr.flush();
     }
 
     return ( result < 0xff ? result : 0xff );

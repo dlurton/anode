@@ -6,50 +6,57 @@ namespace anode {
     namespace back {
 
         class ExprStmtAstVisitor : public CompileAstVisitor {
-            std::stack<llvm::Value*> valueStack_;
+            std::stack<llvm::Value*> _valueStack_;
+
+            void pushValue(llvm::Value *value) {
+                _valueStack_.push(value);
+            }
+
+            llvm::Value *popValue() {
+                llvm::Value *value = _valueStack_.top();
+                _valueStack_.pop();
+                return value;
+            }
 
         public:
-            ExprStmtAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
+            explicit ExprStmtAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
             bool hasValue() {
-                return valueStack_.size() > 0;
+                return !_valueStack_.empty();
             }
 
             llvm::Value *llvmValue() {
-                ASSERT(valueStack_.size() == 1);
-                return valueStack_.top();
+                ASSERT(_valueStack_.size() == 1);
+                return _valueStack_.top();
             }
 
-            virtual bool visitingFuncDefStmt(ast::FuncDefStmt *) override {
+            bool visitingFuncDefStmt(ast::FuncDefStmt *) override {
                 return false;
             }
 
-            virtual void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
-                //Pop arguments off first since they are evaulated before the function ptr.
+            void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
+                //Pop arguments off first since they are evaluated before the function ptr.
                 std::vector<llvm::Value*> args;
                 for(size_t i = 0; i < expr->argCount(); ++i) {
-                    args.push_back(valueStack_.top());
-                    valueStack_.pop();
+                    args.push_back(popValue());
                 }
                 //Arguments are popped off in reverse order.
                 std::reverse(args.begin(), args.end());
 
                 //Pop the function pointer.
-                llvm::Value *value = valueStack_.top();
-                valueStack_.pop();
+                llvm::Value *value = popValue();
 
                 llvm::Function *llvmFunc = llvm::cast<llvm::Function>(value);
 
 
                 llvm::CallInst *result = cc().irBuilder().CreateCall(llvmFunc, args);
 
-                valueStack_.push(result);
+                pushValue(result);
             }
 
 
-            virtual void visitedCastExpr(ast::CastExpr *expr) override {
-                llvm::Value *value = valueStack_.top();
-                valueStack_.pop();
+            void visitedCastExpr(ast::CastExpr *expr) override {
+                llvm::Value *value = popValue();
 
                 ASSERT(expr->type()->isPrimitive());
                 ASSERT(expr->valueExpr()->type()->isPrimitive());
@@ -101,7 +108,7 @@ namespace anode {
                         ASSERT_FAIL("Unhandled type::PrimitiveType")
                 }
                 ASSERT(castedValue && "Cannot fail to create casted value...");
-                valueStack_.push(castedValue);
+                pushValue(castedValue);
             }
 
             void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
@@ -127,27 +134,27 @@ namespace anode {
                 visitVariableRefExpr(expr);
             }
 
-            virtual void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
+            void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
                 llvm::Value *pointer = cc().getMappedValue(expr->symbol());
 
                 ASSERT(pointer);
 
                 if (expr->variableAccess() == ast::VariableAccess::Write) {
-                    valueStack_.push(pointer);
+                    pushValue(pointer);
                     return;
                 }
 
                 if(expr->type()->isPrimitive()) {
                     llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(pointer);
                     loadInst->setAlignment(ALIGNMENT);
-                    valueStack_.push(loadInst);
+                    pushValue(loadInst);
                 } else {
-                    valueStack_.push(pointer);
+                    pushValue(pointer);
                 }
             }
 
-            virtual void visitLiteralInt32Expr(ast::LiteralInt32Expr *expr) override {
-                valueStack_.push(getLiteralIntLlvmValue(expr->value()));
+            void visitLiteralInt32Expr(ast::LiteralInt32Expr *expr) override {
+                pushValue(getLiteralIntLlvmValue(expr->value()));
             }
 
             llvm::Value *getLiteralIntLlvmValue(int value) {
@@ -158,15 +165,15 @@ namespace anode {
                 return llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t) value, false));
             }
 
-            virtual void visitLiteralFloatExpr(ast::LiteralFloatExpr *expr) override {
-                valueStack_.push(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr->value())));
+            void visitLiteralFloatExpr(ast::LiteralFloatExpr *expr) override {
+                pushValue(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr->value())));
             }
 
-            virtual void visitLiteralBoolExpr(ast::LiteralBoolExpr *expr) override {
-                valueStack_.push(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr->value(), true)));
+            void visitLiteralBoolExpr(ast::LiteralBoolExpr *expr) override {
+                pushValue(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr->value(), true)));
             }
 
-            virtual bool visitingBinaryExpr(ast::BinaryExpr *expr) override {
+            bool visitingBinaryExpr(ast::BinaryExpr *expr) override {
                 if(expr->binaryExprKind() != ast::BinaryExprKind::Logical) {
                     return true;
                 }
@@ -208,29 +215,27 @@ namespace anode {
                 phi->addIncoming(shortCircuitLlvmValue, lValueBlock);
                 phi->addIncoming(rValue, rValueBlock);
 
-                valueStack_.push(phi);
+                pushValue(phi);
                 return false;
             }
 
-            virtual void visitedBinaryExpr(ast::BinaryExpr *expr) override {
+            void visitedBinaryExpr(ast::BinaryExpr *expr) override {
                 if(expr->binaryExprKind() != ast::BinaryExprKind::Arithmetic) {
                     return;
                 }
 
                 ASSERT(expr->lValue()->type()->isSameType(expr->rValue()->type()) && "data types must match");
 
-                llvm::Value *rValue = valueStack_.top();
-                valueStack_.pop();
+                llvm::Value *rValue = popValue();
 
-                llvm::Value *lValue = valueStack_.top();
-                valueStack_.pop();
+                llvm::Value *lValue = popValue();
 
                 ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
 
                 if (expr->operation() == ast::BinaryOperationKind::Assign) {
                     cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
                     //Note:  I think this will call rValue a second time if rValue is a call site.
-                    valueStack_.push(rValue);
+                    pushValue(rValue);
                     return;
                 }
                 llvm::Value *resultValue = nullptr;
@@ -323,12 +328,12 @@ namespace anode {
                         ASSERT_FAIL("Unhandled PrimitiveType");
                 }
                 ASSERT(resultValue);
-                valueStack_.push(resultValue);
+                pushValue(resultValue);
             }
 
-            virtual void visitedDotExpr(ast::DotExpr *expr) override {
-                llvm::Value *lvalue = valueStack_.top();
-                valueStack_.pop();
+            void visitedDotExpr(ast::DotExpr *expr) override {
+                llvm::Value *lvalue = popValue();
+
                 auto classType = dynamic_cast<const type::ClassType*>(expr->lValue()->type()->actualType());
                 ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have fields.");
                 type::ClassField *classField = classType->findField(expr->memberName());
@@ -342,21 +347,20 @@ namespace anode {
                 // We also do not attempt to load "values" of any classes because so far we anode only operates on class pointers or
                 // their fields, not entire classes.
                 if(expr->isWrite() || expr->type()->isClass()) {
-                    valueStack_.push(ptrOrValue);
+                    pushValue(ptrOrValue);
                     return;
                 }
 
                 ptrOrValue = cc().irBuilder().CreateLoad(ptrOrValue);
-                valueStack_.push(ptrOrValue);
-                return;
+                pushValue(ptrOrValue);
             }
 
-            virtual bool visitingIfExpr(ast::IfExprStmt *ifExpr) override {
+            bool visitingIfExpr(ast::IfExprStmt *ifExpr) override {
                 //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
                 //Emit the condition
                 llvm::Value *condValue = emitExpr(ifExpr->condition(), cc());
 
-                //Prepare the BasicBlocks
+                //Prepare thae BasicBlocks
                 llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
                 llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc().llvmContext(), "thenBlock");
                 llvm::BasicBlock *elseBlock = llvm::BasicBlock::Create(cc().llvmContext(), "elseBlock");
@@ -395,12 +399,12 @@ namespace anode {
                     if (ifExpr->elseExpr()) {
                         phi->addIncoming(elseValue, elseBlock);
                     }
-                    valueStack_.push(phi);
+                    pushValue(phi);
                 }
                 return false;
             }
 
-            virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) override {
+            bool visitingWhileExpr(ast::WhileExpr *whileExpr) override {
 
                 //Prepare the BasicBlocks
                 llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
@@ -433,7 +437,7 @@ namespace anode {
                 return false;
             }
 
-            virtual bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
+            bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
 
                 llvm::Value *lastValue = nullptr;
                 for (ast::ExprStmt *expr : expr->expressions()) {
@@ -443,12 +447,12 @@ namespace anode {
                         lastValue = exprAstVisitor.llvmValue();
                     }
                 }
-                valueStack_.push(lastValue);
+                pushValue(lastValue);
 
                 return false;
             }
 
-            virtual bool visitingAssertExprStmt(ast::AssertExprStmt *assert) override {
+            bool visitingAssertExprStmt(ast::AssertExprStmt *assert) override {
                 //Emit the condition
                 llvm::Value *condValue = emitExpr(assert->condition(), cc());
 
@@ -488,7 +492,6 @@ namespace anode {
                 cc().irBuilder().SetInsertPoint(endBlock);
                 return false;
             }
-
         };
 
         llvm::Value *emitExpr(ast::ExprStmt *exprStmt, CompileContext &cc) {
