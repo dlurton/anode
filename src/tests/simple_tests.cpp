@@ -644,7 +644,7 @@ TEST_CASE("nested while loops") {
 }
 
 
-TEST_CASE("class, stack allocated") {
+TEST_CASE("class") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, R"(
         class Widget {
@@ -653,7 +653,7 @@ TEST_CASE("class, stack allocated") {
             c:bool;
         }
     )");
-    exec(ec, "someWidget:Widget;");
+    exec(ec, "someWidget:Widget = new Widget();");
     REQUIRE(test<int>(ec, "someWidget.a;") == 0);
     REQUIRE(test<int>(ec, "someWidget.a = 234;") == 234);
     REQUIRE(test<int>(ec, "someWidget.a;") == 234);
@@ -673,7 +673,7 @@ TEST_CASE("class, stack allocated, with another class inside it") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "class A { a:int; b:float; c:bool; }");
     exec(ec, "class B { a1:A; a2:A; }");
-    exec(ec, "instance:B;");
+    exec(ec, "instance:B = new B(); instance.a1 = new A(); instance.a2 = new A();");
 
     REQUIRE(test<int>(ec, "instance.a1.a;") == 0);
     REQUIRE(test<int>(ec, "instance.a1.a = 234;") == 234);
@@ -775,7 +775,6 @@ TEST_CASE("basic function call") {
     REQUIRE(test<int>(ec, "someFunctionReturningInt();") == 1024);
 }
 
-
 TEST_CASE("function with int parameter") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     auto src = R"(
@@ -821,9 +820,11 @@ TEST_CASE("assert") {
     REQUIRE_NOTHROW(exec("assert(1);"));
     REQUIRE_NOTHROW(exec("assert(1.0);"));
 }
-//
-//
-//TEST_CASE("eek") {
-//    char *foo = nullptr;
-//    foo[0] = 10;
-//}
+
+TEST_CASE("dynamically allocated class") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    exec(ec, "class C { f:int; } c:C = new C();");
+    REQUIRE(test<int>(ec, "c.f = 1024;") == 1024);
+    REQUIRE(test<int>(ec, "c.f;") == 1024);
+}
+

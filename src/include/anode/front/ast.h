@@ -51,6 +51,7 @@ class DotExpr;
 class VariableDeclExpr;
 class VariableRefExpr;
 class CastExpr;
+class NewExpr;
 class TypeRef;
 class AssertExprStmt;
 class Module;
@@ -112,6 +113,9 @@ public:
 
     virtual void visitingCastExpr(CastExpr *) { }
     virtual void visitedCastExpr(CastExpr *) { }
+
+    virtual void visitingNewExpr(NewExpr *) { }
+    virtual void visitedNewExpr(NewExpr *) { }
 
     virtual void visitingDotExpr(DotExpr *) { }
     virtual void visitedDotExpr(DotExpr *) { }
@@ -417,7 +421,7 @@ public:
         }
     }
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         bool visitChildren = visitor->visitingExprStmt(this);
         visitChildren = visitor->visitingBinaryExpr(this) ? visitChildren : false;
 
@@ -540,6 +544,32 @@ public:
         }
 
         visitor->visitedCastExpr(this);
+        visitor->visitedExprStmt(this);
+    }
+};
+
+/** Represents a new expression... i.e. foo:int= new<int>(someDouble); */
+class NewExpr : public ExprStmt {
+    TypeRef  *typeRef_;
+
+public:
+    NewExpr(source::SourceSpan sourceSpan, TypeRef *typeRef)
+        : ExprStmt(sourceSpan), typeRef_(typeRef) { }
+
+    type::Type *type() const  override { return typeRef_->type(); }
+    TypeRef *typeRef() const { return typeRef_; }
+
+    virtual bool canWrite() const override { return false; };
+
+    virtual void accept(AstVisitor *visitor) override {
+        bool visitChildren = visitor->visitingExprStmt(this);
+        visitor->visitingNewExpr(this);
+
+        if(visitChildren) {
+            typeRef_->accept(visitor);
+        }
+
+        visitor->visitedNewExpr(this);
         visitor->visitedExprStmt(this);
     }
 };
@@ -991,7 +1021,7 @@ public:
         }
         visitor->visitedModule(this);
     }
- };
+};
 
 }}
 

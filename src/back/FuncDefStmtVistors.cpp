@@ -16,9 +16,9 @@ private:
         llvmParamTypes.reserve(anodeParamTypes.size());
         for(auto anodeType : anodeParamTypes) {
             llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType);
-            if(anodeType->isClass()) {
-                llvmType = llvmType->getPointerTo(0);
-            }
+//            if(anodeType->isClass()) {
+//                llvmType = llvmType->getPointerTo(0);
+//            }
             llvmParamTypes.push_back(llvmType);
         }
 
@@ -91,10 +91,10 @@ public:
             llvm::Argument &argument = (*llvmParamItr);
             argument.setName(parameterDef->name());
 
-            if(parameterDef->type()->isClass()) {
-                cc().mapSymbolToValue(parameterDef->symbol(), &argument);
-               continue;
-            }
+//            if(parameterDef->type()->isClass()) {
+//                cc().mapSymbolToValue(parameterDef->symbol(), &argument);
+//                //continue;
+//            }
             llvm::Type *localParamType = cc().typeMap().toLlvmType(parameterDef->type());
 
             llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);

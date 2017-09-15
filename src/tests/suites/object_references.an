@@ -5,14 +5,14 @@ class SomeClass {
     anotherField:int;
 }
 
-# a stack allocated instance can be mutated when passed by reference.
+# an object instance can be mutated when passed by reference.
 {
     func mutateSomeClass:void(instance:SomeClass) {
         instance.someField = 2;
         instance.anotherField = 3;
     }
 
-    anInstance:SomeClass;
+    anInstance:SomeClass = new SomeClass();
 
     anInstance.someField = 1;
     anInstance.anotherField = 2;
@@ -23,4 +23,16 @@ class SomeClass {
 
     assert(anInstance.someField == 2);
     assert(anInstance.anotherField == 3);
+}
+
+# an object instance can be returned from a function
+{
+    func testFactory:SomeClass() {
+        sc:SomeClass = new SomeClass();
+        sc.someField = 99;
+        sc;
+    }
+
+    instance:SomeClass = testFactory();
+    assert(instance.someField == 99);
 }

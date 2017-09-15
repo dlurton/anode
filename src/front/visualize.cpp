@@ -12,7 +12,7 @@ class PrettyPrinterVisitor : public AstVisitor {
     IndentWriter writer_;
 
 public:
-    PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
+    explicit PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
     bool visitingCompoundExpr(CompoundExpr *expr) override {
         writer_.write("CompoundExpr: ");
@@ -143,6 +143,13 @@ public:
 
         writer_.incIndent();
     }
+
+    void visitingNewExpr(NewExpr *expr) override {
+        writer_.writeln("NewExpr(%s):", expr->typeRef()->name().c_str());
+
+        writer_.incIndent();
+    }
+
     void visitedCastExpr(CastExpr *) override {
         writer_.decIndent();
     }

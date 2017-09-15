@@ -38,6 +38,7 @@ enum class TokenKind : unsigned short {
     CLOSE_PAREN,
     OPEN_CURLY,
     CLOSE_CURLY,
+    COMMA,
     ID,
     LIT_INT,
     LIT_FLOAT,
@@ -50,7 +51,7 @@ enum class TokenKind : unsigned short {
     KW_CAST,
     KW_CLASS,
     KW_ASSERT,
-    COMMA,
+    KW_NEW,
 
     MAX_TOKEN_TYPES
 };

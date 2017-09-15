@@ -84,7 +84,6 @@ public:
 
 private:
 
-
     void primeLookahead(size_t size) {
         while(lookahead_.size() < size) {
             lookahead_.push_back(extractToken());

@@ -24,6 +24,7 @@ namespace anode { namespace back {
     const char * const RECEIVE_RESULT_FUNC_NAME = "__receive_result__";
     const char * const ASSERT_FAILED_FUNC_NAME = "__assert_failed__";
     const char * const ASSERT_PASSED_FUNC_NAME = "__assert_passed__";
+    const char * const MALLOC_FUNC_NAME = "__malloc__";
     const char * const EXECUTION_CONTEXT_GLOBAL_NAME = "__execution__context__";
 
     class TypeMap : no_assign, no_copy {

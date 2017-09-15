@@ -144,7 +144,6 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
     ASSERT(executionContext);
     ASSERT(anodeModule);
 
-
     try {
         executionContext->prepareModule(anodeModule);
     } catch (execute::ExecutionException &e) {

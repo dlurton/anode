@@ -9,6 +9,11 @@
 
 namespace anode { namespace back {
 
+enum class RuntimeFunc : unsigned char {
+    AssertFail,
+    AsserPass
+};
+
 /** CompileContext is a place to keep track of values that need to be shared among the AstVisitors that make up the
  * IR generation phase.  A new CompileContext must be created for each module being compiled.
  */
@@ -20,7 +25,11 @@ class CompileContext : no_copy, no_assign {
     gc_unordered_map<scope::Symbol *, llvm::Value *> symbolValueMap_;
     llvm::Function *assertFailFunc_ = nullptr;
     llvm::Function *assertPassFunc_ = nullptr;
+    llvm::Function *mallocFunc_ = nullptr;
     std::unordered_map<std::string, llvm::Value*> stringConstants_;
+
+    gc_unordered_map<RuntimeFunc, llvm::Function*> runtimeFunctionMap_;
+
 public:
 
     CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_, TypeMap &typeMap)
@@ -33,30 +42,55 @@ public:
 
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
 
-    llvm::Function *assertFailFunc() {
-        ASSERT(assertFailFunc_);
-        return assertFailFunc_;
-    }
-
-    void setAssertFailFunc(llvm::Function *assertFunc) {
-        assertFailFunc_ = assertFunc;
-    }
-
     void mapSymbolToValue(scope::Symbol *symbol, llvm::Value *value) {
         ASSERT(value);
         symbolValueMap_[symbol] = value;
     }
 
+    llvm::Function *assertFailFunc() {
+        if(!assertFailFunc_) {
+            assertFailFunc_ = llvm::cast<llvm::Function>(llvmModule().getOrInsertFunction(
+                ASSERT_FAILED_FUNC_NAME,
+                llvm::Type::getVoidTy(llvmContext()),      //Return type
+                llvm::Type::getInt8PtrTy(llvmContext()),   //char * to source filename
+                llvm::Type::getInt32Ty(llvmContext())     //line number
+            ));
+
+            auto paramItr = assertFailFunc_->arg_begin();
+            llvm::Value *executionContext = paramItr++;
+            executionContext->setName("filename");
+
+            llvm::Value *primitiveType = paramItr;
+            primitiveType->setName("lineNo");
+
+        }
+        return assertFailFunc_;
+    }
+
     llvm::Function *assertPassFunc() {
-        ASSERT(assertPassFunc_);
+        if(!assertPassFunc_) {
+            assertPassFunc_ = llvm::cast<llvm::Function>(llvmModule().getOrInsertFunction(
+                ASSERT_PASSED_FUNC_NAME,
+                llvm::Type::getVoidTy(llvmContext())      //Return type
+            ));
+        }
         return assertPassFunc_;
     }
 
-    void setAssertPassFunc(llvm::Function *assertFunc) {
-        assertPassFunc_ = assertFunc;
+    llvm::Function *mallocFunc() {
+        if(!mallocFunc_) {
+            mallocFunc_ = llvm::cast<llvm::Function>(llvmModule().getOrInsertFunction(
+                MALLOC_FUNC_NAME,
+                llvm::Type::getInt8PtrTy(llvmContext()),   //Return value is pointer to i8*
+                llvm::Type::getInt32Ty(llvmContext())      //Size to allocate, in bytes
+            ));
+
+            llvm::Value *executionContext = mallocFunc_->arg_begin();
+            executionContext->setName("size");
+        }
+        return mallocFunc_;
     }
 
-    
     llvm::Value *getMappedValue(scope::Symbol *symbol) {
         llvm::Value *found = symbolValueMap_[symbol];
         ASSERT(found && "Symbol must be mapped to an LLVM value.");
@@ -66,7 +100,9 @@ public:
     TypeMap &typeMap() { return typeMap_; }
 
     llvm::Constant *getDefaultValueForType(type::Type *type) {
-        ASSERT(type->isPrimitive());
+        if(type->isClass()) {
+            return llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(typeMap_.toLlvmType(type)));
+        }
         return getDefaultValueForType(type->primitiveType());
     }
 

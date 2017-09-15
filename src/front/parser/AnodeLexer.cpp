@@ -19,41 +19,42 @@ void InitStaticTokenLookup() {
     }
 
     //For tokens that start with the same character, the longer one must be registered first!
-    registerStaticToken("++", TokenKind::OP_INC );
-    registerStaticToken("--", TokenKind::OP_DEC );
-    registerStaticToken("==", TokenKind::OP_EQ );
-    registerStaticToken("!=", TokenKind::OP_NEQ );
-    registerStaticToken("&&", TokenKind::OP_LAND );
-    registerStaticToken("||", TokenKind::OP_LOR );
-    registerStaticToken(">=", TokenKind::OP_GTE );
-    registerStaticToken("<=", TokenKind::OP_LTE );
-    registerStaticToken("(?", TokenKind::OP_COND );
-    registerStaticToken("true", TokenKind::KW_TRUE );
+    registerStaticToken("++", TokenKind::OP_INC);
+    registerStaticToken("--", TokenKind::OP_DEC);
+    registerStaticToken("==", TokenKind::OP_EQ);
+    registerStaticToken("!=", TokenKind::OP_NEQ);
+    registerStaticToken("&&", TokenKind::OP_LAND);
+    registerStaticToken("||", TokenKind::OP_LOR);
+    registerStaticToken(">=", TokenKind::OP_GTE);
+    registerStaticToken("<=", TokenKind::OP_LTE);
+    registerStaticToken("(?", TokenKind::OP_COND);
+    registerStaticToken("true", TokenKind::KW_TRUE);
     registerStaticToken("false", TokenKind::KW_FALSE);
-    registerStaticToken("while", TokenKind::KW_WHILE );
-    registerStaticToken("if", TokenKind::KW_IF );
-    registerStaticToken("else", TokenKind::KW_ELSE );
-    registerStaticToken("func", TokenKind::KW_FUNC );
-    registerStaticToken("cast", TokenKind::KW_CAST );
+    registerStaticToken("while", TokenKind::KW_WHILE);
+    registerStaticToken("if", TokenKind::KW_IF);
+    registerStaticToken("else", TokenKind::KW_ELSE);
+    registerStaticToken("func", TokenKind::KW_FUNC);
+    registerStaticToken("cast", TokenKind::KW_CAST);
+    registerStaticToken("new", TokenKind::KW_NEW);
     registerStaticToken("class", TokenKind::KW_CLASS);
     registerStaticToken("assert", TokenKind::KW_ASSERT);
-    registerStaticToken(";", TokenKind::END_OF_STATEMENT );
-    registerStaticToken("!", TokenKind::OP_NOT );
-    registerStaticToken("+", TokenKind::OP_ADD );
-    registerStaticToken("-", TokenKind::OP_SUB );
-    registerStaticToken("*", TokenKind::OP_MUL );
-    registerStaticToken("/", TokenKind::OP_DIV );
-    registerStaticToken("=", TokenKind::OP_ASSIGN );
-    registerStaticToken(">", TokenKind::OP_GT );
-    registerStaticToken(">", TokenKind::OP_DIV );
-    registerStaticToken("<", TokenKind::OP_LT );
-    registerStaticToken(".", TokenKind::OP_DOT );
-    registerStaticToken(":", TokenKind::OP_DEF );
-    registerStaticToken("(", TokenKind::OPEN_PAREN );
-    registerStaticToken(")", TokenKind::CLOSE_PAREN );
-    registerStaticToken("{", TokenKind::OPEN_CURLY );
-    registerStaticToken("}", TokenKind::CLOSE_CURLY );
-    registerStaticToken(",", TokenKind::COMMA );
+    registerStaticToken(";", TokenKind::END_OF_STATEMENT);
+    registerStaticToken("!", TokenKind::OP_NOT);
+    registerStaticToken("+", TokenKind::OP_ADD);
+    registerStaticToken("-", TokenKind::OP_SUB);
+    registerStaticToken("*", TokenKind::OP_MUL);
+    registerStaticToken("/", TokenKind::OP_DIV);
+    registerStaticToken("=", TokenKind::OP_ASSIGN);
+    registerStaticToken(">", TokenKind::OP_GT);
+    registerStaticToken(">", TokenKind::OP_DIV);
+    registerStaticToken("<", TokenKind::OP_LT);
+    registerStaticToken(".", TokenKind::OP_DOT);
+    registerStaticToken(":", TokenKind::OP_DEF);
+    registerStaticToken("(", TokenKind::OPEN_PAREN);
+    registerStaticToken(")", TokenKind::CLOSE_PAREN);
+    registerStaticToken("{", TokenKind::OPEN_CURLY);
+    registerStaticToken("}", TokenKind::CLOSE_CURLY);
+    registerStaticToken(",", TokenKind::COMMA);
 }
 
 Token *AnodeLexer::extractLiteralNumber() {

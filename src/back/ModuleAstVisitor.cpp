@@ -55,12 +55,13 @@ public:
                 return true;
         }
 
+        llvm::Value *llvmValue = emitExpr(expr, cc());
+
         if (!expr->type()->isPrimitive()) {
             //eventually, we'll call toString() or somesuch.
             return false;
         }
 
-        llvm::Value *llvmValue = emitExpr(expr, cc());
         if (llvmValue && !llvmValue->getType()->isVoidTy()) {
             resultExprStmtCount_++;
             std::string variableName = string::format("result_%d", resultExprStmtCount_);
@@ -90,7 +91,6 @@ public:
 
         cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
-        declareAssertFunctions();
         declareResultFunction();
 
         startModuleInitFunc(module);
@@ -106,7 +106,7 @@ public:
         return true;
     }
 
-    virtual void visitedModule(Module *) override {
+    void visitedModule(Module *) override {
         cc().irBuilder().CreateRetVoid();
         llvm::raw_ostream &os = llvm::errs();
         if (llvm::verifyModule(cc().llvmModule(), &os)) {
@@ -158,31 +158,6 @@ private:
         globalVar->setAlignment(ALIGNMENT);
 
         executionContextPtrValue_ = globalVar;
-    }
-
-    void declareAssertFunctions() {
-        llvm::Function *assertFunc = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
-            ASSERT_FAILED_FUNC_NAME,
-            llvm::Type::getVoidTy(cc().llvmContext()),      //Return type
-            llvm::Type::getInt8PtrTy(cc().llvmContext()),   //char * to source filename
-            llvm::Type::getInt32Ty(cc().llvmContext())     //line number
-        ));
-
-        auto paramItr = assertFunc->arg_begin();
-        llvm::Value *executionContext = paramItr++;
-        executionContext->setName("filename");
-
-        llvm::Value *primitiveType = paramItr;
-        primitiveType->setName("lineNo");
-
-        cc().setAssertFailFunc(assertFunc);
-
-        assertFunc = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
-            ASSERT_PASSED_FUNC_NAME,
-            llvm::Type::getVoidTy(cc().llvmContext())      //Return type
-        ));
-        cc().setAssertPassFunc(assertFunc);
-
     }
 };
 

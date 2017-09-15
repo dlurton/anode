@@ -28,7 +28,7 @@ class GlobalVariableAstVisitor : public CompileAstVisitor {
                 globalVar->setLinkage(llvm::GlobalValue::ExternalWeakLinkage);
             } else {
                 //Fills the struct instance with zeros
-                globalVar->setInitializer(llvm::ConstantAggregateZero::get(llvmType));
+                //globalVar->setInitializer(llvm::ConstantAggregateZero::get(llvmType));
 
                 //ExternalLinkage as far as I can tell is not to be confused with the "extern" C keyword.
                 //It seems to mean that the symbol is exposed to other modules, like when the "extern"

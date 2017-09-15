@@ -16,7 +16,7 @@ A `.an` file may also include a shebang line, i.e.
 
     #!/path/to/anode/executable 
  
-The compiler uses the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/) and eventually, the compiled code will too. 
+The compiler and compiled code use the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/). 
 
 Goals of the language:
 
@@ -38,7 +38,7 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     ```
     (# this is a multiline comment
         (# this is a nested comment which doesn't break the outer comment. #) 
-    #)fd
+    #)
     ```
 - Data types: `bool`, `int` and `float`.
 - Literal ints (`123`), floats (`123.0`) and booleans (`true` or `false`).
@@ -88,8 +88,8 @@ will give a complete and up-to-date picture of supported syntax and features, ho
             isInStock:bool;
         }
     ```
- - Stack allocated objects:
-    `someWidget:Widget;`
+ - Heap allocated, garbage collected objects: `someWidget:Widget = new Widget();`
+    - `someWidget` is a reference.    
  - Dot operator:
     `someWidget.weight = 12.53;`
  - Class fields with a class type:
@@ -116,7 +116,7 @@ will give a complete and up-to-date picture of supported syntax and features, ho
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 
 
-- Reference types
+- Generate "object_init" which initializes fields to their defaults
 - Strings and their various operations
 - Explicit return, for when an exit before the last expression of the function body is desired.  Will use keyword `ret`
 - `for` loop
@@ -128,7 +128,6 @@ languages and that are needed for basic usefulness and then come back and add so
 - Declare references to objects (something like `anObjectReference:SomeClass*`) 
 - Pass any type by reference 
 - Function overloading
-- Generate "object_init" which initializes fields to their defaults
 - Member functions
 - Member access levels (`private`, `public`, `protected` etc)
 - Constructors 
@@ -147,7 +146,7 @@ languages and that are needed for basic usefulness and then come back and add so
   - Probably uses tuples
 - Numerous other ideas too amorphous to mention
 
-#### Other desired features of unspeciifed importance
+#### Other desired features of unspecified importance
 
 - `debug_assert` function, similar to the `assert` function, but is removed during release builds.
 

@@ -132,6 +132,16 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             ast::CastKind::Explicit);
     }
 
+    ast::ExprStmt *parseNewExpr(Token *newKeyword) {
+        ast::TypeRef *typeRef = parseTypeRef();
+        consumeOpenParen();
+        Token *closeParen = consumeCloseParen();
+
+        return new ast::NewExpr(
+            getSourceSpan(newKeyword->span(), closeParen->span()),
+            typeRef);
+    }
+
     ast::ExprStmt *parseConditional(Token *openingOp) {
         ast::ExprStmt *condExpr = parseExpr();
         consumeEndOfStatment();
@@ -224,8 +234,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
                 );
 
                 closeParen = consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, ',', ')');
-            } while(closeParen->kind() != TokenKind::CLOSE_PAREN);        }
-
+            } while(closeParen->kind() != TokenKind::CLOSE_PAREN);
+        }
 
         storageKindStack_.push(scope::StorageKind::Local);
         ast::ExprStmt *funcBody = parseExprStmt();
@@ -307,6 +317,7 @@ public:
         registerGenericParselet(TokenKind::OPEN_CURLY, std::bind(&AnodeParser::parseCompoundStmt, this, _1));
         registerGenericParselet(TokenKind::OPEN_PAREN, std::bind(&AnodeParser::parseParensExpr, this, _1));
         registerGenericParselet(TokenKind::KW_CAST, std::bind(&AnodeParser::parseCastExpr, this, _1));
+        registerGenericParselet(TokenKind::KW_NEW, std::bind(&AnodeParser::parseNewExpr, this, _1));
         registerGenericParselet(TokenKind::OP_COND, std::bind(&AnodeParser::parseConditional, this, _1));
         registerGenericParselet(TokenKind::KW_IF, std::bind(&AnodeParser::parseIfExpr, this, _1));
         registerGenericParselet(TokenKind::KW_WHILE, std::bind(&AnodeParser::parseWhile, this, _1));
@@ -372,7 +383,5 @@ public:
         return expr;
     }
 };
-
-
 
 }}}

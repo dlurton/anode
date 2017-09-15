@@ -48,12 +48,10 @@ namespace anode {
 
                 llvm::Function *llvmFunc = llvm::cast<llvm::Function>(value);
 
-
                 llvm::CallInst *result = cc().irBuilder().CreateCall(llvmFunc, args);
 
                 pushValue(result);
             }
-
 
             void visitedCastExpr(ast::CastExpr *expr) override {
                 llvm::Value *value = popValue();
@@ -111,15 +109,28 @@ namespace anode {
                 pushValue(castedValue);
             }
 
+            void visitingNewExpr(ast::NewExpr *expr) override {
+                auto structType = cc().typeMap().toLlvmType(expr->type());
+                uint64_t size = cc().llvmModule().getDataLayout().getTypeAllocSize(structType);
+
+                std::vector<llvm::Value*> arguments;
+                arguments.push_back(getLiteralUIntLLvmValue((unsigned int)size));
+                llvm::Value *pointer = cc().irBuilder().CreateCall(cc().mallocFunc(), arguments);
+                llvm::Value *castedValue = cc().irBuilder().CreatePointerCast(pointer, cc().typeMap().toLlvmType(expr->type()));
+
+                pushValue(castedValue);
+            }
+
+
             void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
                 switch(expr->symbol()->storageKind()) {
                     case scope::StorageKind::Global: {
                         llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->symbol()->fullyQualifiedName());
                         ASSERT(globalVariable);
                         globalVariable->setAlignment(ALIGNMENT);
-                        if (expr->type()->isPrimitive()) {
+                        //if (expr->type()->isPrimitive()) {
                             globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
-                        }
+                        //}
                         break;
                     }
                     case scope::StorageKind::Local: {
@@ -144,7 +155,7 @@ namespace anode {
                     return;
                 }
 
-                if(expr->type()->isPrimitive()) {
+                if(!expr->type()->isFunction()) {
                     llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(pointer);
                     loadInst->setAlignment(ALIGNMENT);
                     pushValue(loadInst);
@@ -230,8 +241,6 @@ namespace anode {
 
                 llvm::Value *lValue = popValue();
 
-                ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
-
                 if (expr->operation() == ast::BinaryOperationKind::Assign) {
                     cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
                     //Note:  I think this will call rValue a second time if rValue is a call site.
@@ -239,6 +248,7 @@ namespace anode {
                     return;
                 }
                 llvm::Value *resultValue = nullptr;
+                ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
                 switch (expr->operandsType()->primitiveType()) {
                     case type::PrimitiveType::Bool:
                         switch (expr->operation()) {
@@ -335,7 +345,7 @@ namespace anode {
                 llvm::Value *lvalue = popValue();
 
                 auto classType = dynamic_cast<const type::ClassType*>(expr->lValue()->type()->actualType());
-                ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have fields.");
+                ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have members.");
                 type::ClassField *classField = classType->findField(expr->memberName());
                 unsigned ordinal = classField->ordinal();
 
@@ -346,7 +356,7 @@ namespace anode {
                 // expects a pointer at which to store the value.
                 // We also do not attempt to load "values" of any classes because so far we anode only operates on class pointers or
                 // their fields, not entire classes.
-                if(expr->isWrite() || expr->type()->isClass()) {
+                if(expr->isWrite() || expr->type()->isFunction()) {
                     pushValue(ptrOrValue);
                     return;
                 }
