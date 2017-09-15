@@ -48,7 +48,7 @@ matrix:
 #    - eval "${MATRIX_EVAL}"
 
 install:
- - export CC=clang-4.0 && export CXX=clang++-4.0
+ - export CC=clang-4.0 && export CXX=clang++-4.0 && export CMAKE_CXX_FLAGS="-std=c++14"
 
 # Build steps
 script:

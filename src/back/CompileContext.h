@@ -9,11 +9,6 @@
 
 namespace anode { namespace back {
 
-enum class RuntimeFunc : unsigned char {
-    AssertFail,
-    AsserPass
-};
-
 /** CompileContext is a place to keep track of values that need to be shared among the AstVisitors that make up the
  * IR generation phase.  A new CompileContext must be created for each module being compiled.
  */
@@ -27,8 +22,6 @@ class CompileContext : no_copy, no_assign {
     llvm::Function *assertPassFunc_ = nullptr;
     llvm::Function *mallocFunc_ = nullptr;
     std::unordered_map<std::string, llvm::Value*> stringConstants_;
-
-    gc_unordered_map<RuntimeFunc, llvm::Function*> runtimeFunctionMap_;
 
 public:
 

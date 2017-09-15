@@ -128,9 +128,7 @@ namespace anode {
                         llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->symbol()->fullyQualifiedName());
                         ASSERT(globalVariable);
                         globalVariable->setAlignment(ALIGNMENT);
-                        //if (expr->type()->isPrimitive()) {
-                            globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
-                        //}
+                        globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
                         break;
                     }
                     case scope::StorageKind::Local: {

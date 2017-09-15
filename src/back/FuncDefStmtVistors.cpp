@@ -90,11 +90,6 @@ public:
             ast::ParameterDef *parameterDef = funcParameters[argCount++];
             llvm::Argument &argument = (*llvmParamItr);
             argument.setName(parameterDef->name());
-
-//            if(parameterDef->type()->isClass()) {
-//                cc().mapSymbolToValue(parameterDef->symbol(), &argument);
-//                //continue;
-//            }
             llvm::Type *localParamType = cc().typeMap().toLlvmType(parameterDef->type());
 
             llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);
