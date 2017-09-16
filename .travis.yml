@@ -3,27 +3,8 @@ sudo: required
 
 language: cpp
 
-env:
-  -
-
 matrix:
   include:
-#    - os: linux
-#      addons:
-#        apt:
-#          sources:
-#            - ubuntu-toolchain-r-test
-#          packages:
-#            - g++-6
-#            - cmake3
-#            - uuid-dev
-#            #required for bdwgc
-#            - autoconf
-#            - libatomic-ops-dev
-#            - libtool
-#            - pkg-config
-#      env:
-#        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
     - os: linux
       addons:
         apt:
@@ -40,13 +21,7 @@ matrix:
             - libatomic-ops-dev
             - libtool
             - pkg-config
-            - libc++-dev
-#        env:
-#          MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
-
-#
-#before_install:
-#    - eval "${MATRIX_EVAL}"
+            - libc++-dev  # this might not actually be required?
 
 install:
  - export CC=clang-4.0 && export CXX=clang++-4.0 && export CMAKE_CXX_FLAGS="-std=c++14"
@@ -66,5 +41,4 @@ notifications:
       - anode.build@gmail.com
     on_success: always
     on_failure: always
-
 
