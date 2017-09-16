@@ -31,7 +31,7 @@ matrix:
             - llvm-toolchain-trusty-4.0
             - ubuntu-toolchain-r-test
           packages:
-            - libstdc++6
+            - g++-6
             - clang++-4.0
             - cmake3
             - uuid-dev
