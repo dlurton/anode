@@ -8,7 +8,13 @@
 #include <common/string_format.h>
 
 
-namespace anode { namespace type {
+namespace anode {
+namespace scope {
+    class Symbol;
+    class FunctionSymbol;
+}
+
+namespace type {
 
 /** Each type of primitive is listed here.
  * IMPORTANT NOTE:  the are listed in order of operand priority (except for the NotAPrimitive and Void values).
@@ -215,27 +221,47 @@ public:
     }
 };
 
-class ClassField : public gc {
-    type::Type * type_;
+class ClassMember : public gc {
     std::string name_;
-    unsigned const ordinal_;
 public:
-    ClassField(const std::string &name, type::Type *type, unsigned ordinal) : type_{type}, name_{name}, ordinal_{ordinal} { }
+    explicit ClassMember(const std::string &name) : name_(name) {}
 
-    type::Type *type() const { return type_; }
+    virtual Type *type() const = 0;
 
     std::string name() const { return name_; }
+};
+
+class ClassField : public ClassMember {
+    unsigned const ordinal_;
+    type::Type * type_;
+public:
+    explicit ClassField(const std::string &name, type::Type *type, unsigned ordinal)
+        : ClassMember(name), ordinal_{ordinal}, type_(type) { }
 
     unsigned ordinal() const { return ordinal_; }
+    Type *type() const override { return type_; }
+
+};
+
+class ClassMethod : public ClassMember {
+    scope::FunctionSymbol *symbol_;
+public:
+    explicit ClassMethod(const std::string &name, scope::FunctionSymbol *symbol) : ClassMember(name), symbol_{symbol} {
+
+    }
+
+    Type *type() const override;
+    scope::FunctionSymbol *symbol() const { return symbol_; }
 };
 
 class ClassType : public Type {
     std::string name_;
     gc_vector<ClassField*> orderedFields_;
     gc_unordered_map<std::string, ClassField*> fields_;
+    gc_unordered_map<std::string, ClassMethod*> methods_;
 public:
-    ClassType(const std::string &name) : name_{name} {
-        ASSERT(name_.size() > 0);
+    explicit ClassType(const std::string &name) : name_{name} {
+        ASSERT(!name_.empty());
     }
 
     std::string name() const override { return name_; }
@@ -258,17 +284,19 @@ public:
         return found == fields_.end() ? nullptr : found->second;
     }
 
-    ClassField &addField(const std::string &name) {
-        return addField(name, nullptr);
-    }
-
-    ClassField &addField(const std::string &name, type::Type *type) {
+    void addField(const std::string &name, type::Type *type) {
         auto field = new ClassField(name, type, (unsigned) orderedFields_.size());
 
         orderedFields_.emplace_back(field);
         fields_.emplace(name, field);
-
-        return *field;
     }
+
+    ClassMethod *findMethod(const std::string &name) const {
+        auto found = methods_.find(name);
+        return found == methods_.end() ? nullptr : found->second;
+    }
+
+    void addMethod(const std::string &name, scope::FunctionSymbol *symbol);
 };
+
 }}

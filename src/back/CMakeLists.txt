@@ -5,7 +5,7 @@ setup_llvm()
 set(COMPILE_SOURCE_FILES
         ${ANODE_INCLUDE_DIR}/common
         ${ANODE_INCLUDE_DIR}/back
-        ModuleAstVisitor.cpp
+        ModuleEmitter.cpp
         CompileContext.h
         llvm.h
         CompileAstVisitor.h

@@ -39,6 +39,7 @@ class ParameterDef;
 class FuncDefStmt;
 class FuncCallExpr;
 class ClassDefinition;
+class MethodRefExpr;
 class ReturnStmt;
 class IfExprStmt;
 class WhileExpr;
@@ -110,6 +111,8 @@ public:
     virtual void visitLiteralFloatExpr(LiteralFloatExpr *) { }
 
     virtual void visitVariableRefExpr(VariableRefExpr *) { }
+
+    virtual void visitMethodRefExpr(MethodRefExpr *) { }
 
     virtual void visitingCastExpr(CastExpr *) { }
     virtual void visitedCastExpr(CastExpr *) { }
@@ -837,22 +840,56 @@ public:
     }
 };
 
+class MethodRefExpr : public ExprStmt {
+    std::string name_;
+    scope::FunctionSymbol *symbol_ = nullptr;
+public:
+    explicit MethodRefExpr(source::SourceSpan sourceSpan, const std::string &name) : ExprStmt(sourceSpan), name_{ name } {
+        ASSERT(name.size() > 0);
+    }
+
+    virtual type::Type *type() const override {
+        ASSERT(symbol_);
+        return symbol_->type();
+    }
+
+    virtual std::string name() const { return name_; }
+    std::string toString() const { return name_ + ":" + this->type()->name(); }
+
+    scope::FunctionSymbol *symbol() { return symbol_; }
+    void setSymbol(scope::FunctionSymbol *symbol) {
+        symbol_ = symbol;
+    }
+
+    virtual bool canWrite() const override { return true; };
+
+    virtual void accept(AstVisitor *visitor) override {
+        visitor->visitingExprStmt(this);
+        visitor->visitMethodRefExpr(this);
+        visitor->visitedExprStmt(this);
+    }
+};
 
 class FuncCallExpr : public ExprStmt {
+    ExprStmt *instanceExpr_;
     source::SourceSpan openParenSpan_;
     ExprStmt *funcExpr_;
     gc_vector<ExprStmt*> arguments_;
 public:
     FuncCallExpr(
         const source::SourceSpan &span,
+        ExprStmt *instanceExpr,
         const source::SourceSpan &openParenSpan,
         ast::ExprStmt *funcExpr,
         const gc_vector<ExprStmt*> &arguments
     ) : ExprStmt(span),
+        instanceExpr_{instanceExpr},
         openParenSpan_{openParenSpan},
         funcExpr_{funcExpr},
         arguments_{arguments} { }
+
     ExprStmt *funcExpr() { return funcExpr_; }
+    ExprStmt *instanceExpr() { return instanceExpr_; }
 
     virtual bool canWrite() const override { return false; };
 
@@ -883,6 +920,9 @@ public:
         visitor->visitingFuncCallExpr(this);
         if(visitChildren) {
             funcExpr_->accept(visitor);
+            if(instanceExpr_) {
+                instanceExpr_->accept(visitor);
+            }
             for (auto argument : arguments_) {
                 argument->accept(visitor);
             }
@@ -891,7 +931,6 @@ public:
         visitor->visitedExprStmt(this);
     }
 };
-
 
 
 class ClassDefinition : public ExprStmt {
@@ -913,12 +952,17 @@ public:
 
     std::string name() { return name_; }
 
+    /** this returns the same instance as type(), above but eliminates the need to upcast */
     type::ClassType *classType() { return classType_; }
 
     void populateClassType() {
-        for(auto variable : this->body()->scope()->variables()) {
+        for(auto variable : this->body()->scope()->symbols()) {
             classType_->addField(variable->name(), variable->type());
         }
+        for(auto method : this->body()->scope()->functions()) {
+            classType_->addMethod(method->name(), method);
+        }
+
     }
 
     virtual void accept(AstVisitor *visitor) override {

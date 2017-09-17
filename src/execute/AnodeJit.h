@@ -6,6 +6,22 @@
 namespace anode {
     namespace execute {
 
+//        class GcSectionMemoryManager : llvm::SectionMemoryManager {
+//
+//            uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment, unsigned SectionID, llvm::StringRef SectionName,
+//                                         bool isReadOnly) override {
+//                uint8_t *section = llvm::SectionMemoryManager::allocateDataSection(Size, Alignment, SectionID, SectionName, isReadOnly);
+//                GC_add_roots((void*)section, (void*)section + Size);
+//                return section;
+//            }
+//
+//            bool finalizeMemory(std::string *ErrMsg) override {
+//                bool memory = llvm::SectionMemoryManager::finalizeMemory(ErrMsg);
+//                GC_remove_roots(...)
+//                return memory;
+//            }
+//        };
+
         std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDefStmt &FnAST, const std::string &Suffix);
 
         //The original version of this (llvm::orc::createResolver(...)) doesn't seem to want to compile no matter what I do.

@@ -13,12 +13,18 @@ private:
         //Map all Anode argument types to LLVM types.
         gc_vector<type::Type*> anodeParamTypes = functionSymbol->functionType()->parameterTypes();
         std::vector<llvm::Type*> llvmParamTypes;
-        llvmParamTypes.reserve(anodeParamTypes.size());
+
+        //Create "this" argument, if needed.
+        if(functionSymbol->storageKind() == scope::StorageKind::Instance) {
+            llvmParamTypes.reserve(anodeParamTypes.size() + 1);
+            llvm::Type *thisType = cc().typeMap().toLlvmType(functionSymbol->thisSymbol()->type());
+            llvmParamTypes.push_back(thisType);
+        } else {
+            llvmParamTypes.reserve(anodeParamTypes.size());
+        }
+
         for(auto anodeType : anodeParamTypes) {
             llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType);
-//            if(anodeType->isClass()) {
-//                llvmType = llvmType->getPointerTo(0);
-//            }
             llvmParamTypes.push_back(llvmType);
         }
 
@@ -60,6 +66,18 @@ public:
 };
 
 class DefineFuncsAstVisitor : public CompileAstVisitor {
+
+    void emitCopyParameterToLocal(llvm::Argument &argument, scope::Symbol *argumentSymbol) {
+        argument.setName(argumentSymbol->name());
+        llvm::Type *localParamType = cc().typeMap().toLlvmType(argumentSymbol->type());
+
+        llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);
+        localParamValue->setName("local_" + argumentSymbol->name());
+        cc().irBuilder().CreateStore(&argument, localParamValue);
+
+        cc().mapSymbolToValue(argumentSymbol, localParamValue);
+    }
+
 public:
     explicit DefineFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
 
@@ -83,22 +101,25 @@ public:
         // The reason Anode needs to do this is because LLVM weirdly treats its arguments as values while all other
         // variables are pointers.  This allows the anode front-end to treat *all* variables as pointers and we don't need to include
         // special logic to determine if the values referenced by pointers need to be loaded.
-        // I don't think this is very much of a performance hit because LLVM should optimize this out...  I mean, clang does it.
+        // I don't think this is very much of a performance hit because LLVM should optimize this out...  After all, clang does it.
+
+        auto llvmParamItr = llvmFunc->arg_begin();
+
+        if(funcDef->symbol()->storageKind() == scope::StorageKind::Instance) {
+            emitCopyParameterToLocal((*llvmParamItr), funcDef->symbol()->thisSymbol());
+            ++llvmParamItr;
+        }
         auto funcParameters = funcDef->parameters();
         int argCount = 0;
-        for(auto llvmParamItr = llvmFunc->arg_begin(); llvmParamItr != llvmFunc->arg_end(); ++llvmParamItr) {
+        for(; llvmParamItr != llvmFunc->arg_end(); ++llvmParamItr) {
             ast::ParameterDef *parameterDef = funcParameters[argCount++];
             llvm::Argument &argument = (*llvmParamItr);
-            argument.setName(parameterDef->name());
-            llvm::Type *localParamType = cc().typeMap().toLlvmType(parameterDef->type());
-
-            llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);
-            localParamValue->setName("local_" + parameterDef->name());
-            cc().mapSymbolToValue(parameterDef->symbol(), localParamValue);
-            cc().irBuilder().CreateStore(&argument, localParamValue);
+            emitCopyParameterToLocal(argument, parameterDef->symbol());
         }
 
+        cc().pushFuncDefStmt(funcDef);
         llvm::Value *returnValue = emitExpr(funcDef->body(), cc());
+        cc().popFuncDefStmt();
 
         //If return type is not void...
         if(!funcDef->returnType()->isVoid()) {
@@ -109,6 +130,7 @@ public:
 
         //Restore the state of the IR builder.
         cc().irBuilder().SetInsertPoint(oldBasicBlock, oldInsertPoint);
+
         return true;
     }
 };

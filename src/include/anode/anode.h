@@ -18,10 +18,12 @@
 //#define GC_collect_a_little() (false);
 //#define GC_INIT();
 
+
+//Uncomment to enable GC for everything... currently makes LLVM's assertions fail for some unknown reason.
 //#define USE_LIBGC_FOR_EVERYTHING
 
 #ifdef USE_LIBGC_FOR_EVERYTHING
-//Uncomment to enable GC for everything... currently makes LLVM's assertions fail for some unknown reason.
+
 inline void * operator new(size_t n)  {
     return GC_malloc(n);
 }

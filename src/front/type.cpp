@@ -1,4 +1,5 @@
 #include "front/type.h"
+#include "front/scope.h"
 #include "common/exception.h"
 
 namespace anode { namespace type {
@@ -42,6 +43,12 @@ std::string to_string(PrimitiveType dataType) {
         default:
             ASSERT_FAIL("Unhandled PrimitiveType");
     }
+}
+
+Type *ClassMethod::type() const { return symbol_->type(); }
+
+void ClassType::addMethod(const std::string &name, scope::FunctionSymbol *symbol) {
+    methods_.emplace(std::make_pair(name, new ClassMethod(name, symbol)));
 }
 
 }}

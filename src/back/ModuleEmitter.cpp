@@ -24,7 +24,8 @@ void createLlvmStructsForClasses(ast::Module *anodeModule, CompileContext &cc) {
     anodeModule->accept(&visitor);
 }
 
-class ModuleAstVisitor : public CompileAstVisitor {
+class ModuleEmitter : public gc {
+    CompileContext &cc_;
     llvm::TargetMachine &targetMachine_;
 
     llvm::Function *initFunc_ = nullptr;
@@ -34,62 +35,45 @@ class ModuleAstVisitor : public CompileAstVisitor {
     scope::SymbolTable *globalScope_ = nullptr;
 
 public:
-    ModuleAstVisitor(CompileContext &cc, llvm::TargetMachine &targetMachine)
-        : CompileAstVisitor{cc},
-          targetMachine_{targetMachine} {}
+    ModuleEmitter(CompileContext &cc, llvm::TargetMachine &targetMachine)
+        : cc_{cc}, targetMachine_{targetMachine} {}
 
-    bool visitingClassDefinition(ClassDefinition *) override {
-        return false;
-    }
 
-    bool visitingFuncDefStmt(FuncDefStmt *) override {
-        return false;
-    }
-
-    bool visitingExprStmt(ExprStmt *expr) override {
-
-        // Skip globally scoped CompoundExpr and allow it's children to be visited
-        auto maybeCompoundExpr = dynamic_cast<ast::CompoundExpr*>(expr);
-        if(maybeCompoundExpr) {
-            if(maybeCompoundExpr->scope() == globalScope_)
-                return true;
-        }
-
-        llvm::Value *llvmValue = emitExpr(expr, cc());
+    void emitModuleLevelExprStmt(ExprStmt *expr)  {
+        llvm::Value *llvmValue = emitExpr(expr, cc_);
 
         if (!expr->type()->isPrimitive()) {
             //eventually, we'll call toString() or somesuch.
-            return false;
+            return;
         }
 
         if (llvmValue && !llvmValue->getType()->isVoidTy()) {
             resultExprStmtCount_++;
             std::string variableName = string::format("result_%d", resultExprStmtCount_);
-            llvm::AllocaInst *resultVar = cc().irBuilder().CreateAlloca(llvmValue->getType(), nullptr, variableName);
+            llvm::AllocaInst *resultVar = cc_.irBuilder().CreateAlloca(llvmValue->getType(), nullptr, variableName);
 
-            cc().irBuilder().CreateStore(llvmValue, resultVar);
+            cc_.irBuilder().CreateStore(llvmValue, resultVar);
 
             std::string bitcastVariableName = string::format("bitcasted_%d", resultExprStmtCount_);
-            auto bitcasted = cc().irBuilder().CreateBitCast(resultVar, llvm::Type::getInt64PtrTy(cc().llvmContext()));
+            auto bitcasted = cc_.irBuilder().CreateBitCast(resultVar, llvm::Type::getInt64PtrTy(cc_.llvmContext()));
 
             std::vector<llvm::Value *> args{
                 //ExecutionContext pointer
                 executionContextPtrValue_,
                 //PrimitiveType,
-                llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t) expr->type()->primitiveType(), true)),
+                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr->type()->primitiveType(), true)),
                 //Pointer to value.
                 bitcasted
             };
-            cc().irBuilder().CreateCall(resultFunc_, args);
+            cc_.irBuilder().CreateCall(resultFunc_, args);
         }
-
-        return false;
     }
 
-    bool visitingModule(Module *module) override {
+public:
+    void emitModule(Module *module)  {
         globalScope_ = module->scope();
 
-        cc().llvmModule().setDataLayout(targetMachine_.createDataLayout());
+        cc_.llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
         declareResultFunction();
 
@@ -97,47 +81,49 @@ public:
 
         declareExecutionContextGlobal();
 
-        createLlvmStructsForClasses(module, cc());
+        createLlvmStructsForClasses(module, cc_);
 
-        emitGlobals(module, cc());
+        emitGlobals(module, cc_);
 
-        emitFuncDefs(module, cc());
+        emitFuncDefs(module, cc_);
 
-        return true;
-    }
 
-    void visitedModule(Module *) override {
-        cc().irBuilder().CreateRetVoid();
+        for(auto exprStmt : module->body()->expressions()) {
+            emitModuleLevelExprStmt(exprStmt);
+        }
+
+        cc_.irBuilder().CreateRetVoid();
         llvm::raw_ostream &os = llvm::errs();
-        if (llvm::verifyModule(cc().llvmModule(), &os)) {
+        if (llvm::verifyModule(cc_.llvmModule(), &os)) {
             std::cerr << "Module dump: \n";
             std::cerr.flush();
 #ifdef ANODE_DEBUG
-            cc().llvmModule().dump();
+            cc_.llvmModule().dump();
 #endif
             ASSERT_FAIL("Failed LLVM module verification.");
         }
+
     }
 
 private:
     void startModuleInitFunc(const Module *module) {
-        auto initFuncRetType = llvm::Type::getVoidTy(cc().llvmContext());
+        auto initFuncRetType = llvm::Type::getVoidTy(cc_.llvmContext());
         initFunc_ = llvm::cast<llvm::Function>(
-            cc().llvmModule().getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
+            cc_.llvmModule().getOrInsertFunction(module->name() + MODULE_INIT_SUFFIX, initFuncRetType));
 
         initFunc_->setCallingConv(llvm::CallingConv::C);
-        auto initFuncBlock = llvm::BasicBlock::Create(cc().llvmContext(), "begin", initFunc_);
+        auto initFuncBlock = llvm::BasicBlock::Create(cc_.llvmContext(), "begin", initFunc_);
 
-        cc().irBuilder().SetInsertPoint(initFuncBlock);
+        cc_.irBuilder().SetInsertPoint(initFuncBlock);
     }
 
     void declareResultFunction() {
-        resultFunc_ = llvm::cast<llvm::Function>(cc().llvmModule().getOrInsertFunction(
+        resultFunc_ = llvm::cast<llvm::Function>(cc_.llvmModule().getOrInsertFunction(
             RECEIVE_RESULT_FUNC_NAME,
-            llvm::Type::getVoidTy(cc().llvmContext()),        //Return type
-            llvm::Type::getInt64PtrTy(cc().llvmContext()),    //Pointer to ExecutionContext
-            llvm::Type::getInt32Ty(cc().llvmContext()),       //type::PrimitiveType
-            llvm::Type::getInt64PtrTy(cc().llvmContext())));  //Pointer to value
+            llvm::Type::getVoidTy(cc_.llvmContext()),        //Return type
+            llvm::Type::getInt64PtrTy(cc_.llvmContext()),    //Pointer to ExecutionContext
+            llvm::Type::getInt32Ty(cc_.llvmContext()),       //type::PrimitiveType
+            llvm::Type::getInt64PtrTy(cc_.llvmContext())));  //Pointer to value
 
 
         auto paramItr = resultFunc_->arg_begin();
@@ -152,8 +138,8 @@ private:
     }
 
     void declareExecutionContextGlobal() {
-        cc().llvmModule().getOrInsertGlobal(EXECUTION_CONTEXT_GLOBAL_NAME, llvm::Type::getInt64Ty(cc().llvmContext()));
-        llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(EXECUTION_CONTEXT_GLOBAL_NAME);
+        cc_.llvmModule().getOrInsertGlobal(EXECUTION_CONTEXT_GLOBAL_NAME, llvm::Type::getInt64Ty(cc_.llvmContext()));
+        llvm::GlobalVariable *globalVar = cc_.llvmModule().getNamedGlobal(EXECUTION_CONTEXT_GLOBAL_NAME);
         globalVar->setLinkage(llvm::GlobalValue::ExternalLinkage);
         globalVar->setAlignment(ALIGNMENT);
 
@@ -172,9 +158,9 @@ std::unique_ptr<llvm::Module> emitModule(
     llvm::IRBuilder<> irBuilder{llvmContext};
 
     CompileContext cc{llvmContext, *llvmModule.get(), irBuilder, typeMap};
-    ModuleAstVisitor visitor{cc, *targetMachine};
+    ModuleEmitter visitor{cc, *targetMachine};
+    visitor.emitModule(module);
 
-    module->accept(&visitor);
     return llvmModule;
 }
 

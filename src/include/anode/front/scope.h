@@ -43,7 +43,7 @@ class SymbolTable {
         appendTo.append(name());
     }
 public:
-    SymbolTable(StorageKind storageKind) : storageKind_(storageKind) {}
+    explicit SymbolTable(StorageKind storageKind) : storageKind_(storageKind) {}
 
     void setParent(SymbolTable *parent) {
         ASSERT(parent != this && "Hello? Are you trying to cause an infinite loop?");
@@ -154,6 +154,7 @@ public:
 class FunctionSymbol : public Symbol {
     std::string name_;
     type::FunctionType *functionType_;
+    VariableSymbol *thisSymbol_ = nullptr;
 public:
     FunctionSymbol(const std::string &name, type::FunctionType *functionType) : name_{std::move(name)}, functionType_{functionType} { }
 
@@ -163,6 +164,16 @@ public:
 
     /** This is just a convenience so we don't have to upcast the return value of type() when we need an instance of FunctionType. */
     type::FunctionType *functionType() { return functionType_; }
+
+    /** The symbol to be used by the "this" argument within instance methods.  */
+    VariableSymbol *thisSymbol() {
+        return thisSymbol_;
+    }
+
+    void setThisSymbol(VariableSymbol *thisSymbol) {
+        ASSERT(storageKind() == StorageKind::Instance && "Invalid to set thisSymbol for non-instance functions.");
+        thisSymbol_ = thisSymbol;
+    }
 };
 
 class TypeSymbol : public Symbol {

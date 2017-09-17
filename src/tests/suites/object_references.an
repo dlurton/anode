@@ -15,8 +15,9 @@ class SomeClass {
     anInstance:SomeClass = new SomeClass();
 
     anInstance.someField = 1;
-    anInstance.anotherField = 2;
     assert(anInstance.someField == 1);
+
+    anInstance.anotherField = 2;
     assert(anInstance.anotherField == 2);
 
     mutateSomeClass(anInstance);

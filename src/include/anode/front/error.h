@@ -46,6 +46,7 @@ enum class ErrorKind : unsigned short {
     LeftOfDotNotClass,
     ClassMemberNotFound,
     IncorrectNumberOfArguments,
+    MethodNotDefined
 };
 
 class ErrorStream {

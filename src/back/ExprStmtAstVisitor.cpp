@@ -1,52 +1,75 @@
 #include "emit.h"
 #include "CompileAstVisitor.h"
 #include "common/containers.h"
+#include "front/type.h"
 
 namespace anode {
     namespace back {
 
         class ExprStmtAstVisitor : public CompileAstVisitor {
-            std::stack<llvm::Value*> _valueStack_;
+            std::stack<llvm::Value*> valueStack_;
 
             void pushValue(llvm::Value *value) {
-                _valueStack_.push(value);
+                valueStack_.push(value);
             }
 
             llvm::Value *popValue() {
-                llvm::Value *value = _valueStack_.top();
-                _valueStack_.pop();
+                llvm::Value *value = valueStack_.top();
+                valueStack_.pop();
                 return value;
             }
+
 
         public:
             explicit ExprStmtAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
             bool hasValue() {
-                return !_valueStack_.empty();
+                return !valueStack_.empty();
             }
 
             llvm::Value *llvmValue() {
-                ASSERT(_valueStack_.size() == 1);
-                return _valueStack_.top();
+                ASSERT(valueStack_.size() == 1);
+                return valueStack_.top();
             }
 
-            bool visitingFuncDefStmt(ast::FuncDefStmt *) override {
+
+            bool visitingClassDefinition(ast::ClassDefinition *) override {
+                //this is handled in another visitor
                 return false;
             }
 
+            bool visitingFuncDefStmt(ast::FuncDefStmt *) override {
+                //this is handled in another visitor
+                return false;
+            }
+
+
+            void visitMethodRefExpr(ast::MethodRefExpr *methodRefExpr) override {
+                llvm::Value * funcPtr = cc().getMappedValue(methodRefExpr->symbol());
+                pushValue(funcPtr);
+            }
+
             void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
-                //Pop arguments off first since they are evaluated before the function ptr.
+
                 std::vector<llvm::Value*> args;
+
+                //Pop arguments off first since they are evaluated before the function ptr.
                 for(size_t i = 0; i < expr->argCount(); ++i) {
                     args.push_back(popValue());
                 }
+
+                //Pop the "this" pointer, if present
+                if(expr->instanceExpr()) {
+                    args.push_back(popValue());
+                }
+
                 //Arguments are popped off in reverse order.
                 std::reverse(args.begin(), args.end());
 
                 //Pop the function pointer.
                 llvm::Value *value = popValue();
 
-                llvm::Function *llvmFunc = llvm::cast<llvm::Function>(value);
+                auto *llvmFunc = llvm::cast<llvm::Function>(value);
 
                 llvm::CallInst *result = cc().irBuilder().CreateCall(llvmFunc, args);
 
@@ -121,7 +144,6 @@ namespace anode {
                 pushValue(castedValue);
             }
 
-
             void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
                 switch(expr->symbol()->storageKind()) {
                     case scope::StorageKind::Global: {
@@ -144,7 +166,21 @@ namespace anode {
             }
 
             void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
-                llvm::Value *pointer = cc().getMappedValue(expr->symbol());
+                llvm::Value *pointer;
+
+                if(expr->symbol()->storageKind() == scope::StorageKind::Instance) {
+                    //Variable is an instance field
+                    scope::VariableSymbol *thisSymbol = cc().currentFuncDefStmt()->symbol()->thisSymbol();
+                    auto classType = dynamic_cast<type::ClassType*>(thisSymbol->type());
+                    ASSERT(classType);
+                    llvm::Value *pointerToPointerToStruct = cc().getMappedValue(thisSymbol);
+                    llvm::Value *pointerToStruct = cc().irBuilder().CreateLoad(pointerToPointerToStruct);
+                    pointer = createStructGep(classType, pointerToStruct, expr->name());
+                }
+                else {
+                    //Variable is an argument or local variable.
+                    pointer = cc().getMappedValue(expr->symbol());
+                }
 
                 ASSERT(pointer);
 
@@ -160,6 +196,34 @@ namespace anode {
                 } else {
                     pushValue(pointer);
                 }
+            }
+        private:
+            llvm::Value *createStructGep(type::ClassType *classType, llvm::Value *instance, const std::string &memberName) {
+                ASSERT(classType != nullptr);
+                type::ClassField *classField = classType->findField(memberName);
+                unsigned ordinal = classField->ordinal();
+
+                //First emit code to calculate the address of the member field
+                llvm::Value *ptr = cc().irBuilder().CreateStructGEP(nullptr, instance, ordinal, classField->name());
+                return ptr;
+            }
+        protected:
+
+            void visitedDotExpr(ast::DotExpr *expr) override {
+                llvm::Value *instance = popValue();
+
+                auto classType = dynamic_cast<type::ClassType*>(expr->lValue()->type()->actualType());
+                ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have members.");
+
+                llvm::Value *ptrOrValue = createStructGep(classType, instance, expr->memberName());
+
+                if(expr->isWrite() || expr->type()->isFunction()) {
+                    pushValue(ptrOrValue);
+                    return;
+                }
+
+                ptrOrValue = cc().irBuilder().CreateLoad(ptrOrValue);
+                pushValue(ptrOrValue);
             }
 
             void visitLiteralInt32Expr(ast::LiteralInt32Expr *expr) override {
@@ -337,30 +401,6 @@ namespace anode {
                 }
                 ASSERT(resultValue);
                 pushValue(resultValue);
-            }
-
-            void visitedDotExpr(ast::DotExpr *expr) override {
-                llvm::Value *lvalue = popValue();
-
-                auto classType = dynamic_cast<const type::ClassType*>(expr->lValue()->type()->actualType());
-                ASSERT(classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have members.");
-                type::ClassField *classField = classType->findField(expr->memberName());
-                unsigned ordinal = classField->ordinal();
-
-                //First emit code to calculate the address of the member field
-                llvm::Value *ptrOrValue = cc().irBuilder().CreateStructGEP(nullptr, lvalue, ordinal, classField->name());
-
-                // The result of the DotExpr is a pointer if field is not being assigned to because the store instruction
-                // expects a pointer at which to store the value.
-                // We also do not attempt to load "values" of any classes because so far we anode only operates on class pointers or
-                // their fields, not entire classes.
-                if(expr->isWrite() || expr->type()->isFunction()) {
-                    pushValue(ptrOrValue);
-                    return;
-                }
-
-                ptrOrValue = cc().irBuilder().CreateLoad(ptrOrValue);
-                pushValue(ptrOrValue);
             }
 
             bool visitingIfExpr(ast::IfExprStmt *ifExpr) override {

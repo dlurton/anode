@@ -2,13 +2,14 @@
 #include "anode.h"
 #include <string>
 #include <iostream>
+#include <common/string_format.h>
 
 #define ASSERT_FAIL(message) \
-    throw ::anode::exception::DebugAssertionFailedException(string::format("%s:%d: Debug assertion failed: %s", __FILE__, __LINE__, message));
+    throw ::anode::exception::DebugAssertionFailedException(anode::string::format("%s:%d: Debug assertion failed: %s", __FILE__, __LINE__, message));
 
 #define ASSERT(arg) if(!(arg)) { \
     throw ::anode::exception::DebugAssertionFailedException( \
-        string::format("%s:%d: Debug assertion failed.  Expression: %s", __FILE__, __LINE__, #arg)); };
+        anode::string::format("%s:%d: Debug assertion failed.  Expression: %s", __FILE__, __LINE__, #arg)); };
 
 namespace anode { namespace exception {
 
@@ -19,7 +20,7 @@ public:
         //http://stackoverflow.com/questions/3151779/how-its-better-to-invoke-gdb-from-program-to-print-its-stacktrace/4611112#4611112
     }
 
-    virtual ~Exception() { }
+    ~Exception() override = default;
 
     void dump() {
         std::cout << what() << "\n";
@@ -29,17 +30,15 @@ public:
 /** Thrown by runtime libraries when an `assert()` has failed. */
 class AnodeAssertionFailedException : public std::runtime_error {
 public:
-    AnodeAssertionFailedException(const std::string &message) : runtime_error(message) {
+    explicit AnodeAssertionFailedException(const std::string &message) : runtime_error(message) {
     }
 };
 
 class FatalException : public Exception {
 public:
-    FatalException(const std::string &message) : Exception(message) { }
+    explicit FatalException(const std::string &message) : Exception(message) { }
 
-    virtual ~FatalException() {
-
-    }
+    ~FatalException() override = default;
 };
 
 
@@ -47,7 +46,7 @@ public:
  * This perhaps should not exist and we should dumping a message to stderr and abort()ing instead? */
 class DebugAssertionFailedException : public FatalException {
 public:
-    DebugAssertionFailedException(const std::string &message) : FatalException(message) {
+    explicit DebugAssertionFailedException(const std::string &message) : FatalException(message) {
         std::cerr << message << "\n";
     }
 };

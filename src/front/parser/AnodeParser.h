@@ -190,7 +190,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         );
     }
 
-    ast::ExprStmt *parseFuncCallExpr(ast::ExprStmt *funcExpr, Token *openParen) {
+    /** retval.first is parsed list of argument exprs, retval.second is the closing ')' */
+    std::pair<gc_vector<ast::ExprStmt*>, Token*> parseFuncCallArguments() {
         gc_vector<ast::ExprStmt*> arguments;
         Token *closeParen = consumeOptional(TokenKind::CLOSE_PAREN);
         //If argument list is not empty
@@ -201,12 +202,19 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
                 closeParen = consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, ',', ')');
             } while(closeParen->kind() != TokenKind::CLOSE_PAREN);
         }
+        return std::pair<gc_vector<ast::ExprStmt*>, Token*>(arguments, closeParen);
+    };
+
+    ast::ExprStmt *parseFuncCallExpr(ast::ExprStmt *funcExpr, Token *openParen) {
+        auto argsAndCloseParen = parseFuncCallArguments();
+
 
         return new ast::FuncCallExpr(
-            getSourceSpan(funcExpr->sourceSpan(), closeParen->span()),
+            getSourceSpan(funcExpr->sourceSpan(), argsAndCloseParen.second->span()),
+            nullptr, //No instanceExpr
             openParen->span(),
             funcExpr,
-            arguments
+            argsAndCloseParen.first
         );
     }
 
@@ -286,6 +294,18 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt *parseDotExpr(ast::ExprStmt *lValue, Token *operatorToken) {
         Token *memberName = consumeIdentifier();
+
+        if(Token *openParen = consumeOptional(TokenKind::OPEN_PAREN)) {
+            auto argsAndCloseParen = parseFuncCallArguments();
+
+            return new ast::FuncCallExpr(
+                getSourceSpan(lValue->sourceSpan(), argsAndCloseParen.second->span()),
+                lValue,
+                openParen->span(),
+                new ast::MethodRefExpr(memberName->span(), memberName->text()),
+                argsAndCloseParen.first
+            );
+        }
 
         return new ast::DotExpr(
             getSourceSpan(lValue->sourceSpan(), memberName->span()),

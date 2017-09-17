@@ -23,6 +23,8 @@ class CompileContext : no_copy, no_assign {
     llvm::Function *mallocFunc_ = nullptr;
     std::unordered_map<std::string, llvm::Value*> stringConstants_;
 
+    std::stack<ast::FuncDefStmt*> funcDefStack_;
+
 public:
 
     CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_, TypeMap &typeMap)
@@ -123,6 +125,21 @@ public:
         }
         return found;
     }
+
+    ast::FuncDefStmt* currentFuncDefStmt() {
+        ASSERT(!funcDefStack_.empty())
+        return funcDefStack_.top();
+    }
+
+    void pushFuncDefStmt(ast::FuncDefStmt *funcDefStmt) {
+        funcDefStack_.push(funcDefStmt);
+    }
+
+    void popFuncDefStmt() {
+        funcDefStack_.pop();
+    }
+
+
 };
 
 }}

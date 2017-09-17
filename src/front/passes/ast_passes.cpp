@@ -46,13 +46,13 @@ public:
 /** Sets each SymbolTable's parent scope. */
 class SetSymbolTableParentsPass : public ScopeFollowingVisitor {
 public:
-    virtual bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         funcDeclStmt->parameterScope()->setParent(topScope());
         ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
         return true;
     }
 
-    virtual bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
+    bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
         //The first entry on the stack would be the global scope which has no parent
         if(scopeDepth()) {
             expr->scope()->setParent(topScope());
@@ -67,17 +67,17 @@ class PopulateSymbolTablesPass : public ScopeFollowingVisitor {
     error::ErrorStream &errorStream_;
 public:
 
-    PopulateSymbolTablesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) {  }
+    explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) {  }
 
-    virtual bool visitingClassDefinition(ast::ClassDefinition *cd) override {
-        scope::TypeSymbol *classSymbol = new scope::TypeSymbol(cd->classType());
+    bool visitingClassDefinition(ast::ClassDefinition *cd) override {
+        auto *classSymbol = new scope::TypeSymbol(cd->classType());
 
         topScope()->addSymbol(classSymbol);
 
         return ScopeFollowingVisitor::visitingClassDefinition(cd);
     }
 
-    virtual bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name(), funcDeclStmt->functionType());
 
         topScope()->addSymbol(funcSymbol);
@@ -100,7 +100,7 @@ public:
         return ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
-    virtual void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
+    void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
         if(topScope()->findSymbol(expr->name())) {
             errorStream_.error(
                 error::ErrorKind::SymbolAlreadyDefinedInScope,
@@ -116,14 +116,22 @@ public:
     }
 };
 
-
-class PopulateClassTypesPass : public ScopeFollowingVisitor {
+class PrepareClassesVisitor : public ScopeFollowingVisitor {
     bool visitingClassDefinition(ast::ClassDefinition *cd) override {
         cd->populateClassType();
+
+        auto bodyStatements = cd->body()->expressions();
+        for(auto maybeFuncDefStmt : bodyStatements) {
+            auto funcDefStmt = dynamic_cast<ast::FuncDefStmt*>(maybeFuncDefStmt);
+            if(!funcDefStmt) continue;
+
+            funcDefStmt->symbol()->setThisSymbol(new scope::VariableSymbol("this", cd->classType()));
+        }
+
         return true;
     }
-};
 
+};
 
 class ResolveSymbolsPass : public ScopeFollowingVisitor {
     error::ErrorStream &errorStream_;
@@ -249,6 +257,30 @@ public:
         }
         expr->setField(field);
     }
+
+    void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
+        auto methodRef = dynamic_cast<ast::MethodRefExpr*>(expr->funcExpr());
+        if(methodRef && expr->instanceExpr()) {
+            type::Type *instanceType = expr->instanceExpr()->type()->actualType();
+            type::ClassMethod *method = nullptr;
+
+            if(auto classType = dynamic_cast<type::ClassType*>(instanceType)) {
+                method = classType->findMethod(methodRef->name());
+            }
+
+            if(method) {
+                methodRef->setSymbol(method->symbol());
+            } else {
+                errorStream_.error(
+                    error::ErrorKind::MethodNotDefined,
+                    methodRef->sourceSpan(),
+                    "Type '%s' does not have a method named '%s'.",
+                    instanceType->name().c_str(),
+                    methodRef->name().c_str());
+            }
+        }
+
+    }
 };
 
 class BinaryExprSemanticsPass : public ast::AstVisitor {
@@ -280,15 +312,13 @@ public:
 };
 
 class MarkDotExprWritesPass : public ast::AstVisitor {
-    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override;
-};
-
-void MarkDotExprWritesPass::visitedBinaryExpr(ast::BinaryExpr *binaryExpr) {
-    auto dotExpr = dynamic_cast<ast::DotExpr*>(binaryExpr->lValue());
-    if(dotExpr && binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
-        dotExpr->setIsWrite(true);
+    void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
+        auto dotExpr = dynamic_cast<ast::DotExpr *>(binaryExpr->lValue());
+        if (dotExpr && binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
+            dotExpr->setIsWrite(true);
+        }
     }
-}
+};
 
 class FuncCallSemanticsPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
@@ -366,7 +396,7 @@ void runAllPasses(ast::Module *module, error::ErrorStream &es) {
     //Symbol references (i.e. variable, call sites, etc) find their corresponding symbols here.
     passes.emplace_back(new ResolveSymbolsPass(es));
     //Create type::ClassType and populate all the fields, for all classes
-    passes.emplace_back(new PopulateClassTypesPass());
+    passes.emplace_back(new PrepareClassesVisitor());
     //Resolve all member references
     passes.emplace_back(new ResolveDotExprMemberPass(es));
     //Insert implicit casts where they are allowed

@@ -1,9 +1,9 @@
 # Anode Programming Language
 
+[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)](https://travis-ci.org/dlurton/anode)
+
 Anode is yet another embryonic programming language using LLVM as a back-end.
 
-[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)](https://travis-ci.org/dlurton/anode)
-  
 There's a basic REPL you can use.  Statements entered there will be parsed and then:
 
  - The AST will be displayed.
@@ -18,7 +18,7 @@ A `.an` file may also include a shebang line, i.e.
 
     #!/path/to/anode/executable 
  
-The compiler and compiled code use the [Boehm-Demers-Weiser conservative garbage collector](http://www.hboehm.info/gc/). 
+The compiler and compiled code use the [Boehm-Demers-Weiser conservative garbage collector](https://github.com/ivmai/bdwgc). 
 
 Goals of the language:
 
@@ -86,8 +86,9 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     ```
         class Widget {
             id:int;
-            weight:flaot;
-            isInStock:bool;
+            weight:float;
+            quantity:int;
+            func calculateTotalWeight:float() quantity * weight;
         }
     ```
  - Heap allocated, garbage collected objects: `someWidget:Widget = new Widget();`

@@ -10,12 +10,13 @@ namespace anode { namespace back {
 /** For each class in the AST, constructs an LLVM type and maps it to its corresponding Anode type in the CompileContext. */
 class CreateStructsAstVisitor : public CompileAstVisitor {
 public:
-    CreateStructsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {
+    explicit CreateStructsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {
 
     }
 
-    virtual bool visitingClassDefinition(ast::ClassDefinition *cd) {
-        gc_vector<scope::Symbol *> symbols = cd->body()->scope()->symbols();
+    bool visitingClassDefinition(ast::ClassDefinition *cd) override {
+        CompileAstVisitor::visitingClassDefinition(cd);
+        gc_vector<scope::VariableSymbol *> symbols = cd->body()->scope()->variables();
         std::vector<llvm::Type *> memberTypes;
         memberTypes.reserve(symbols.size());
 

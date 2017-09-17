@@ -669,7 +669,7 @@ TEST_CASE("class") {
     //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
-TEST_CASE("class, stack allocated, with another class inside it") {
+TEST_CASE("class with references to another class") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
     exec(ec, "class A { a:int; b:float; c:bool; }");
     exec(ec, "class B { a1:A; a2:A; }");
