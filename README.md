@@ -160,7 +160,7 @@ languages and that are needed for basic usefulness and then come back and add so
 The following must be installed and available prior to building Anode.
 
  - [cmake](https://cmake.org/) (3.4.3 or later) 
- - gcc 6 or later
+ - gcc 6 or clang-4.0 or later.  clang-4.0 is recommended.
  - libuuid
  - cmake 3.4.3 or later
  - autoconf
