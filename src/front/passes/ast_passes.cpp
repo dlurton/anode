@@ -20,9 +20,8 @@ protected:
     size_t scopeDepth() { return symbolTableStack_.size(); }
 
 public:
-    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         symbolTableStack_.push_back(funcDeclStmt->parameterScope());
-        return true;
     }
 
     void visitedFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
@@ -30,9 +29,8 @@ public:
         symbolTableStack_.pop_back();
     }
 
-    bool visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
+    void visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
         symbolTableStack_.push_back(compoundExpr->scope());
-        return true;
     }
 
     void visitedCompoundExpr(ast::CompoundExpr *compoundExpr) override {
@@ -46,19 +44,17 @@ public:
 /** Sets each SymbolTable's parent scope. */
 class SetSymbolTableParentsPass : public ScopeFollowingVisitor {
 public:
-    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         funcDeclStmt->parameterScope()->setParent(topScope());
         ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
-        return true;
     }
 
-    bool visitingCompoundExpr(ast::CompoundExpr *expr) override {
+    void visitingCompoundExpr(ast::CompoundExpr *expr) override {
         //The first entry on the stack would be the global scope which has no parent
         if(scopeDepth()) {
             expr->scope()->setParent(topScope());
         }
         ScopeFollowingVisitor::visitingCompoundExpr(expr);
-        return true;
     }
 };
 
@@ -69,15 +65,15 @@ public:
 
     explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) {  }
 
-    bool visitingClassDefinition(ast::ClassDefinition *cd) override {
+    void visitingClassDefinition(ast::ClassDefinition *cd) override {
         auto *classSymbol = new scope::TypeSymbol(cd->classType());
 
         topScope()->addSymbol(classSymbol);
 
-        return ScopeFollowingVisitor::visitingClassDefinition(cd);
+        ScopeFollowingVisitor::visitingClassDefinition(cd);
     }
 
-    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
+    void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name(), funcDeclStmt->functionType());
 
         topScope()->addSymbol(funcSymbol);
@@ -97,7 +93,7 @@ public:
             }
         }
 
-        return ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
+        ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
     void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
@@ -117,7 +113,7 @@ public:
 };
 
 class PrepareClassesVisitor : public ScopeFollowingVisitor {
-    bool visitingClassDefinition(ast::ClassDefinition *cd) override {
+    void visitingClassDefinition(ast::ClassDefinition *cd) override {
         cd->populateClassType();
 
         auto bodyStatements = cd->body()->expressions();
@@ -127,8 +123,6 @@ class PrepareClassesVisitor : public ScopeFollowingVisitor {
 
             funcDefStmt->symbol()->setThisSymbol(new scope::VariableSymbol("this", cd->classType()));
         }
-
-        return true;
     }
 
 };

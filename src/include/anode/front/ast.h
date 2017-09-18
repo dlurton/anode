@@ -59,49 +59,51 @@ class Module;
 
 class AstVisitor : public gc {
 public:
+    virtual bool shouldVisitChildren() { return true; }
+
     //////////// Statements
     /** Executes before every Stmt is visited. */
-    virtual bool visitingStmt(Stmt *) { return true; }
+    virtual void visitingStmt(Stmt *) { }
     /** Executes after every Stmt is visited. */
     virtual void visitedStmt(Stmt *) { }
 
     virtual void visitingParameterDef(ParameterDef *) { }
     virtual void visitedParameterDef(ParameterDef *) { }
 
-    virtual bool visitingFuncDefStmt(FuncDefStmt *) { return true; }
+    virtual void visitingFuncDefStmt(FuncDefStmt *) { }
     virtual void visitedFuncDeclStmt(FuncDefStmt *) { }
 
     virtual void visitingFuncCallExpr(FuncCallExpr *) {  }
     virtual void visitedFuncCallExpr(FuncCallExpr *) { }
 
-    virtual bool visitingClassDefinition(ClassDefinition *) { return true; }
-    virtual void visitedClassDefinition(ClassDefinition *) {  }
+    virtual void visitingClassDefinition(ClassDefinition *) { }
+    virtual void visitedClassDefinition(ClassDefinition *) { }
 
     virtual void visitingReturnStmt(ReturnStmt *) { }
     virtual void visitedReturnStmt(ReturnStmt *) { }
 
     //////////// Expressions
     /** Executes before every ExprStmt is visited. Return false to prevent visitation of the node's descendants. */
-    virtual bool visitingExprStmt(ExprStmt *) { return true; }
+    virtual void visitingExprStmt(ExprStmt *) { }
     /** Executes after every ExprStmt is visited. */
     virtual void visitedExprStmt(ExprStmt *) { }
 
-    virtual bool visitingAssertExprStmt(AssertExprStmt *) { return true; }
+    virtual void visitingAssertExprStmt(AssertExprStmt *) { }
     virtual void visitedAssertExprStmt(AssertExprStmt *) { }
 
     virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
     virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
 
-    virtual bool visitingIfExpr(IfExprStmt *) { return true; }
+    virtual void visitingIfExpr(IfExprStmt *) { }
     virtual void visitedIfExpr(IfExprStmt *) { }
 
-    virtual bool visitingWhileExpr(WhileExpr *) { return true; }
+    virtual void visitingWhileExpr(WhileExpr *) { }
     virtual void visitedWhileExpr(WhileExpr *) { }
 
-    virtual bool visitingBinaryExpr(BinaryExpr *) { return true; }
+    virtual void visitingBinaryExpr(BinaryExpr *) { }
     virtual void visitedBinaryExpr(BinaryExpr *) { }
 
-    virtual bool visitingUnaryExpr(UnaryExpr *) { return true; }
+    virtual void visitingUnaryExpr(UnaryExpr *) { }
     virtual void visitedUnaryExpr(UnaryExpr *) { }
 
     virtual void visitLiteralBoolExpr(LiteralBoolExpr *) { }
@@ -123,13 +125,13 @@ public:
     virtual void visitingDotExpr(DotExpr *) { }
     virtual void visitedDotExpr(DotExpr *) { }
 
-    virtual bool visitingCompoundExpr(CompoundExpr *) { return true; }
+    virtual void visitingCompoundExpr(CompoundExpr *) { }
     virtual void visitedCompoundExpr(CompoundExpr *) { }
 
     //////////// Misc
     virtual void visitTypeRef(TypeRef *) { }
 
-    virtual bool visitingModule(Module *) { return true; }
+    virtual void visitingModule(Module *) { }
     virtual void visitedModule(Module *) { }
 
 };
@@ -218,9 +220,10 @@ public:
 /** Base class for all expressions. */
 class ExprStmt : public Stmt {
 protected:
-    ExprStmt(const source::SourceSpan &sourceSpan) : Stmt(sourceSpan) { }
+    explicit ExprStmt(const source::SourceSpan &sourceSpan) : Stmt(sourceSpan) { }
 public:
-    virtual ~ExprStmt() { }
+    ~ExprStmt() override = default;
+
     virtual type::Type *type() const  = 0;
     virtual bool canWrite() const = 0;
 };
@@ -230,13 +233,12 @@ class LiteralBoolExpr : public ExprStmt {
     bool const value_;
 public:
     LiteralBoolExpr(source::SourceSpan sourceSpan, const bool value) : ExprStmt(sourceSpan), value_(value) {}
-    virtual ~LiteralBoolExpr() {}
     type::Type *type() const override { return &type::Primitives::Bool; }
     bool value() const { return value_; }
 
     virtual bool canWrite() const override { return false; };
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         visitor->visitingExprStmt(this);
         visitor->visitLiteralBoolExpr(this);
         visitor->visitedExprStmt(this);
@@ -248,13 +250,12 @@ class LiteralInt32Expr : public ExprStmt {
     int const value_;
 public:
     LiteralInt32Expr(source::SourceSpan sourceSpan, const int value) : ExprStmt(sourceSpan), value_(value) {}
-    virtual ~LiteralInt32Expr() {}
     type::Type *type() const override { return &type::Primitives::Int32; }
     int value() const { return value_; }
 
     virtual bool canWrite() const override { return false; };
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         visitor->visitingExprStmt(this);
         visitor->visitLiteralInt32Expr(this);
         visitor->visitedExprStmt(this);
@@ -266,14 +267,13 @@ class LiteralFloatExpr : public ExprStmt {
     float const value_;
 public:
     LiteralFloatExpr(source::SourceSpan sourceSpan, const float value) : ExprStmt(sourceSpan), value_(value) {}
-    virtual ~LiteralFloatExpr() {}
+
     type::Type *type() const override {  return &type::Primitives::Float; }
     float value() const { return value_; }
 
-    virtual bool canWrite() const override { return false; };
+    bool canWrite() const override { return false; };
 
-
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         visitor->visitingExprStmt(this);
         visitor->visitLiteralFloatExpr(this);
         visitor->visitedExprStmt(this);
@@ -311,10 +311,10 @@ public:
     UnaryOperationKind operation() const { return operation_; }
 
     virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
-        visitChildren = visitor->visitingUnaryExpr(this) ? visitChildren : false;
+        visitor->visitingExprStmt(this);
+        visitor->visitingUnaryExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             valueExpr_->accept(visitor);
         }
         visitor->visitedUnaryExpr(this);
@@ -359,7 +359,6 @@ public:
         ASSERT(lValue_);
         ASSERT(rValue_);
     }
-    virtual ~BinaryExpr() { }
 
     source::SourceSpan operatorSpan() { return operatorSpan_; }
 
@@ -425,10 +424,10 @@ public:
     }
 
     void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
-        visitChildren = visitor->visitingBinaryExpr(this) ? visitChildren : false;
+        visitor->visitingExprStmt(this);
+        visitor->visitingBinaryExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             lValue_->accept(visitor);
             rValue_->accept(visitor);
         }
@@ -457,7 +456,7 @@ public:
         return symbol_->type();
     }
 
-    virtual std::string name() const { return name_; }
+    std::string name() const { return name_; }
     std::string toString() const { return name_ + ":" + this->type()->name(); }
 
     scope::Symbol *symbol() { return symbol_; }
@@ -465,7 +464,7 @@ public:
         symbol_ = symbol;
     }
 
-    virtual bool canWrite() const override { return true; };
+    bool canWrite() const override { return true; };
 
     VariableAccess variableAccess() { return access_; };
     void setVariableAccess(VariableAccess access) { access_ = access; }
@@ -488,20 +487,19 @@ public:
     {
     }
 
-    std::string name() const override { return VariableRefExpr::name(); }
-
     TypeRef *typeRef() { return typeRef_; }
     virtual type::Type *type() const override { return typeRef_->type(); }
 
     virtual bool canWrite() const override { return true; };
 
     void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
+        visitor->visitingExprStmt(this);
         visitor->visitingVariableDeclExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             typeRef_->accept(visitor);
         }
+
         visitor->visitedVariableDeclExpr(this);
         visitor->visitedExprStmt(this);
     }
@@ -537,11 +535,11 @@ public:
 
     ExprStmt *valueExpr() const { return valueExpr_; }
 
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingExprStmt(this);
         visitor->visitingCastExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             toType_->accept(visitor);
             valueExpr_->accept(visitor);
         }
@@ -564,11 +562,11 @@ public:
 
     virtual bool canWrite() const override { return false; };
 
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingExprStmt(this);
         visitor->visitingNewExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             typeRef_->accept(visitor);
         }
 
@@ -592,14 +590,14 @@ public:
           expressions_{expressions}
     { }
 
-    virtual ~CompoundExpr() {}
     scope::SymbolTable *scope() { return &scope_; }
 
     virtual type::Type *type() const override {
         ASSERT(expressions_.size() > 0);
         return expressions_.back()->type();
     };
-    virtual bool canWrite() const override { return false; };
+
+    bool canWrite() const override { return false; };
 
     gc_vector<ExprStmt*> expressions() const {
         gc_vector<ExprStmt*> retval;
@@ -611,9 +609,10 @@ public:
     }
 
     virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
-        visitChildren = visitor->visitingCompoundExpr(this) ? visitChildren : false;
-        if(visitChildren) {
+        visitor->visitingExprStmt(this);
+        visitor->visitingCompoundExpr(this);
+
+        if(visitor->shouldVisitChildren()) {
             for (auto &stmt : expressions_) {
                 stmt->accept(visitor);
             }
@@ -633,12 +632,14 @@ public:
     //StmtKind stmtKind() const override { return StmtKind::ReturnStmt; }
     const ExprStmt *valueExpr() const { return valueExpr_; }
 
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingStmt(this);
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingStmt(this);
         visitor->visitingReturnStmt(this);
-        if(visitChildren) {
+
+        if(visitor->shouldVisitChildren()) {
             valueExpr_->accept(visitor);
         }
+
         visitor->visitedReturnStmt(this);
         visitor->visitedStmt(this);
     }
@@ -681,13 +682,13 @@ public:
     ExprStmt *elseExpr() const { return elseExpr_; }
     void setElseExpr(ExprStmt *newElseExpr) { elseExpr_ = newElseExpr; }
 
-    virtual bool canWrite() const override { return false; };
+    bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
-        visitChildren = visitor->visitingIfExpr(this) ? visitChildren : false;
+        visitor->visitingExprStmt(this);
+        visitor->visitingIfExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             condition_->accept(visitor);
             thenExpr_->accept(visitor);
             if(elseExpr_)
@@ -729,10 +730,10 @@ public:
     virtual bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
-        visitChildren = visitor->visitingWhileExpr(this) ? visitChildren : false;
+        visitor->visitingExprStmt(this);
+        visitor->visitingWhileExpr(this);
 
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             condition_->accept(visitor);
             body_->accept(visitor);
         }
@@ -764,7 +765,9 @@ public:
 
     void accept(AstVisitor *visitor) override {
         visitor->visitingParameterDef(this);
-        typeRef_->accept(visitor);
+        if(visitor->shouldVisitChildren()) {
+            typeRef_->accept(visitor);
+        }
         visitor->visitedParameterDef(this);
     }
 
@@ -783,7 +786,7 @@ class FuncDefStmt : public ExprStmt {
 public:
     FuncDefStmt(
         source::SourceSpan sourceSpan,
-        std::string name,
+        const std::string &name,
         TypeRef* returnTypeRef,
         gc_vector<ParameterDef*> parameters,
         ExprStmt* body
@@ -826,9 +829,9 @@ public:
     }
 
     virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingStmt(this);
-        visitChildren = visitor->visitingFuncDefStmt(this) ? visitChildren : false;
-        if(visitChildren) {
+        visitor->visitingStmt(this);
+        visitor->visitingFuncDefStmt(this);
+        if(visitor->shouldVisitChildren()) {
             returnTypeRef_->accept(visitor);
             for(auto p : parameters_) {
                 p->accept(visitor);
@@ -861,9 +864,9 @@ public:
         symbol_ = symbol;
     }
 
-    virtual bool canWrite() const override { return true; };
+    bool canWrite() const override { return true; };
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         visitor->visitingExprStmt(this);
         visitor->visitMethodRefExpr(this);
         visitor->visitedExprStmt(this);
@@ -891,7 +894,7 @@ public:
     ExprStmt *funcExpr() { return funcExpr_; }
     ExprStmt *instanceExpr() { return instanceExpr_; }
 
-    virtual bool canWrite() const override { return false; };
+    bool canWrite() const override { return false; };
 
     type::Type *type() const override {
         auto functionType = dynamic_cast<type::FunctionType*>(funcExpr_->type());
@@ -915,10 +918,10 @@ public:
 
     size_t argCount() { return arguments_.size(); }
 
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingExprStmt(this);
         visitor->visitingFuncCallExpr(this);
-        if(visitChildren) {
+        if(visitor->shouldVisitChildren()) {
             funcExpr_->accept(visitor);
             if(instanceExpr_) {
                 instanceExpr_->accept(visitor);
@@ -939,7 +942,7 @@ class ClassDefinition : public ExprStmt {
 
     type::ClassType *classType_;
 public:
-    ClassDefinition(source::SourceSpan span, std::string name, ast::CompoundExpr *body)
+    ClassDefinition(source::SourceSpan span, const std::string &name, ast::CompoundExpr *body)
         : ExprStmt{span},
           name_{name},
           body_{body},
@@ -962,13 +965,12 @@ public:
         for(auto method : this->body()->scope()->functions()) {
             classType_->addMethod(method->name(), method);
         }
-
     }
 
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingStmt(this);
-        visitChildren = visitor->visitingClassDefinition(this) ? visitChildren : false;
-        if(visitChildren) {
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingStmt(this);
+        visitor->visitingClassDefinition(this);
+        if(visitor->shouldVisitChildren()) {
             body_->accept(visitor);
         }
         visitor->visitedClassDefinition(this);
@@ -991,7 +993,7 @@ public:
 
     source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
 
-    virtual bool canWrite() const override { return true; };
+    bool canWrite() const override { return true; };
 
     bool isWrite() { return isWrite_; }
     void setIsWrite(bool isWrite) {
@@ -1010,10 +1012,12 @@ public:
         return field_->type();
     }
 
-    virtual void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor *visitor) override {
         visitor->visitingExprStmt(this);
         visitor->visitingDotExpr(this);
-        lValue_->accept(visitor);
+        if (visitor->shouldVisitChildren()) {
+            lValue_->accept(visitor);
+        }
         visitor->visitedDotExpr(this);
         visitor->visitedExprStmt(this);
     }
@@ -1026,18 +1030,16 @@ public:
         : ExprStmt(sourceSpan), condition_{condition} { }
 
     virtual type::Type *type() const override { return &type::Primitives::Void; }
-    virtual bool canWrite() const override { return false; };
-
-
+    bool canWrite() const override { return false; };
     ast::ExprStmt *condition() { return condition_; }
     void setCondition(ast::ExprStmt *condition) {
         condition_ = condition;
     }
 
-    virtual void accept(AstVisitor *visitor) override {
-        bool visitChildren = visitor->visitingExprStmt(this);
-        visitChildren = visitor->visitingAssertExprStmt(this) ? visitChildren : false;
-        if(visitChildren) {
+    void accept(AstVisitor *visitor) override {
+        visitor->visitingExprStmt(this);
+        visitor->visitingAssertExprStmt(this);
+        if(visitor->shouldVisitChildren()) {
             condition_->accept(visitor);
         }
         visitor->visitedAssertExprStmt(this);
@@ -1060,7 +1062,8 @@ public:
     CompoundExpr *body() { return body_; }
 
     void accept(AstVisitor *visitor) override {
-        if(visitor->visitingModule(this)) {
+        visitor->visitingModule(this);
+        if(visitor->shouldVisitChildren()) {
             body_->accept(visitor);
         }
         visitor->visitedModule(this);

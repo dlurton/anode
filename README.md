@@ -170,7 +170,7 @@ The following must be installed and available prior to building Anode.
 
 ### Building Dependencies
 
-A subset of Anode's dependencies are must be built before Anode itself can be built, i.e. LLVM.  In the case
+A subset of Anode's dependencies must be built from source before Anode itself can be built, In the case
 of LLVM, this is because Anode builds against LLVMs master branch in order to keep up more easily with LLVM's frequent
 API changes.  The other dependencies are either non-standard in linux distributions, (e.g. liblinenoise-ng) or are more
 recent versions than is frequently found in linux distributions (e.g. libgc). 

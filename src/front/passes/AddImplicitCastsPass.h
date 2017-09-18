@@ -8,11 +8,11 @@ namespace anode { namespace front { namespace passes {
 class AddImplicitCastsPass : public ast::AstVisitor {
     error::ErrorStream &errorStream_;
 public:
-    AddImplicitCastsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit AddImplicitCastsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
     // Note:  due to it being a more natural place for it, implicit casts for function call arguments are done in FuncCallSemanticsPass
 
-    virtual void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
+    void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
         if (binaryExpr->binaryExprKind() == ast::BinaryExprKind::Logical) {
 
             if (!binaryExpr->lValue()->type()->isSameType(&type::Primitives::Bool)) {
@@ -58,7 +58,7 @@ public:
         }
     }
 
-    virtual void visitedIfExpr(ast::IfExprStmt *ifExpr) override {
+    void visitedIfExpr(ast::IfExprStmt *ifExpr) override {
 
         if(!ifExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
@@ -99,7 +99,7 @@ public:
         }
     }
 
-    virtual bool visitingWhileExpr(ast::WhileExpr *whileExpr) override {
+    void visitingWhileExpr(ast::WhileExpr *whileExpr) override {
         //Can we deduplicate this code? (duplicate is in AddImplicitCastsVisitor::visitedIfExpr)
         if(!whileExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (whileExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
@@ -114,11 +114,9 @@ public:
                     whileExpr->condition()->type()->name().c_str());
             }
         }
-
-        return true;
     }
 
-    virtual void visitedFuncDeclStmt(ast::FuncDefStmt *funcDef) override {
+    void visitedFuncDeclStmt(ast::FuncDefStmt *funcDef) override {
         if(funcDef->returnType()->isSameType(&type::Primitives::Void)) return;
 
         if(!funcDef->returnType()->isSameType(funcDef->body()->type())) {
@@ -135,7 +133,7 @@ public:
         }
     }
 
-    virtual void visitedAssertExprStmt(ast::AssertExprStmt *assertExprStmt) override {
+    void visitedAssertExprStmt(ast::AssertExprStmt *assertExprStmt) override {
 
         if(!assertExprStmt->condition()->type()->isSameType(&type::Primitives::Bool)) {
             if (assertExprStmt->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {

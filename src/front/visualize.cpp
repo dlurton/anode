@@ -14,12 +14,11 @@ class PrettyPrinterVisitor : public AstVisitor {
 public:
     explicit PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-    bool visitingCompoundExpr(CompoundExpr *expr) override {
+    void visitingCompoundExpr(CompoundExpr *expr) override {
         writer_.write("CompoundExpr: ");
         writeScopeVariables(expr->scope());
         writer_.writeln();
         writer_.incIndent();
-        return true;
     }
 
     void visitedCompoundExpr(CompoundExpr *) override {
@@ -29,7 +28,7 @@ public:
     void writeScopeVariables(scope::SymbolTable *scope) {
         writer_.write('(');
         auto symbols = scope->symbols();
-        if (symbols.size() == 0) {
+        if (symbols.empty()) {
             writer_.write(')');
         } else if (symbols.size() == 1) {
             writer_.write(symbols.front()->toString());
@@ -50,20 +49,18 @@ public:
         }
     }
 
-    bool visitingBinaryExpr(BinaryExpr *expr) override {
+    void visitingBinaryExpr(BinaryExpr *expr) override {
         writer_.writeln("BinaryExpr: " + to_string(expr->operation()));
         writer_.incIndent();
-        return true;
     }
 
     void visitedBinaryExpr(BinaryExpr *) override {
         writer_.decIndent();
     }
 
-    bool visitingUnaryExpr(UnaryExpr *expr) override {
+    void visitingUnaryExpr(UnaryExpr *expr) override {
         writer_.writeln("UnaryExpr: " + to_string(expr->operation()) + ", " + expr->type()->name());
         writer_.incIndent();
-        return true;
     }
 
     void visitedUnaryExpr(UnaryExpr *) override {
@@ -106,20 +103,18 @@ public:
         writer_.writeln("VariableRefExpr: " + expr->name());
     }
 
-    bool visitingIfExpr(IfExprStmt *) override {
+    void visitingIfExpr(IfExprStmt *) override {
         writer_.writeln("IfExprStmt:");
         writer_.incIndent();
-        return true;
     }
 
     void visitedIfExpr(IfExprStmt *) override {
         writer_.decIndent();
     }
 
-    bool visitingWhileExpr(WhileExpr *) override {
+    void visitingWhileExpr(WhileExpr *) override {
         writer_.writeln("WhileExpr:");
         writer_.incIndent();
-        return true;
     }
 
     void visitedWhileExpr(WhileExpr *) override {
@@ -127,10 +122,9 @@ public:
     }
 
 
-    bool visitingAssertExprStmt(AssertExprStmt *) override {
+    void visitingAssertExprStmt(AssertExprStmt *) override {
         writer_.writeln("AssertExprStmt:");
         writer_.incIndent();
-        return true;
     }
 
     void visitedAssertExprStmt(AssertExprStmt *) override {
@@ -170,7 +164,7 @@ public:
         writer_.writeln(pd->typeRef()->name());
     }
 
-    bool visitingFuncDefStmt(FuncDefStmt *func) override {
+    void visitingFuncDefStmt(FuncDefStmt *func) override {
         writer_.writeln("FuncDefStmt: " + func->name());
 //                auto parameters = func->parameters();
 //                for(auto p : parameters) {
@@ -180,7 +174,6 @@ public:
 //                    writer_.write();
 //                }
         writer_.incIndent();
-        return true;
     }
 
     void visitingFuncCallExpr(FuncCallExpr *) override {
@@ -196,22 +189,18 @@ public:
         writer_.decIndent();
     }
 
-    bool visitingClassDefinition(ClassDefinition *ClassDefinition) override {
+    void visitingClassDefinition(ClassDefinition *ClassDefinition) override {
         writer_.writeln("ClassDefinition: " + ClassDefinition->name());
         writer_.incIndent();
-
-        return true;
     }
 
     void visitedClassDefinition(ClassDefinition *) override {
         writer_.decIndent();
     }
 
-    bool visitingModule(Module *module) override {
+    void visitingModule(Module *module) override {
         writer_.writeln("Module: " + module->name());
         writer_.incIndent();
-
-        return true;
     }
 
     void visitedModule(Module *) override {

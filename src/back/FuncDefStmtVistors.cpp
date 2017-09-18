@@ -10,6 +10,7 @@ class DeclareFuncsAstVisitor : public CompileAstVisitor {
 private:
 
     void declareFunction(scope::FunctionSymbol *functionSymbol) {
+
         //Map all Anode argument types to LLVM types.
         gc_vector<type::Type*> anodeParamTypes = functionSymbol->functionType()->parameterTypes();
         std::vector<llvm::Type*> llvmParamTypes;
@@ -43,7 +44,7 @@ private:
 public:
     explicit DeclareFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
-    bool visitingModule(ast::Module *module) override {
+    void visitingModule(ast::Module *module) override {
 
         //All external functions must be added to the current llvm module.
         gc_vector<scope::FunctionSymbol*> functions = module->scope()->functions();
@@ -52,16 +53,12 @@ public:
             if(functionSymbol->isExternal())
                 declareFunction(functionSymbol);
         }
-
-        return true;
     }
 
-    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
+    void visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
         scope::FunctionSymbol *functionSymbol = funcDef->symbol();
 
         declareFunction(functionSymbol);
-
-        return true;
     }
 };
 
@@ -81,7 +78,7 @@ class DefineFuncsAstVisitor : public CompileAstVisitor {
 public:
     explicit DefineFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
 
-    bool visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
+    void visitingFuncDefStmt(ast::FuncDefStmt *funcDef) override {
         //Save the state of the IRBuilder so it can be restored later
         auto oldBasicBlock = cc().irBuilder().GetInsertBlock();
         auto oldInsertPoint = cc().irBuilder().GetInsertPoint();
@@ -130,8 +127,6 @@ public:
 
         //Restore the state of the IR builder.
         cc().irBuilder().SetInsertPoint(oldBasicBlock, oldInsertPoint);
-
-        return true;
     }
 };
 

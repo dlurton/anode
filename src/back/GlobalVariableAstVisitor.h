@@ -48,7 +48,8 @@ public:
             defineGlobal(variableSymbol);
         }
     }
-    bool visitingModule(ast::Module *module) override {
+
+    void visitingModule(ast::Module *module) override {
         //Define all the external global variables now...
         //The reason for doing this here in addition to visitVariableDeclExpr is because symbols defined in other modules (isExternal)
         //do not have VariableDeclExprs in the AST but they do exist as symbols in the global scope.
@@ -58,8 +59,6 @@ public:
                 defineGlobal(symbol);
             }
         }
-
-        return true;
     }
 };
 

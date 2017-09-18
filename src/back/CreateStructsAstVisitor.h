@@ -14,7 +14,7 @@ public:
 
     }
 
-    bool visitingClassDefinition(ast::ClassDefinition *cd) override {
+    void visitingClassDefinition(ast::ClassDefinition *cd) override {
         CompileAstVisitor::visitingClassDefinition(cd);
         gc_vector<scope::VariableSymbol *> symbols = cd->body()->scope()->variables();
         std::vector<llvm::Type *> memberTypes;
@@ -27,11 +27,6 @@ public:
         llvm::StructType *structType = llvm::StructType::create(cc().llvmContext(), memberTypes, cd->name(), false);
 
         cc().typeMap().mapTypes(cd->classType(), structType->getPointerTo(0));
-
-        //LLVM will not emit an unused struct so create a dummy variable...
-        //cc().llvmModule().getOrInsertGlobal(string::format("use_%s", cd->name().c_str()), structType);
-
-        return false;
     }
 };
 
