@@ -1,39 +1,39 @@
 
 # to do:  moving this inside the anonymous scope below causes a debug assertion failed due to unhandled storage type.
 class SomeClass {
-    someField:int;
-    anotherField:int;
+    someField:int
+    anotherField:int
 }
 
 # an object instance can be mutated when passed by reference.
 {
     func mutateSomeClass:void(instance:SomeClass) {
-        instance.someField = 2;
-        instance.anotherField = 3;
+        instance.someField = 2
+        instance.anotherField = 3
     }
 
-    anInstance:SomeClass = new SomeClass();
+    anInstance:SomeClass = new SomeClass()
 
-    anInstance.someField = 1;
-    assert(anInstance.someField == 1);
+    anInstance.someField = 1
+    assert(anInstance.someField == 1)
 
-    anInstance.anotherField = 2;
-    assert(anInstance.anotherField == 2);
+    anInstance.anotherField = 2
+    assert(anInstance.anotherField == 2)
 
-    mutateSomeClass(anInstance);
+    mutateSomeClass(anInstance)
 
-    assert(anInstance.someField == 2);
-    assert(anInstance.anotherField == 3);
+    assert(anInstance.someField == 2)
+    assert(anInstance.anotherField == 3)
 }
 
 # an object instance can be returned from a function
 {
     func testFactory:SomeClass() {
-        sc:SomeClass = new SomeClass();
-        sc.someField = 99;
-        sc;
+        sc:SomeClass = new SomeClass()
+        sc.someField = 99
+        sc
     }
 
-    instance:SomeClass = testFactory();
-    assert(instance.someField == 99);
+    instance:SomeClass = testFactory()
+    assert(instance.someField == 99)
 }

@@ -1,50 +1,50 @@
 #!/home/dave/projects/anode/bin/anode
 
-func outerFunction:int() 101;
-assert(outerFunction() == 101);
+func outerFunction:int() 101
+assert(outerFunction() == 101)
 
 # outerFunction defined within anonymous scope overrides outer scope
 {
-    func outerFunction:int() 102;
-    assert(outerFunction() == 102);
+    func outerFunction:int() 102
+    assert(outerFunction() == 102)
 }
 
 
 # foo:int() in nested scopes are different functions (part 1 of 2)
 {
-    someVariable:int = 1;
-    assert(someVariable == 1);
-    func foo:int(bar:int) bar * 10;
-    assert(foo(10) == 100);
-    assert(foo(11) == 110);
+    someVariable:int = 1
+    assert(someVariable == 1)
+    func foo:int(bar:int) bar * 10
+    assert(foo(10) == 100)
+    assert(foo(11) == 110)
 }
 
 # foo:int() in nested scopes are different functions (part 2 of 2)
 {
-    someVariable:int = 2;
-    assert(someVariable == 2);
-    func foo:int(bar:int) bar * 5;
-    assert(foo(10) == 50);
-    assert(foo(11) == 55);
+    someVariable:int = 2
+    assert(someVariable == 2)
+    func foo:int(bar:int) bar * 5
+    assert(foo(10) == 50)
+    assert(foo(11) == 55)
 }
 
 # foo:int() defined in doubly nested scopes are different functions
 {
     # part 1
     {
-        someVariable:int = 1;
-        assert(someVariable == 1);
-        func foo:int(bar:int) bar * 10;
-        assert(foo(10) == 100);
-        assert(foo(11) == 110);
+        someVariable:int = 1
+        assert(someVariable == 1)
+        func foo:int(bar:int) bar * 10
+        assert(foo(10) == 100)
+        assert(foo(11) == 110)
     }
     # part 2
     {
-        someVariable:int = 2;
-        assert(someVariable == 2);
-        func foo:int(bar:int) bar * 5;
-        assert(foo(10) == 50);
-        assert(foo(11) == 55);
+        someVariable:int = 2
+        assert(someVariable == 2)
+        func foo:int(bar:int) bar * 5
+        assert(foo(10) == 50)
+        assert(foo(11) == 55)
     }
 }
 
@@ -55,25 +55,25 @@ assert(outerFunction() == 101);
         # TODO: parents...  or we need to actually support this since doing so now will almost certainly create an invalid LLVM module.
         # TODO: not sure how we would wrangle LLVM into doing that, however...
         # Note: same parameter name is intentional the inner most "n" shadows the outer "n".
-        func nestedFunc:int(n:int) n * 2;
-        nestedFunc(n) * 4;
+        func nestedFunc:int(n:int) n * 2
+        nestedFunc(n) * 4
     }
 
-    assert(outerFunc(2) == 16);
+    assert(outerFunc(2) == 16)
 }
 
 # function in nested scope accesses variable defined in anonymous scope
 {
-    someGlobal:int = 1001;
-    func someFunc:int() someGlobal;
-    assert(someFunc() == 1001);
+    someGlobal:int = 1001
+    func someFunc:int() someGlobal
+    assert(someFunc() == 1001)
 }
 
 # assign result of anonymous scope to variable
 {
     someInt:int = {
-        anotherInt:int = 67;
-        anotherInt + 32;
-    };
-    assert(someInt == 99);
+        anotherInt:int = 67
+        anotherInt + 32
+    }
+    assert(someInt == 99)
 }

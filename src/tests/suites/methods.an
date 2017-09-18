@@ -1,27 +1,27 @@
 
 class Counter {
-    count:int;
+    count:int
 
-    func increment:void() count = count + 1;
-    func decrement:void() count = count - 1;
+    func increment:void() count = count + 1
+    func decrement:void() count = count - 1
 
-    func getCount:int() count;
+    func getCount:int() count
 }
 
 
-c:Counter = new Counter();
+c:Counter = new Counter()
 
-assert(c.getCount() == 0);
+assert(c.getCount() == 0)
 
-c.increment();
-assert(c.getCount() == 1);
+c.increment()
+assert(c.getCount() == 1)
 
-c.increment();
-assert(c.getCount() == 2);
+c.increment()
+assert(c.getCount() == 2)
 
-c.decrement();
-assert(c.getCount() == 1);
+c.decrement()
+assert(c.getCount() == 1)
 
-c.decrement();
-assert(c.getCount() == 0);
+c.decrement()
+assert(c.getCount() == 0)
 

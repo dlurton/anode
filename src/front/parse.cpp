@@ -12,9 +12,13 @@ namespace anode { namespace front {
         error::ErrorStream errorStream{std::cerr};
         parser::AnodeLexer lexer{reader, errorStream};
         parser::AnodeParser parser{lexer, errorStream};
-        ast::Module *expr = parser.parseModule();
+        ast::Module *module = parser.parseModule();
 
-        return expr;
+        if(errorStream.errorCount() > 0) {
+            throw ParseAbortedException("Parse aborted.");
+        }
+
+        return module;
     }
 
     ast::Module *parseModule(const std::string &filename)

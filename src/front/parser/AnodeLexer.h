@@ -25,7 +25,7 @@ inline bool isDigit(char_t c) {
 }
 
 inline bool isLetter(char_t c) {
-    return (c >= 'a' && c <= 'z') || (c > 'A' && c <= 'Z');
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
 inline bool isValidInt(const string_t &str) {

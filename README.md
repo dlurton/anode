@@ -44,11 +44,11 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     ```
 - Data types: `bool`, `int` and `float`.
 - Literal ints (`123`), floats (`123.0`) and booleans (`true` or `false`).
-- Global variable declarations: `someVariable:int;`
+- Global variable declarations: `someVariable:int`
     - Variables are strongly typed.
     - Variables must be declared before use.
     - New variables are always initialized to 0.
-    - Variables may have an initializer: `someVariable:int = 1 + 2 * anyExpressionHere;`
+    - Variables may have an initializer: `someVariable:int = 1 + 2 * anyExpressionHere`
 - Binary Operators:
     - +, -, /, *, =, !=, ==, >, >=, <, <=, &&, ||
  - Casting:
@@ -56,13 +56,13 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     - For example in the expression:  `1.0 + 2` the `2` is cast to a `float` and the expression's result is a `float`.
     - Explicit casting is required when there is a precision loss, for example:
         ```         
-        someFloatValue:float = 3.14;
-        someIntValue:int = cast<int>(someFloatvalue);
+        someFloatValue:float = 3.14
+        someIntValue:int = cast<int>(someFloatvalue)
         ```
       The the fractional portion of `someFloatValue` is truncated and `someIntValue` becomes `3`.
  - Compound Expressions:
     ```
-    someInt:int = { 1; 2; 3; };
+    someInt:int = { 1 2 3 }
     ``` 
     The last expression within the compound expression (`3`) is the value assigned to `someInt`.
  - Ternary expressions: `(? condition, trueValue, falseValue )`
@@ -70,9 +70,9 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     - This is short circuiting!
  - If expressions:
     - Like ternary expressions but more powerful because they also serve as traditional if statements.  
-    - For example `a = if(a == b) 1; else 2;"` works just like ternary. 
+    - For example `a = if(a == b) 1 else 2"` works just like ternary. 
     - Also note that due to how compound expressions return the last value, more complex logic can be used to determine the 
-    values returned by each branch.  For example:  `a = if(a == b) { 1; 2; } else { 3; 4; };` In this case `a` will become `2` 
+    values returned by each branch.  For example:  `a = if(a == b) { 1 2 } else { 3 4 }` In this case `a` will become `2` 
     when `a == b` or `4` when `a != b`.
  - Built-in assert function: `assert(someExpression)`
     - This is not an actual function, it's part of the syntax!
@@ -81,36 +81,42 @@ will give a complete and up-to-date picture of supported syntax and features, ho
         evaluated to false and the process is terminated.
     - This expression is/will be heavily used during testing of Andoe languages features. 
  - While loops:
-    - `while(condition) expression;` or `while(condition) { expression1; expression2; ...}`
+    - `while(condition) expression` or `while(condition) { expression1 expression2 ...}`
  - Classes:
     ```
         class Widget {
-            id:int;
-            weight:float;
-            quantity:int;
-            func calculateTotalWeight:float() quantity * weight;
+            id:int
+            weight:float
+            quantity:int
+            func calculateTotalWeight:float() quantity * weight
         }
     ```
- - Heap allocated, garbage collected objects: `someWidget:Widget = new Widget();`
+ - Heap allocated, garbage collected objects: `someWidget:Widget = new Widget()`
     - `someWidget` is a reference.    
  - Dot operator:
-    `someWidget.weight = 12.53;`
+    `someWidget.weight = 12.53`
  - Class fields with a class type:
     ```
     class WidgetPair {
-        first:Widget;
-        second:Widget; 
+        first:Widget
+        second:Widget 
     }
-    aPairOfWidgets:WidgetPair;
-    aPairOfWidgets.first.id = 1;
-    aPairOfWidgets.second.id = 2;
+    aPairOfWidgets:WidgetPair
+    aPairOfWidgets.first.id = 1
+    aPairOfWidgets.second.id = 2
     ```
- - Can define functions: `func someFunction:int() 10 + 12;` (if there is only one expression in the function body)
-    - Or: `func someFunction:int() { someGlobal = someGlobal + 1; someGlobal + 12; }` (for multiple expressions in the function body)
+ - Can define functions: `func someFunction:int() 10 + 12` (if there is only one expression in the function body)
+    - Or use curly braces when there is more than one expression in the function body: 
+    ```
+        func someFunction:int() { 
+            someGlobal = someGlobal + 1 
+            someGlobal + 12 
+        }
+    ```
     - The result of the last expression in the function body is the return value.
-    - Functions may return nothing: `func someFunction:void() someExpression;` in which cast the last expression in the function body is ignored.
+    - Functions may return nothing: `func someFunction:void() someExpression` in which cast the last expression in the function body is ignored.
     - Local variables also can be defined within functions.
-    - Functions may be invoked:  `anInt:int = someFunction();`    
+    - Functions may be invoked:  `anInt:int = someFunction()`    
     - Primitive types may be used as function arguments:
         - `func someFunc:void(arg1:int, arg2:float, arg3:bool) someExpression`
         

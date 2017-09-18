@@ -7,9 +7,13 @@ namespace anode {
     namespace back {
 
         class ExprStmtAstVisitor : public CompileAstVisitor {
+        public:
+            bool shouldVisitChildren() override { return false; }
+
+        private:
             bool valueIsSet_ = false;
             llvm::Value * llvmValue_ = nullptr;
-            bool shouldVisitChildren() override { return false; }
+
             void setValue(llvm::Value *value) {
                 ASSERT(!valueIsSet_&& "setValue(llvm::Value*) should only be invoked once.");
                 llvmValue_ = value;
@@ -24,153 +28,6 @@ namespace anode {
                 return llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(32, (uint64_t) value, false));
             }
 
-            void emitBinaryArithmetic(ast::BinaryExpr *expr) {
-                ASSERT(expr->lValue()->type()->isSameType(expr->rValue()->type()) && "data types must match");
-
-                llvm::Value *rValue = emitExpr(expr->rValue(), cc());
-
-                llvm::Value *lValue = emitExpr(expr->lValue(), cc());
-
-                if (expr->operation() == ast::BinaryOperationKind::Assign) {
-                    cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
-                    //Note:  I think this will call rValue a second time if rValue is a call site.
-                    setValue(rValue);
-                    return;
-                }
-                llvm::Value *resultValue = nullptr;
-                ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
-                switch (expr->operandsType()->primitiveType()) {
-                    case type::PrimitiveType::Bool:
-                        switch (expr->operation()) {
-                            case ast::BinaryOperationKind::Eq:
-                                resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::NotEq:
-                                resultValue = cc().irBuilder().CreateICmpNE(lValue, rValue);
-                                break;
-                            default:
-                                ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type")
-                        }
-                        break;
-                    case type::PrimitiveType::Int32:
-                        switch (expr->operation()) {
-                            case ast::BinaryOperationKind::Eq:
-                                resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::NotEq:
-                                resultValue = cc().irBuilder().CreateICmpNE(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Add:
-                                resultValue = cc().irBuilder().CreateAdd(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Sub:
-                                resultValue = cc().irBuilder().CreateSub(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Mul:
-                                resultValue = cc().irBuilder().CreateMul(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Div:
-                                resultValue = cc().irBuilder().CreateSDiv(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::GreaterThan:
-                                resultValue = cc().irBuilder().CreateICmpSGT(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::GreaterThanOrEqual:
-                                resultValue = cc().irBuilder().CreateICmpSGE(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::LessThan:
-                                resultValue = cc().irBuilder().CreateICmpSLT(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::LessThanOrEqual:
-                                resultValue = cc().irBuilder().CreateICmpSLE(lValue, rValue);
-                                break;
-                            default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
-                        }
-                        break;
-                    case type::PrimitiveType::Float:
-                        switch (expr->operation()) {
-                            case ast::BinaryOperationKind::Eq:
-                                resultValue = cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::NotEq:
-                                resultValue = cc().irBuilder().CreateFCmpONE(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Add:
-                                resultValue = cc().irBuilder().CreateFAdd(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Sub:
-                                resultValue = cc().irBuilder().CreateFSub(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Mul:
-                                resultValue = cc().irBuilder().CreateFMul(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::Div:
-                                resultValue = cc().irBuilder().CreateFDiv(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::GreaterThan:
-                                resultValue = cc().irBuilder().CreateFCmpOGT(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::GreaterThanOrEqual:
-                                resultValue = cc().irBuilder().CreateFCmpOGE(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::LessThan:
-                                resultValue = cc().irBuilder().CreateFCmpOLT(lValue, rValue);
-                                break;
-                            case ast::BinaryOperationKind::LessThanOrEqual:
-                                resultValue = cc().irBuilder().CreateFCmpOLE(lValue, rValue);
-                                break;
-                            default:
-                                ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
-                        }
-                        break;
-                    default:
-                        ASSERT_FAIL("Unhandled PrimitiveType");
-                }
-                ASSERT(resultValue);
-                setValue(resultValue);
-            }
-
-            void emitBinaryLogical(ast::BinaryExpr *expr) {
-                //Prepare the basic blocks
-                llvm::BasicBlock *lValueBlock = cc().irBuilder().GetInsertBlock();
-                llvm::Function *currentFunc = lValueBlock->getParent();
-                llvm::BasicBlock *rValueBlock = llvm::BasicBlock::Create(cc().llvmContext(), "rValueBlock");
-                llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "endBlock");
-
-                //Emit the lValue, which is always the first operand of a logical operation to be evaluated
-                llvm::Value *lValue = emitExpr(expr->lValue(), cc());
-
-                bool lValueConst;
-                switch(expr->operation()) {
-                    //For the && operator, only evaluate the lValue if the rValue is true
-                    case ast::BinaryOperationKind::LogicalAnd:
-                        cc().irBuilder().CreateCondBr(lValue, rValueBlock, endBlock);
-                        lValueConst = false;
-                        break;
-                    case ast::BinaryOperationKind::LogicalOr:
-                        cc().irBuilder().CreateCondBr(lValue, endBlock, rValueBlock);
-                        lValueConst = true;
-                        break;
-                    default:
-                        ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be a logical operator)")
-                }
-                currentFunc->getBasicBlockList().push_back(rValueBlock);
-                cc().irBuilder().SetInsertPoint(rValueBlock);
-                llvm::Value *rValue = emitExpr(expr->rValue(), cc());
-                cc().irBuilder().CreateBr(endBlock);
-
-                currentFunc->getBasicBlockList().push_back(endBlock);
-                cc().irBuilder().SetInsertPoint(endBlock);
-                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(&type::Primitives::Bool), 2, "logical_tmp");
-
-                llvm::ConstantInt *shortCircuitLlvmValue
-                    = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));
-                phi->addIncoming(shortCircuitLlvmValue, lValueBlock);
-                phi->addIncoming(rValue, rValueBlock);
-
-                setValue(phi);
-            }
         public:
             explicit ExprStmtAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
@@ -383,15 +240,167 @@ namespace anode {
                         break;
                     case ast::BinaryExprKind::Arithmetic:
                         emitBinaryArithmetic(expr);
+                        break;
+                    default:
+                        ASSERT_FAIL("Unhandled BinaryExprKind");
                 }
             }
 
+        private:
+            void emitBinaryArithmetic(ast::BinaryExpr *expr) {
+                ASSERT(expr->lValue()->type()->isSameType(expr->rValue()->type()) && "data types must match");
+
+                llvm::Value *rValue = emitExpr(expr->rValue(), cc());
+
+                llvm::Value *lValue = emitExpr(expr->lValue(), cc());
+
+                if (expr->operation() == ast::BinaryOperationKind::Assign) {
+                    cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
+                    //Note:  I think this will call rValue a second time if rValue is a call site.
+                    setValue(rValue);
+                    return;
+                }
+                llvm::Value *resultValue = nullptr;
+                ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
+                switch (expr->operandsType()->primitiveType()) {
+                    case type::PrimitiveType::Bool:
+                        switch (expr->operation()) {
+                            case ast::BinaryOperationKind::Eq:
+                                resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::NotEq:
+                                resultValue = cc().irBuilder().CreateICmpNE(lValue, rValue);
+                                break;
+                            default:
+                                ASSERT_FAIL("Unsupported BinaryOperationKind for bool primitive type");
+                        }
+                        break;
+                    case type::PrimitiveType::Int32:
+                        switch (expr->operation()) {
+                            case ast::BinaryOperationKind::Eq:
+                                resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::NotEq:
+                                resultValue = cc().irBuilder().CreateICmpNE(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Add:
+                                resultValue = cc().irBuilder().CreateAdd(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Sub:
+                                resultValue = cc().irBuilder().CreateSub(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Mul:
+                                resultValue = cc().irBuilder().CreateMul(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Div:
+                                resultValue = cc().irBuilder().CreateSDiv(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThan:
+                                resultValue = cc().irBuilder().CreateICmpSGT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThanOrEqual:
+                                resultValue = cc().irBuilder().CreateICmpSGE(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThan:
+                                resultValue = cc().irBuilder().CreateICmpSLT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThanOrEqual:
+                                resultValue = cc().irBuilder().CreateICmpSLE(lValue, rValue);
+                                break;
+                            default:
+                                ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
+                        }
+                        break;
+                    case type::PrimitiveType::Float:
+                        switch (expr->operation()) {
+                            case ast::BinaryOperationKind::Eq:
+                                resultValue = cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::NotEq:
+                                resultValue = cc().irBuilder().CreateFCmpONE(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Add:
+                                resultValue = cc().irBuilder().CreateFAdd(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Sub:
+                                resultValue = cc().irBuilder().CreateFSub(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Mul:
+                                resultValue = cc().irBuilder().CreateFMul(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::Div:
+                                resultValue = cc().irBuilder().CreateFDiv(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThan:
+                                resultValue = cc().irBuilder().CreateFCmpOGT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::GreaterThanOrEqual:
+                                resultValue = cc().irBuilder().CreateFCmpOGE(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThan:
+                                resultValue = cc().irBuilder().CreateFCmpOLT(lValue, rValue);
+                                break;
+                            case ast::BinaryOperationKind::LessThanOrEqual:
+                                resultValue = cc().irBuilder().CreateFCmpOLE(lValue, rValue);
+                                break;
+                            default:
+                                ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be an arithmetic operator)");
+                        }
+                        break;
+                    default:
+                        ASSERT_FAIL("Unhandled PrimitiveType");
+                }
+                ASSERT(resultValue);
+                setValue(resultValue);
+            }
+
+            void emitBinaryLogical(ast::BinaryExpr *expr) {
+                //Prepare the basic blocks
+                llvm::BasicBlock *lValueBlock = cc().irBuilder().GetInsertBlock();
+                llvm::Function *currentFunc = lValueBlock->getParent();
+                llvm::BasicBlock *rValueBlock = llvm::BasicBlock::Create(cc().llvmContext(), "rValueBlock");
+                llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "endBlock");
+
+                //Emit the lValue, which is always the first operand of a logical operation to be evaluated
+                llvm::Value *lValue = emitExpr(expr->lValue(), cc());
+
+                bool lValueConst;
+                switch(expr->operation()) {
+                    //For the && operator, only evaluate the lValue if the rValue is true
+                    case ast::BinaryOperationKind::LogicalAnd:
+                        cc().irBuilder().CreateCondBr(lValue, rValueBlock, endBlock);
+                        lValueConst = false;
+                        break;
+                    case ast::BinaryOperationKind::LogicalOr:
+                        cc().irBuilder().CreateCondBr(lValue, endBlock, rValueBlock);
+                        lValueConst = true;
+                        break;
+                    default:
+                        ASSERT_FAIL("Unhandled BinaryOperationKind (supposed to be a logical operator)")
+                }
+                currentFunc->getBasicBlockList().push_back(rValueBlock);
+                cc().irBuilder().SetInsertPoint(rValueBlock);
+                llvm::Value *rValue = emitExpr(expr->rValue(), cc());
+                cc().irBuilder().CreateBr(endBlock);
+
+                currentFunc->getBasicBlockList().push_back(endBlock);
+                cc().irBuilder().SetInsertPoint(endBlock);
+                llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(&type::Primitives::Bool), 2, "logical_tmp");
+
+                llvm::ConstantInt *shortCircuitLlvmValue
+                    = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));
+                phi->addIncoming(shortCircuitLlvmValue, lValueBlock);
+                phi->addIncoming(rValue, rValueBlock);
+
+                setValue(phi);
+            }
+        protected:
             void visitingIfExpr(ast::IfExprStmt *ifExpr) override {
                 //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
                 //Emit the condition
                 llvm::Value *condValue = emitExpr(ifExpr->condition(), cc());
 
-                //Prepare thae BasicBlocks
+                //Prepare the BasicBlocks
                 llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
                 llvm::BasicBlock *thenBlock = llvm::BasicBlock::Create(cc().llvmContext(), "thenBlock");
                 llvm::BasicBlock *elseBlock = llvm::BasicBlock::Create(cc().llvmContext(), "elseBlock");

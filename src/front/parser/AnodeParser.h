@@ -111,7 +111,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         Token *closeCurly;
 
         do {
-            stmts.push_back(parseExprStmt());
+            stmts.push_back(parseExpr());
         } while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY)));
 
         return new ast::CompoundExpr(getSourceSpan(openCurly->span(), closeCurly->span()), storageKindStack_.top(), stmts);
@@ -163,10 +163,10 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         ast::ExprStmt *condExpr = parseExpr();
         consumeCloseParen();
 
-        ast::ExprStmt *thenExpr = parseExprStmt();
+        ast::ExprStmt *thenExpr = parseExpr();
         ast::ExprStmt *elseExpr = nullptr;
         if(consumeOptional(TokenKind::KW_ELSE)) {
-            elseExpr = parseExprStmt();
+            elseExpr = parseExpr();
         }
 
         return new ast::IfExprStmt(
@@ -181,7 +181,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         consumeOpenParen();
         ast::ExprStmt *condExpr = parseExpr();
         consumeCloseParen();
-        ast::ExprStmt *bodyExpr = parseExprStmt();
+        ast::ExprStmt *bodyExpr = parseExpr();
 
         return new ast::WhileExpr(
             getSourceSpan(whileKeyword->span(), bodyExpr->sourceSpan()),
@@ -246,7 +246,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         }
 
         storageKindStack_.push(scope::StorageKind::Local);
-        ast::ExprStmt *funcBody = parseExprStmt();
+        ast::ExprStmt *funcBody = parseExpr();
         storageKindStack_.pop();
 
         return new ast::FuncDefStmt(
@@ -261,7 +261,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     ast::ExprStmt *parseClassDef(Token *classKeyword) {
         Token *className = consumeIdentifier();
         storageKindStack_.push(scope::StorageKind::Instance);
-        ast::ExprStmt *classBody = parseExprStmt();
+        ast::ExprStmt *classBody = parseExpr();
 
         auto *compoundExpr = dynamic_cast<ast::CompoundExpr*>(classBody);
         if(!compoundExpr) {
@@ -368,7 +368,7 @@ public:
         gc_vector<ast::ExprStmt*> exprs;
 
         while(!lexer_.eof()) {
-            exprs.push_back(parseExprStmt());
+            exprs.push_back(parseExpr());
         }
 
         ast::CompoundExpr *body = new ast::CompoundExpr(source::SourceSpan::Any, scope::StorageKind::Global, exprs);
@@ -378,29 +378,6 @@ public:
         storageKindStack_.pop();
 
         return new ast::Module(lexer_.inputName(), body);
-    }
-    ast::ExprStmt *parseExprStmt() {
-        bool isComposite;
-        switch(lexer_.peekToken()->kind()) {
-            case TokenKind::OPEN_CURLY:
-            case TokenKind::KW_IF:
-            case TokenKind::KW_WHILE:
-            case TokenKind::KW_FUNC:
-            case TokenKind::KW_CLASS:
-                isComposite = true;
-                break;
-            default:
-                isComposite = false;
-        };
-
-        ast::ExprStmt *expr = parseExpr();
-
-        //don't require ; after { }, if, while, etc
-        if(!isComposite) {
-            consumeEndOfStatment();
-        }
-
-        return expr;
     }
 };
 
