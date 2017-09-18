@@ -166,7 +166,9 @@ languages and that are needed for basic usefulness and then come back and add so
 The following must be installed and available prior to building Anode.
 
  - [cmake](https://cmake.org/) (3.4.3 or later) 
- - gcc 6 or clang-4.0 or later.  clang-4.0 is recommended.
+ - gcc 6 or clang-4.0 or later. clang-4.0 is recommended.
+    - Note that if building on Ubuntu 14.04 (and possibly later), gcc-6 is always required--even when building with clang because 
+    clang needs more recent libstdc++ headers in order to provide up-to-date C++14 support.  (Headers from gcc-4.8 do not work.)
  - libuuid
  - cmake 3.4.3 or later
  - autoconf
@@ -176,16 +178,14 @@ The following must be installed and available prior to building Anode.
 
 ### Building Dependencies
 
-A subset of Anode's dependencies must be built from source before Anode itself can be built, In the case
+A subset of Anode's dependencies must be built from source before Anode itself can be built. In the case
 of LLVM, this is because Anode builds against LLVMs master branch in order to keep up more easily with LLVM's frequent
 API changes.  The other dependencies are either non-standard in linux distributions, (e.g. liblinenoise-ng) or are more
 recent versions than is frequently found in linux distributions (e.g. libgc). 
     
-The build scripts will clone certain of the repositories of each `anode` of these dependencies and build
-them with the necessary options, placing all the source codes and intermediate files into `externs/scratch`.
-This directory may be deleted to conserve disk space after everything has successfully built, if desired.  If
-successful, the libraries and headers of each dependency will be installed in sub-directories of `externs/release` or 
-`externs/debug`, depending on if a release build has been selected or not.
+The build scripts will clone the repositories of each of these dependencies and build them with the necessary options, 
+placing all the source codes and intermediate files into `externs/scratch`. If successful, the libraries and headers of each dependency 
+will be installed in sub-directories of `externs/release` or `externs/debug`, depending on if a release build has been selected.
 
 ### First Time Building
 
@@ -194,19 +194,18 @@ respectively.
 
 ### Building Anode
 
-After building the first time, you can just build Anode like so:
+After building the first time, you can build just Anode like so:
 
-    cd cmake-build-$BUILD_TYPE
-    cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-    make -j 
+    ./tools/build-anode 
     
-Where `$BUILD_TYPE` is `Debug` or `Release`.
+The default is to perform a release build if the environment variable `ANODE_BUILD_TYPE` is not set.  To perform a debug build, set
+`ANODE_BUILD_TYPE` to `Debug` before executing `./tools/build-anode`
 
-To run the all the tests, from the `cmake-build` directory, execute:
+To run the all the tests, from the `cmake-build-debug` or `cmake-build-release` directories, execute:
 
     ctest --output-on-failure
 
-Building the source documentation requires doxygen.
+Building the source documentation requires doxygen.  This is not currently built by any of the build scripts.
 
     cd $project_root/src
     doxygen doxygen.cfg
