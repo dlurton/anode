@@ -210,3 +210,4 @@ Building the source documentation requires doxygen.  This is not currently built
     cd $project_root/src
     doxygen doxygen.cfg
     
+Documentation will be generated and stored in the project root.
