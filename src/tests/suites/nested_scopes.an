@@ -1,4 +1,4 @@
-#!/home/dave/projects/anode/bin/anode
+#!/home/dave/projects/anode/bin/anode -e
 
 func outerFunction:int() 101
 assert(outerFunction() == 101)

@@ -16,6 +16,6 @@ foreach(file ${test_suites})
     get_filename_component(test_name ${file} NAME_WE)
     add_test(
         NAME test-${test_name}
-        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/anode ${file})
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/anode -e ${file})
 
 endforeach()

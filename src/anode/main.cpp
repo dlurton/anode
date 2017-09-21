@@ -7,6 +7,7 @@
 #include "common/stacktrace.h"
 #include "execute/execute.h"
 #include "runtime/builtins.h"
+#include "cxxopts.h"
 
 
 #include "gc/gc.h"
@@ -31,13 +32,61 @@
 //    }
 //}
 
+namespace CmdLine {
+
+enum class Action : unsigned char {
+    JustExit,
+    DumpAst,
+    Execute,
+    RunInteractive
+};
+
+Action DesiredAction = Action::RunInteractive;
+std::string StartScriptFilename;
+
+void parseCmdLine(int argc, char **argv) {
+    cxxopts::Options options("anode", "Anode REPL and JIT compiler/runtime.");
+    options.add_options("")
+        ("h,help", "Display this text and exit", cxxopts::value<bool>(), "")
+        ("e,execute", "Execute the specified file", cxxopts::value<std::string>(), "")
+        ;
+    options.add_options("diagnostics")
+    //TODO:  the last argument to OptionsAdder doesn't seem to do anything and doesn't seem to be documented?
+        ("a,dumpast", "Display the AST of the specified file", cxxopts::value<std::string>(), "")
+        ;
+
+    options.parse(argc, argv);
+
+    if(options["help"].as<bool>()) {
+        DesiredAction = Action::JustExit;
+        std::cout << options.help(options.groups()) << "\n";
+        return;
+    }
+
+    std::string temp = options["execute"].as<std::string>();
+    if(!temp.empty()) {
+        DesiredAction = Action::Execute;
+        StartScriptFilename = temp;
+    }
+
+    temp = options["dumpast"].as<std::string>();
+    if(!temp.empty()) {
+         DesiredAction = Action::DumpAst;
+        StartScriptFilename = temp;
+    }
+}
+}
+
 namespace anode {
 
-void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName, bool shouldExecute);
+void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName,
+                 bool shouldExecute);
+
 bool executeScript(const std::string &startScriptFilename);
 
-void runInteractive();
+bool dumpAst(const std::string &startScriptFilename);
 
+bool runInteractive();
 
 std::string getHistoryFilePath() {
     std::string home{getenv("HOME")};
@@ -45,8 +94,8 @@ std::string getHistoryFilePath() {
 }
 
 std::string readLineOfCode() {
-    char const* prompt = "\x1b[1;32manode\x1b[0m> ";
-    char* lineOfCodeChar = linenoise(prompt);
+    char const *prompt = "\x1b[1;32manode\x1b[0m> ";
+    char *lineOfCodeChar = linenoise(prompt);
     if (lineOfCodeChar == NULL) {
         return "";
     }
@@ -64,30 +113,35 @@ void help() {
     std::cout << "Valid anode statements may also be entered.\n";
 }
 
-void resultCallback(execute::ExecutionContext*, type::PrimitiveType primitiveType, void *valuePtr) {
+void resultCallback(execute::ExecutionContext *, type::PrimitiveType primitiveType, void *valuePtr) {
     const char *resultPrefix = "result: ";
-    switch(primitiveType) {
+    switch (primitiveType) {
         case type::PrimitiveType::NotAPrimitive:
             std::cout << "<result was not a primitive>";
             break;
         case type::PrimitiveType::Void:
             break;
         case type::PrimitiveType::Bool:
-            std::cout << resultPrefix << (*reinterpret_cast<bool*>(valuePtr) ? "true" : "false") << std::endl;
+            std::cout << resultPrefix << (*reinterpret_cast<bool *>(valuePtr) ? "true" : "false") << std::endl;
             break;
         case type::PrimitiveType::Int32:
-            std::cout << resultPrefix << *reinterpret_cast<int*>(valuePtr) << std::endl;
+            std::cout << resultPrefix << *reinterpret_cast<int *>(valuePtr) << std::endl;
             break;
         case type::PrimitiveType::Float:
-            std::cout << resultPrefix << *reinterpret_cast<float*>(valuePtr) << std::endl;
+            std::cout << resultPrefix << *reinterpret_cast<float *>(valuePtr) << std::endl;
             break;
         case type::PrimitiveType::Double:
-            std::cout << resultPrefix << *reinterpret_cast<double*>(valuePtr) << std::endl;
+            std::cout << resultPrefix << *reinterpret_cast<double *>(valuePtr) << std::endl;
             break;
     }
 }
 
-void runInteractive() {
+bool runInteractive() {
+    if (!isatty(fileno(stdin))) {
+        std::cout << "stdin is not a terminal\n";
+        return true;
+    }
+
     const std::string historyFilename = getHistoryFilePath();
 
     linenoiseHistoryLoad(historyFilename.c_str());
@@ -101,7 +155,7 @@ void runInteractive() {
     executionContext->setResultCallback(resultCallback);
 
 
-    const char* NUDGE = "Type '/help' for help or '/exit' to exit.";
+    const char *NUDGE = "Type '/help' for help or '/exit' to exit.";
     std::cout << "Welcome to the anode REPL. " << NUDGE << "\n";
 
     bool keepGoing = true;
@@ -111,7 +165,7 @@ void runInteractive() {
     while (keepGoing) {
         std::string lineOfCode{readLineOfCode()};
         linenoiseHistoryAdd(lineOfCode.c_str());
-        if(lineOfCode[0] == '/') {
+        if (lineOfCode[0] == '/') {
             std::string command = lineOfCode.substr(1);
             if (command == "compile") {
                 shouldCompile = !shouldCompile;
@@ -130,14 +184,15 @@ void runInteractive() {
             } else {
                 std::cerr << "Unknown meta-command \"" << command << "\". " << NUDGE << "\n";
             }
-        }
-        else {
+        } else {
             std::string moduleName = string::format("repl_line_%d", ++commandCount);
             executeLine(executionContext, lineOfCode, moduleName, shouldCompile);
         }
 
         linenoiseHistorySave(historyFilename.c_str());
     }
+    linenoiseHistoryFree();
+    return false;
 }
 
 bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast::Module *anodeModule) {
@@ -149,6 +204,8 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
     } catch (execute::ExecutionException &e) {
         return true; //Don't try to compile a module that doesn't even pass semantics checks.
     }
+
+
     executionContext->executeModule(anodeModule);
     return false;
 }
@@ -159,7 +216,7 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
     anode::ast::Module *module;
     try {
         module = anode::front::parseModule(lineOfCode, moduleName);
-    } catch(anode::front::ParseAbortedException &e) {
+    } catch (anode::front::ParseAbortedException &e) {
         std::cerr << "Parse aborted!\n";
         std::cerr << e.what();
         return;
@@ -175,21 +232,22 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
     }
 }
 
-bool executeScript(const std::string &startScriptFilename) {
-    anode::ast::Module *module = nullptr;
+ast::Module *parseModule(const std::string &startScriptFilename) {
     try {
-        module = anode::front::parseModule(startScriptFilename);
+        return anode::front::parseModule(startScriptFilename);
     }
-    catch(anode::front::ParseAbortedException &e) {
+    catch (anode::front::ParseAbortedException &e) {
         std::cerr << "Parse aborted!\n";
         std::cerr << e.what();
     }
-    catch(std::runtime_error &err) {
+    catch (std::runtime_error &err) {
         std::cerr << err.what();
-        return true;
     }
+    return nullptr;
+}
 
-    //If no Module returned, parsing failed.
+bool executeScript(const std::string &startScriptFilename) {
+    ast::Module *module = parseModule(startScriptFilename);
     if (!module) {
         return true;
     }
@@ -197,18 +255,35 @@ bool executeScript(const std::string &startScriptFilename) {
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
     executionContext->setResultCallback(resultCallback);
 
-//    executionContext->setPrettyPrintAst(true);
-//    executionContext->setDumpIROnLoad(true);
-    return runModule(executionContext, module);
+    bool failFlag = runModule(executionContext, module);
+    if (!failFlag && anode::runtime::AssertPassCount > 0) {
+        std::cerr << anode::runtime::AssertPassCount << " assertion(s) passed.\n";
+    }
+
+    return failFlag;
 }
 
+bool dumpAst(const std::string &startScriptFilename) {
+    ast::Module *module = parseModule(startScriptFilename);
+    if (!module) {
+        return true;
+    }
+
+    std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
+    try {
+        executionContext->prepareModule(module);
+    } catch (std::runtime_error &e) {
+        std::cerr << e.what() << "\n";
+        return true;
+    }
+
+    anode::visualize::prettyPrint(module);
+    return false;
 }
-
-
+} // namespace anode
 
 volatile int destructionCount = 0;
-class SomeGarbage : public gc_cleanup
-{
+class SomeGarbage : public gc_cleanup {
 public:
     ~SomeGarbage() {
         destructionCount++;
@@ -217,7 +292,6 @@ public:
 
     void foo() { randomWahteverIdoncare++; }
 };
-
 
 void generateSomeGarbage() {
 
@@ -234,13 +308,13 @@ void sigsegv_handler(int) {
     exit(1);
 }
 
-int main(int argc, char **argv) {
-#ifdef ANODE_DEBUG
-    std::cout << "anode: this is a debug build.\n";
-#endif
+
+
+void initializeGC() {
 
     //GC_set_all_interior_pointers(1);
     //GC_enable_incremental();
+
     GC_INIT();
 
     generateSomeGarbage();
@@ -253,40 +327,43 @@ int main(int argc, char **argv) {
         std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
         std::cout << "**************************************************************************\n";
     }
+}
 
-    //anode::backtrace::initBacktraceDumper();
-    linenoiseInstallWindowChangeHandler();
+int main(int argc, char **argv) {
 
-    char *startScriptFilename = nullptr;
+#ifdef ANODE_DEBUG
+    std::cout << "anode: this is a debug build.\n";
+#endif
 
-    while (argc > 1) {
-        argc--;
-        argv++;
-        if (!strcmp(*argv, "--keycodes")) {
-            linenoisePrintKeyCodes();
-            exit(0);
-        } else {
-            startScriptFilename = *argv;
-        }
+    initializeGC();
+
+    try {
+        CmdLine::parseCmdLine(argc, argv);
+    } catch(cxxopts::OptionException &exception) {
+        std::cerr << exception.what() << "\n";
+        return -1;
     }
 
-    if(startScriptFilename) {
-        if(anode::executeScript(startScriptFilename)) {
-            return -1;
-        }
-    } else {
-        if (!isatty(fileno(stdin))) {
-            std::cout << "stdin is not a terminal\n";
-            return -1;
-        }
-        anode::runInteractive();
-    }
-
-    linenoiseHistoryFree();
-
-    if(anode::runtime::AssertPassCount > 0) {
-        std::cerr << anode::runtime::AssertPassCount << " assertion(s) passed.\n";
+    switch(CmdLine::DesiredAction) {
+        case CmdLine::Action::JustExit:
+            return 0;
+        case CmdLine::Action::DumpAst:
+            if (anode::dumpAst(CmdLine::StartScriptFilename)) {
+                return -1;
+            }
+            break;
+        case CmdLine::Action::Execute:
+            if (anode::executeScript(CmdLine::StartScriptFilename)) {
+                return -1;
+            }
+            break;
+        case CmdLine::Action::RunInteractive:
+            if (anode::runInteractive()) {
+                return -1;
+            }
+            break;
     }
 
     return 0;
 }
+
