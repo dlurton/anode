@@ -2,7 +2,9 @@
 #pragma once
 
 //Basic Boehm garbage collector stuff.
+#ifdef ANODE_DEBUG
 #define GC_DEBUG
+#endif
 #include <gc.h>
 //Defines an allocator for the STD library so that objects included within containers are not collected prematurely.
 #include <gc/gc_allocator.h>

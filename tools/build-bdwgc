@@ -10,7 +10,7 @@ EXTERNS_DIR=$PROJECT_ROOT_DIR/externs
 INSTALL_DIR=$EXTERNS_DIR/${ANODE_BUILD_TYPE,,}/bdwgc/usr/local/lib
 SCRATCH_DIR=$EXTERNS_DIR/scratch
 SRC_DIR=$SCRATCH_DIR/bdwgc
-BRANCH=release-7_6
+BRANCH=release-7_4
 
 say "Variables:"
 echo "CC                " $CC
@@ -47,11 +47,15 @@ automake --add-missing
 say "Running configure"
 
 if [ "$ANODE_BUILD_TYPE" -ne "Release" ]; then
-    SHOULD_DEBUG="--enable-gc-debug"
+    SHOULD_DEBUG="--enable-gc-debug --enable-gc-assertions"
 fi
 
 # http://www.hboehm.info/gc/simple_example.html
-./configure --prefix=$INSTALL_DIR --enable-cplusplus $SHOULD_DEBUG
+# Someday, we may need:
+# --enable-parallel-mark
+# --enable-munmap
+# --enable-redirect-malloc
+./configure --prefix=$INSTALL_DIR --enable-cplusplus --enable-threads=no $SHOULD_DEBUG
 
 say "Running make clean"
 # this seems silly, but doing a make clean here will prevent a problem related to installing to a non-standard path prefix
