@@ -1,11 +1,9 @@
 
 #pragma once
-#include "anode.h"
 #include <string>
 #include <memory>
 
-namespace anode {
-    namespace string {
+namespace anode { namespace string {
 
         template<typename ... Args>
         std::string format( const std::string& format, Args ... args )
@@ -22,5 +20,4 @@ namespace anode {
 
             return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
         }
-    }
-}
+}}

@@ -28,22 +28,22 @@ namespace anode { namespace back {
     const char * const EXECUTION_CONTEXT_GLOBAL_NAME = "__execution__context__";
 
     class TypeMap : no_assign, no_copy {
-        gc_unordered_map<const type::Type *, llvm::Type *> typeMap_;
+        gc_unordered_map<const front::type::Type *, llvm::Type *> typeMap_;
     public:
         TypeMap(llvm::LLVMContext &llvmContext) {
 
-            mapTypes(&type::Primitives::Void, llvm::Type::getVoidTy(llvmContext));
-            mapTypes(&type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext));
-            mapTypes(&type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext));
-            mapTypes(&type::Primitives::Float, llvm::Type::getFloatTy(llvmContext));
-            mapTypes(&type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext));
+            mapTypes(&front::type::Primitives::Void, llvm::Type::getVoidTy(llvmContext));
+            mapTypes(&front::type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext));
+            mapTypes(&front::type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext));
+            mapTypes(&front::type::Primitives::Float, llvm::Type::getFloatTy(llvmContext));
+            mapTypes(&front::type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext));
         }
 
-        void mapTypes(type::Type *anodeType, llvm::Type *llvmType) {
+        void mapTypes(front::type::Type *anodeType, llvm::Type *llvmType) {
             typeMap_[anodeType] = llvmType;
         }
 
-        llvm::Type *toLlvmType(type::Type *anodeType) {
+        llvm::Type *toLlvmType(front::type::Type *anodeType) {
             ASSERT(anodeType);
             llvm::Type *foundType = typeMap_[anodeType->actualType()];
 
@@ -53,9 +53,11 @@ namespace anode { namespace back {
     };
 
     std::unique_ptr<llvm::Module> emitModule(
-        anode::ast::Module *module,
-        TypeMap &typeMap,
+        anode::front::ast::AnodeWorld &world,
+        anode::front::ast::Module *module,
+        anode::back::TypeMap &typeMap,
         llvm::LLVMContext &llvmContext,
-        llvm::TargetMachine *targetMachine);
+        llvm::TargetMachine *targetMachine
+    );
 
 }}

@@ -4,9 +4,9 @@
 #include <iostream>
 #include <algorithm>
 
-namespace anode { namespace visualize {
+namespace anode { namespace front { namespace visualize {
 
-using namespace anode::ast;
+using namespace anode::front::ast;
 
 class PrettyPrinterVisitor : public AstVisitor {
     IndentWriter writer_;
@@ -148,14 +148,14 @@ public:
         writer_.decIndent();
     }
 
-    void visitingReturnStmt(ReturnStmt *) override {
-        writer_.writeln("ReturnStmt:");
-        writer_.incIndent();
-    }
-
-    void visitedReturnStmt(ReturnStmt *) override {
-        writer_.decIndent();
-    }
+//    void visitingReturnStmt(ReturnStmt *) override {
+//        writer_.writeln("ReturnStmt:");
+//        writer_.incIndent();
+//    }
+//
+//    void visitedReturnStmt(ReturnStmt *) override {
+//        writer_.decIndent();
+//    }
 
     void visitingParameterDef(ParameterDef *pd) override {
         writer_.write("ParameterDef: ");
@@ -189,12 +189,48 @@ public:
         writer_.decIndent();
     }
 
-    void visitingClassDefinition(ClassDefinition *ClassDefinition) override {
+    void visitingCompleteClassDefinition(CompleteClassDefinition *ClassDefinition) override {
         writer_.writeln("ClassDefinition: " + ClassDefinition->name());
         writer_.incIndent();
     }
 
-    void visitedClassDefinition(ClassDefinition *) override {
+    void visitedCompleteClassDefinition(CompleteClassDefinition *) override {
+        writer_.decIndent();
+    }
+
+    void visitingGenericClassDefinition(GenericClassDefinition *ClassDefinition) override {
+        writer_.writeln("ClassDefinition: " + ClassDefinition->name());
+        writer_.incIndent();
+    }
+
+    void visitedGenericClassDefinition(GenericClassDefinition *) override {
+        writer_.decIndent();
+    }
+    
+
+    virtual void visitingExpressionList(ExpressionList *) override {
+        writer_.writeln("ExpressionList");
+        writer_.incIndent();
+    }
+    virtual void visitedExpressionList(ExpressionList *) override {
+        writer_.decIndent();
+    }
+
+    virtual void visitingTemplateExprStmt(TemplateExprStmt *templ) override {
+        writer_.writeln("Template: " + templ->name());
+        writer_.incIndent();
+    }
+
+    virtual void visitedTemplateExprStmt(TemplateExprStmt *) override {
+        writer_.decIndent();
+    }
+
+    virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt *expansion) override {
+        writer_.writeln("TemplateExpansionExprStmt: " + expansion->templateName());
+        writer_.incIndent();
+    }
+
+    virtual void visitedTemplateExpansionExprStmt(TemplateExpansionExprStmt *) override {
         writer_.decIndent();
     }
 
@@ -215,4 +251,4 @@ void prettyPrint(AstNode *module) {
     std::cerr << "\n";
 }
 
-}}
+}}}

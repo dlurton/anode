@@ -19,47 +19,47 @@ union ResultStorage {
 };
 
 struct StmtResult {
-    type::PrimitiveType primitiveType;
+    front::type::PrimitiveType primitiveType;
     ResultStorage storage;
 
-    StmtResult(type::PrimitiveType primitiveType, void *valuePtr) {
+    StmtResult(front::type::PrimitiveType primitiveType, void *valuePtr) {
         set(primitiveType, valuePtr);
     }
 
     template<typename T>
     T get() {
         if (typeid(T) == typeid(bool)) {
-            ASSERT(primitiveType == type::PrimitiveType::Bool);
+            ASSERT(primitiveType == front::type::PrimitiveType::Bool);
             return storage.boolResult;
         }
         if(typeid(T) == typeid(int)) {
-            ASSERT(primitiveType == type::PrimitiveType::Int32);
+            ASSERT(primitiveType == front::type::PrimitiveType::Int32);
             return storage.int32Result;
         }
         if(typeid(T) == typeid(float)) {
-            ASSERT(primitiveType == type::PrimitiveType::Float);
+            ASSERT(primitiveType == front::type::PrimitiveType::Float);
             return storage.floatReslt;
         }
         if(typeid(T) == typeid(double)) {
-            ASSERT(primitiveType == type::PrimitiveType::Double);
+            ASSERT(primitiveType == front::type::PrimitiveType::Double);
             return storage.doubleResult;
         }
 
         ASSERT_FAIL("T may be only bool, int, float or double");
     }
-    void set(anode::type::PrimitiveType primitiveType, void *valuePtr) {
+    void set(anode::front::type::PrimitiveType primitiveType, void *valuePtr) {
         this->primitiveType = primitiveType;
         switch (primitiveType) {
-            case type::PrimitiveType::Bool:
+            case front::type::PrimitiveType::Bool:
                 storage.boolResult = *reinterpret_cast<bool*>(valuePtr);
                 break;
-            case type::PrimitiveType::Int32:
+            case front::type::PrimitiveType::Int32:
                 storage.int32Result = *reinterpret_cast<int*>(valuePtr);
                 break;
-            case type::PrimitiveType::Float:
+            case front::type::PrimitiveType::Float:
                 storage.floatReslt = *reinterpret_cast<float*>(valuePtr);
                 break;
-            case type::PrimitiveType::Double:
+            case front::type::PrimitiveType::Double:
                 storage.doubleResult = *reinterpret_cast<double*>(valuePtr);
                 break;
             default:
@@ -79,7 +79,7 @@ public:
 class ExecutionContext {
 protected:
     /** JIT compiles a module and returns its global initialization function.*/
-    virtual uint64_t loadModule(ast::Module *module) = 0;
+    virtual uint64_t loadModule(front::ast::Module *module) = 0;
 public:
     virtual ~ExecutionContext() { }
 
@@ -88,27 +88,14 @@ public:
 
     virtual void setPrettyPrintAst(bool value) = 0;
     virtual void setDumpIROnLoad(bool value) = 0;
-    virtual void prepareModule(ast::Module *) = 0;
+    virtual bool prepareModule(front::ast::Module *) = 0;
 
-    typedef std::function<void(ExecutionContext*, type::PrimitiveType, void*)> ResultCallbackFunctor;
+    typedef std::function<void(ExecutionContext*, front::type::PrimitiveType, void*)> ResultCallbackFunctor;
 
     virtual void setResultCallback(ResultCallbackFunctor functor) = 0;
 
-//            /** Loads the specified module and executes its initialization returns its result.
-//             * This variant of executeModule() is meant to be used by the REPL. */
-//            template<typename TResult>
-//            TResult executeModuleWithResult(std::unique_ptr<ast::Module> module) {
-//                ASSERT(module);
-//                uint64_t funcPtr = loadModule(std::move(module));
-//                ASSERT(funcPtr > 0 && "loadModule should not return null");
-//                //TResult (*func)() = reinterpret_cast<__attribute__((cdecl))TResult (*)(void)>(funcPtr);
-//                TResult (*func)() = reinterpret_cast<TResult (*)(void)>(funcPtr);
-//                TResult result = func();
-//                return result;
-//            };
-
     /** Loads the specified module and executes its initialization function. */
-    void executeModule(ast::Module *module) {
+    void executeModule(front::ast::Module *module) {
         ASSERT(module);
         uint64_t funcPtr = loadModule(module);
         //void (*func)() = reinterpret_cast<__attribute__((cdecl)) void (*)(void)>(funcPtr);

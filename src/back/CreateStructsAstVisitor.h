@@ -14,19 +14,22 @@ public:
 
     }
 
-    void visitingClassDefinition(ast::ClassDefinition *cd) override {
-        CompileAstVisitor::visitingClassDefinition(cd);
-        gc_vector<scope::VariableSymbol *> symbols = cd->body()->scope()->variables();
+    void visitingCompleteClassDefinition(front::ast::CompleteClassDefinition *cd) override {
+        CompileAstVisitor::visitingCompleteClassDefinition(cd);
+        gc_vector<front::scope::VariableSymbol*> symbols = cd->body()->scope()->variables();
+
         std::vector<llvm::Type *> memberTypes;
         memberTypes.reserve(symbols.size());
+
+        llvm::StructType *structType = llvm::StructType::create(cc().llvmContext(), cd->name());
+        cc().typeMap().mapTypes(cd->definedType(), structType->getPointerTo(0));
 
         for (auto s : symbols) {
             memberTypes.push_back(cc().typeMap().toLlvmType(s->type()));
         }
 
-        llvm::StructType *structType = llvm::StructType::create(cc().llvmContext(), memberTypes, cd->name(), false);
+        structType->setBody(memberTypes);
 
-        cc().typeMap().mapTypes(cd->classType(), structType->getPointerTo(0));
     }
 };
 

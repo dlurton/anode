@@ -32,7 +32,10 @@
 //    }
 //}
 
+using namespace anode::front;
+
 namespace CmdLine {
+
 
 enum class Action : unsigned char {
     JustExit,
@@ -199,12 +202,9 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
     ASSERT(executionContext);
     ASSERT(anodeModule);
 
-    try {
-        executionContext->prepareModule(anodeModule);
-    } catch (execute::ExecutionException &e) {
+    if(executionContext->prepareModule(anodeModule)) {
         return true; //Don't try to compile a module that doesn't even pass semantics checks.
     }
-
 
     executionContext->executeModule(anodeModule);
     return false;
@@ -213,7 +213,7 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
 void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName,
                  bool shouldExecute) {
 
-    anode::ast::Module *module;
+    ast::Module *module;
     try {
         module = anode::front::parseModule(lineOfCode, moduleName);
     } catch (anode::front::ParseAbortedException &e) {
@@ -270,14 +270,13 @@ bool dumpAst(const std::string &startScriptFilename) {
     }
 
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
-    try {
-        executionContext->prepareModule(module);
-    } catch (std::runtime_error &e) {
-        std::cerr << e.what() << "\n";
+
+    if(executionContext->prepareModule(module)) {
+        std::cerr << "Semantic module preparation failed.\n";
         return true;
     }
 
-    anode::visualize::prettyPrint(module);
+    anode::front::visualize::prettyPrint(module);
     return false;
 }
 } // namespace anode

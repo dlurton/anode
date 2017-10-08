@@ -1,0 +1,30 @@
+
+# creates "ambient" template parameter in all top-level declarations within the scope of the following { and }.
+
+# Curly braces here do not actually define a nested scope, just the extent of the template.
+template TNode(TItem) {
+
+    #Top level definition picks up "ambient" template parameters.
+    class Node {
+        next:Node<TItem>
+        item:TItem
+    }
+}
+
+expand TNode(int)
+expand TNode(float)
+
+n1:Node<int> = new Node<int>()
+n1.next = new Node<int>()
+n1.item = 10
+n1.next.item = 11
+assert(n1.item == 10)
+assert(n1.next.item == 11)
+
+
+n2:Node<float> = new Node<float>()
+n2.next = new Node<float>()
+n2.item = 20.0
+n2.next.item = 21.0
+assert(n2.item == 20.0)
+assert(n2.next.item == 21.0)

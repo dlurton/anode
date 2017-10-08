@@ -2,7 +2,7 @@
 #include "front/scope.h"
 #include "common/exception.h"
 
-namespace anode { namespace type {
+namespace anode { namespace front { namespace type {
 
 namespace Primitives {
     ScalarType Int32("int", PrimitiveType::Int32, true);
@@ -51,4 +51,5 @@ void ClassType::addMethod(const std::string &name, scope::FunctionSymbol *symbol
     methods_.emplace(std::make_pair(name, new ClassMethod(name, symbol)));
 }
 
-}}
+
+}}}

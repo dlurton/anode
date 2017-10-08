@@ -6,23 +6,27 @@
 namespace anode {
     namespace execute {
 
-//        class GcSectionMemoryManager : llvm::SectionMemoryManager {
-//
-//            uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment, unsigned SectionID, llvm::StringRef SectionName,
-//                                         bool isReadOnly) override {
-//                uint8_t *section = llvm::SectionMemoryManager::allocateDataSection(Size, Alignment, SectionID, SectionName, isReadOnly);
-//                GC_add_roots((void*)section, (void*)section + Size);
-//                return section;
-//            }
-//
+        class AnodeeSectionMemoryManager : public llvm::SectionMemoryManager {
+
+            uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment, unsigned SectionID, llvm::StringRef SectionName,
+                                         bool isReadOnly) override {
+                uint8_t *sectionStart = llvm::SectionMemoryManager::allocateDataSection(Size, Alignment, SectionID, SectionName, isReadOnly);
+//                if(!isReadOnly) {
+//                    GC_is_visible(sectionStart);
+//                    uint8_t *sectionEnd = sectionStart + Size;
+//                    GC_add_roots(sectionStart, sectionEnd);
+//                }
+                return sectionStart;
+            }
+
 //            bool finalizeMemory(std::string *ErrMsg) override {
 //                bool memory = llvm::SectionMemoryManager::finalizeMemory(ErrMsg);
 //                GC_remove_roots(...)
 //                return memory;
 //            }
-//        };
+        };
 
-        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(ast::FuncDefStmt &FnAST, const std::string &Suffix);
+        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(front::ast::FuncDefStmt &FnAST, const std::string &Suffix);
 
         //The original version of this (llvm::orc::createResolver(...)) doesn't seem to want to compile no matter what I do.
         template<typename DylibLookupFtorT, typename ExternalLookupFtorT>
@@ -58,14 +62,14 @@ namespace anode {
             AnodeJit()
                 : TM(llvm::EngineBuilder().selectTarget()),
                   DL(TM->createDataLayout()),
-                  ObjectLayer([]() { return std::make_shared<llvm::SectionMemoryManager>(); }),
+                  ObjectLayer([]() { return std::make_shared<AnodeeSectionMemoryManager>(); }),
                   CompileLayer(ObjectLayer, llvm::orc::SimpleCompiler(*TM)),
                   OptimizeLayer(CompileLayer,
                                 [this](std::shared_ptr<llvm::Module> M) {
                                     return optimizeModule(std::move(M));
                                 }),
-                  CompileCallbackMgr(
-                      llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), 0))
+                  CompileCallbackMgr(llvm::orc::createLocalCompileCallbackManager(TM->getTargetTriple(), 0))
+
             {
                 auto IndirectStubsMgrBuilder = llvm::orc::createLocalIndirectStubsManagerBuilder(TM->getTargetTriple());
                 IndirectStubsMgr = IndirectStubsMgrBuilder();
@@ -130,9 +134,9 @@ namespace anode {
 //                                                            CCInfo.getAddress(),
 //                                                            llvm::JITSymbolFlags::Exported))
 //                    return Err;
-//
+//kk
 //                // Move ownership of FnAST to a shared pointer - C++11 lambdas don't support
-//                // capture-by-move, which is be required for unique_ptr.
+//                // capture-by-move, which is be required for unique_ptr.k
 //                auto SharedFnAST = std::shared_ptr<ast::FuncDefStmt>(std::move(FnAST));
 //
 //                // Set the action to compile our AST. This lambda will be run if/when

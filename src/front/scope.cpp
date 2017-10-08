@@ -1,11 +1,12 @@
 
+#include "front/unique_id.h"
 
 #include <uuid/uuid.h>
 #include <string>
 #include <front/scope.h>
+#include <atomic>
 
-
-namespace anode { namespace scope {
+namespace anode { namespace front { namespace scope {
 
 std::string createRandomUniqueName() {
     uuid_t uuid;
@@ -25,7 +26,23 @@ std::string createRandomUniqueName() {
     return str;
 }
 
-anode::scope::Symbol *anode::scope::SymbolTable::findSymbol(const std::string &name) const {
+//the cloning constructor
+SymbolBase::SymbolBase(const SymbolBase &other)
+    :   symbolId_{GetNextUniqueId()},  //Clones however must be allocated a different SymbolId.
+        isExternal_{other.isExternal_},
+        storageKind_{other.storageKind_},
+        fullyQualifiedName_{other.fullyQualifiedName_}
+{
+
+}
+
+SymbolBase::SymbolBase()
+    : symbolId_{GetNextUniqueId()}
+{
+
+}
+
+Symbol *SymbolTable::findSymbol(const std::string &name) const {
     auto found = symbols_.find(name);
     if (found == symbols_.end()) {
         return nullptr;
@@ -47,6 +64,10 @@ Symbol *SymbolTable::recursiveFindSymbol(const std::string &name) const {
 }
 
 void SymbolTable::addSymbol(Symbol *symbol) {
+    ASSERT(storageKind_ != StorageKind::NotSet);
+    ASSERT(!symbol->name().empty());
+    ASSERT(!findSymbol(symbol->name()));
+
     if(!symbol->isFullyQualified()) {
         symbol->fullyQualify(this);
     }
@@ -90,13 +111,7 @@ gc_vector<FunctionSymbol *> SymbolTable::functions() const {
 }
 
 gc_vector<Symbol *> SymbolTable::symbols() const {
-    gc_vector<Symbol*> symbols;
-    symbols.reserve(orderedSymbols_.size());
-    for (auto symbol : orderedSymbols_) {
-        symbols.push_back(symbol);
-    }
-
-    return symbols;
+    return orderedSymbols_;
 }
 
-}}
+}}}

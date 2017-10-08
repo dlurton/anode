@@ -37,3 +37,19 @@ class SomeClass {
     instance:SomeClass = testFactory()
     assert(instance.someField == 99)
 }
+
+# self referencing class can reference itself
+class AnotherClass {
+    next:AnotherClass
+    value:int
+}
+
+{
+    foo:AnotherClass = new AnotherClass()
+    foo.value = 1
+    foo.next = new AnotherClass()
+    foo.next.value = 2
+
+    assert(foo.value == 1)
+    assert(foo.next.value == 2)
+}

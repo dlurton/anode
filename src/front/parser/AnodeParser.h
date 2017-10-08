@@ -18,6 +18,8 @@ static source::SourceSpan getSourceSpan(const SourceSpan &start, const SourceSpa
 }
 
 class AnodeParser : public PrattParser<ast::ExprStmt> {
+    gc_vector<ast::TemplateParameter*> templateParameters_;
+
     std::stack<scope::StorageKind> storageKindStack_;
 
     Token *consumeComma() {
@@ -30,6 +32,10 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     Token *consumeOpenParen() {
         return consume(TokenKind::OPEN_PAREN, '(');
+    }
+
+    Token *consumeOpenCurly() {
+        return consume(TokenKind::OPEN_CURLY, '{');
     }
 
     Token *consumeCloseParen() {
@@ -52,9 +58,19 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         return consume(TokenKind::ID, "identifier");
     }
 
-    ast::TypeRef *parseTypeRef() {
+    ast::ResolutionDeferredTypeRef *parseTypeRef() {
+        gc_vector<ast::ResolutionDeferredTypeRef*> templateArgs;
+
         Token *token = consume(TokenKind::ID, "type identifier");
-        return new ast::TypeRef(token->span(), token->text());
+        Token *gt = consumeOptional(TokenKind::OP_LT);
+
+        if(gt != nullptr) {
+            do {
+                templateArgs.push_back(parseTypeRef());
+            } while (consume(TokenKind::OP_GT, TokenKind::COMMA, "'>' or ','")->kind() == TokenKind::COMMA);
+        }
+
+        return new ast::ResolutionDeferredTypeRef(token->span(), token->text(), templateArgs);
     }
 
     ast::ExprStmt *parseLiteralInt32(Token *token) {
@@ -71,7 +87,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt *parseVariableRef(Token *token) {
         if(consumeOptional(TokenKind::OP_DEF)) {
-            ast::TypeRef *typeRef = parseTypeRef();
+            ast::ResolutionDeferredTypeRef *typeRef = parseTypeRef();
             return new ast::VariableDeclExpr(
                 getSourceSpan(token->span(), typeRef->sourceSpan()),
                 token->text(),
@@ -106,6 +122,18 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             operatorToken->span());
     }
 
+    ast::ExprStmt *parseExpressionList(Token *openCurly) {
+        gc_vector<ast::ExprStmt*> stmts;
+        Token *closeCurly;
+
+        do {
+            stmts.push_back(parseExpr());
+        } while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY)));
+
+        return new ast::ExpressionList(getSourceSpan(openCurly->span(), closeCurly->span()), stmts);
+    }
+
+    //TODO:  share code with parseExpressionList
     ast::ExprStmt *parseCompoundStmt(Token *openCurly) {
         gc_vector<ast::ExprStmt*> stmts;
         Token *closeCurly;
@@ -119,7 +147,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt *parseCastExpr(Token *castKeyword) {
         consumeLessThan();
-        ast::TypeRef *typeRef = parseTypeRef();
+        ast::ResolutionDeferredTypeRef *typeRef = parseTypeRef();
         consumeGreaterThan();
         consumeOpenParen();
         ast::ExprStmt *valueExpr = parseExpr();
@@ -133,7 +161,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     }
 
     ast::ExprStmt *parseNewExpr(Token *newKeyword) {
-        ast::TypeRef *typeRef = parseTypeRef();
+        ast::ResolutionDeferredTypeRef *typeRef = parseTypeRef();
         consumeOpenParen();
         Token *closeParen = consumeCloseParen();
 
@@ -221,7 +249,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     ast::ExprStmt *parseFuncDef(Token *funcKeyword) {
         Token *identifier = consumeIdentifier();
         consumeColon();
-        ast::TypeRef *returnTypeRef = parseTypeRef();
+        ast::ResolutionDeferredTypeRef *returnTypeRef = parseTypeRef();
         consumeOpenParen();
 
         gc_vector<ast::ParameterDef*> parameters;
@@ -232,7 +260,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             do {
                 Token *name = consumeIdentifier();
                 consumeColon();
-                ast::TypeRef *parameterTypeRef = parseTypeRef();
+                ast::ResolutionDeferredTypeRef *parameterTypeRef = parseTypeRef();
                 parameters.push_back(
                     new ast::ParameterDef(
                         getSourceSpan(name->span(), parameterTypeRef->sourceSpan()),
@@ -261,6 +289,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     ast::ExprStmt *parseClassDef(Token *classKeyword) {
         Token *className = consumeIdentifier();
         storageKindStack_.push(scope::StorageKind::Instance);
+
         ast::ExprStmt *classBody = parseExpr();
 
         auto *compoundExpr = dynamic_cast<ast::CompoundExpr*>(classBody);
@@ -275,11 +304,21 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         storageKindStack_.pop();
         compoundExpr->scope()->setName(className->text());
 
-        return new ast::ClassDefinition(
-            getSourceSpan(classKeyword->span(), classBody->sourceSpan()),
-            className->text(),
-            compoundExpr
-        );
+        if(templateParameters_.empty()) {
+            return new ast::CompleteClassDefinition(
+                getSourceSpan(classKeyword->span(), classBody->sourceSpan()),
+                className->text(),
+                compoundExpr
+            );
+        } else {
+            return new ast::GenericClassDefinition(
+                getSourceSpan(classKeyword->span(), classBody->sourceSpan()),
+                className->text(),
+                deepCopyVector(templateParameters_),
+                compoundExpr
+            );
+        }
+
     }
 
     ast::ExprStmt *parseAssert(Token *assertKeyword) {
@@ -290,6 +329,46 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         return new ast::AssertExprStmt(
             getSourceSpan(assertKeyword->span(), closeParen->span()),
             cond);
+    }
+
+    ast::ExprStmt *parseTemplate(Token *templateKeyword) {
+        Token *templateName = consumeIdentifier();
+        gc_vector<ast::TemplateParameter*> parameters;
+
+        //TODO:  error when templates are nested or adjust to allow for nested templates
+        consumeOpenParen();
+        while(lexer_.peekToken()->kind() != TokenKind::CLOSE_PAREN) {
+            Token *identifier = consumeIdentifier();
+            parameters.push_back(new ast::TemplateParameter(identifier->span(), identifier->text()));
+            //TODO: allows trailing ,  Bad?
+            consumeOptional(TokenKind::COMMA);
+        }
+        consumeCloseParen();
+
+        templateParameters_ = parameters;
+        auto *body = upcast<ast::ExpressionList>(parseExpressionList(consumeOpenCurly()));
+        templateParameters_.clear();
+
+        return new ast::TemplateExprStmt(
+            getSourceSpan(templateKeyword->span(), body->sourceSpan()),
+            templateName->text(),
+            parameters,
+            body);
+    }
+
+    ast::ExprStmt *parseExpand(Token *expandKeyword) {
+        gc_vector<ast::TypeRef*> templateArgs;
+        Token *templateName = consumeIdentifier();
+        Token *terminator = nullptr;
+        consumeOpenParen();
+
+        do {
+            templateArgs.push_back(parseTypeRef());
+        } while ((terminator = consume(TokenKind::CLOSE_PAREN, TokenKind::COMMA, "'>' or ','"))->kind() == TokenKind::COMMA);
+
+        return new ast::TemplateExpansionExprStmt(
+            getSourceSpan(expandKeyword->span(), terminator->span()),
+            templateName->text(), templateArgs);
     }
 
     ast::ExprStmt *parseDotExpr(ast::ExprStmt *lValue, Token *operatorToken) {
@@ -344,6 +423,8 @@ public:
         registerGenericParselet(TokenKind::KW_FUNC, std::bind(&AnodeParser::parseFuncDef, this, _1));
         registerGenericParselet(TokenKind::KW_CLASS, std::bind(&AnodeParser::parseClassDef, this, _1));
         registerGenericParselet(TokenKind::KW_ASSERT, std::bind(&AnodeParser::parseAssert, this, _1));
+        registerGenericParselet(TokenKind::KW_TEMPLATE, std::bind(&AnodeParser::parseTemplate, this, _1));
+        registerGenericParselet(TokenKind::KW_EXPAND, std::bind(&AnodeParser::parseExpand, this, _1));
 
         //Infix parselets
         registerInfixParselet(TokenKind::OP_ADD, std::bind(&AnodeParser::parseBinaryExpr, this, _1, _2));

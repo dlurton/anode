@@ -5,9 +5,10 @@
 #include "runtime/builtins.h"
 
 #include "AnodeJit.h"
-
-
 namespace anode { namespace execute {
+
+using namespace anode::front;
+
 /** This function is called by the JITd code to deliver the result of an expression entered at the REPL. */
 extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, void *valuePtr);
 
@@ -19,7 +20,7 @@ class ExecutionContextImpl : public ExecutionContext, public gc_cleanup, no_copy
     std::unique_ptr<AnodeJit> jit_ = std::make_unique<AnodeJit>();
     bool dumpIROnModuleLoad_ = false;
     bool setPrettyPrintAst_ = false;
-    gc_unordered_map<std::string, scope::Symbol*> exportedSymbols_;
+    ast::AnodeWorld world_;
     ResultCallbackFunctor resultFunctor_ = nullptr;
     back::TypeMap typeMap_;
 public:
@@ -61,19 +62,12 @@ public:
         resultFunctor_ = functor;
     }
 
-    void prepareModule(ast::Module *module) override {
-
-        for(auto &symbolToImport : exportedSymbols_) {
-            symbolToImport.second->setIsExternal(true);
-            module->scope()->addSymbol(symbolToImport.second);
-        }
-
+    bool prepareModule(ast::Module *module) override {
         error::ErrorStream errorStream {std::cerr};
-        anode::front::passes::runAllPasses(module, errorStream);
+        anode::front::passes::runAllPasses(world_, module, errorStream);
 
         if(errorStream.errorCount() > 0) {
-            throw ExecutionException(
-                string::format("There were %d compilation errors.  See stderr for details.", errorStream.errorCount()));
+            return true;
         }
 
         if(setPrettyPrintAst_) {
@@ -81,19 +75,14 @@ public:
             std::cout.flush();
         }
 
-        for(auto symbolToExport : module->scope()->symbols()) {
-            auto found = exportedSymbols_.find(symbolToExport->fullyQualifiedName());
-            if(found == exportedSymbols_.end()) {
-                exportedSymbols_.emplace(symbolToExport->name(), symbolToExport);
-            }
-        }
+        return false;
     }
 
 protected:
     virtual uint64_t loadModule(ast::Module *module) override {
         ASSERT(module);
 
-        std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module, typeMap_, context_, jit_->getTargetMachine());
+        std::unique_ptr<llvm::Module> llvmModule = back::emitModule(world_, module, typeMap_, context_, jit_->getTargetMachine());
 
         if(dumpIROnModuleLoad_) {
             std::cerr << "LLVM IR:\n";

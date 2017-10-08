@@ -5,11 +5,12 @@
 #include "emit.h"
 
 namespace anode { namespace back {
+using namespace anode::front;
 
 class DeclareFuncsAstVisitor : public CompileAstVisitor {
 private:
 
-    void declareFunction(scope::FunctionSymbol *functionSymbol) {
+    void declareFunction(front::scope::FunctionSymbol *functionSymbol) {
 
         //Map all Anode argument types to LLVM types.
         gc_vector<type::Type*> anodeParamTypes = functionSymbol->functionType()->parameterTypes();
@@ -24,12 +25,14 @@ private:
             llvmParamTypes.reserve(anodeParamTypes.size());
         }
 
+        //Create other arguments.
         for(auto anodeType : anodeParamTypes) {
             llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType);
             llvmParamTypes.push_back(llvmType);
         }
 
         llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(functionSymbol->functionType()->returnType());
+
         //Create the LLVM FunctionType
         llvm::FunctionType *functionType = llvm::FunctionType::get(returnLlvmType, llvmParamTypes, /*isVarArg*/ false);
 
@@ -44,10 +47,11 @@ private:
 public:
     explicit DeclareFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
-    void visitingModule(ast::Module *module) override {
+    void visitingModule(ast::Module *) override {
 
         //All external functions must be added to the current llvm module.
-        gc_vector<scope::FunctionSymbol*> functions = module->scope()->functions();
+        //TODO:  emit only those functions which are actually referenced.
+        gc_vector<scope::FunctionSymbol*> functions = cc().world().globalScope()->functions();
         for(scope::FunctionSymbol *functionSymbol : functions) {
             //Skip functions that are not defined externally - we do that in visitingFuncDefStmt, below...
             if(functionSymbol->isExternal())
@@ -131,7 +135,7 @@ public:
 };
 
 
-void emitFuncDefs(anode::ast::Module *module, CompileContext &cc) {
+void emitFuncDefs(front::ast::Module *module, CompileContext &cc) {
     DeclareFuncsAstVisitor declaringVisitor{cc};
     module->accept(&declaringVisitor);
 

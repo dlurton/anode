@@ -1,13 +1,18 @@
 
 #include "front/ast.h"
 
+#include <atomic>
 
-namespace anode { namespace ast {
+namespace anode { namespace front { namespace ast {
 
 unsigned long astNodesDestroyedCount = 0;
 
+AstNode::AstNode() : nodeId_{GetNextUniqueId()} {
+
+}
+
 std::string to_string(UnaryOperationKind type) {
-    switch(type) {
+    switch (type) {
         case UnaryOperationKind::Not:
             return "!";
         case UnaryOperationKind::PreIncrement:
@@ -53,19 +58,18 @@ std::string to_string(BinaryOperationKind kind) {
 }
 
 CastExpr *CastExpr::createImplicit(ExprStmt *valueExpr, type::Type *toType) {
-    return new CastExpr(valueExpr->sourceSpan(), toType, valueExpr, CastKind::Implicit);
+    return new CastExpr(valueExpr->sourceSpan(), new KnownTypeRef(valueExpr->sourceSpan(), toType), valueExpr, CastKind::Implicit);
 }
 
 
-type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef*> &parameters) {
-    gc_vector<type::Type*> parameterTypes;
+type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef *> &parameters) {
+    gc_vector<type::Type *> parameterTypes;
     parameterTypes.reserve(parameters.size());
-    for(auto p : parameters) {
+    for (auto p : parameters) {
         parameterTypes.push_back(p->type());
     }
 
     return new type::FunctionType(returnType, parameterTypes);
 }
 
-
-}}
+}}}

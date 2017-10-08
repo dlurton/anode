@@ -10,7 +10,9 @@
 #include <common/stacktrace.h>
 
 using namespace anode;
+using namespace anode::front;
 using namespace anode::test_util;
+
 
 void sigsegv_handler(int) {
     std::cerr << "SIGSEGV!\n";
@@ -701,6 +703,24 @@ TEST_CASE("class with references to another class") {
 
     //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
+
+TEST_CASE("class with reference to itself") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            class AnotherClass {
+                next:AnotherClass
+                value:int
+            }
+            foo:AnotherClass = new AnotherClass()
+            foo.value = 1
+            foo.next = new AnotherClass()
+            foo.next.value = 2
+        )";
+    exec(ec, src);
+    REQUIRE(test<int>(ec, "foo.value") == 1);
+    REQUIRE(test<int>(ec, "foo.next.value") == 2);
+}
+
 
 TEST_CASE("basic function definition and invocation") {
     std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();

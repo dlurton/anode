@@ -1,20 +1,19 @@
 
 #pragma once
-
+#include "unique_id.h"
 #include "common/exception.h"
 #include "common/containers.h"
 
-#include <string>
-#include <common/string_format.h>
+#include "common/string_format.h"
 
 
-namespace anode {
-namespace scope {
-    class Symbol;
+
+namespace anode { namespace front { namespace scope {
+class Symbol;
     class FunctionSymbol;
-}
+}}}
 
-namespace type {
+namespace anode { namespace front { namespace type {
 
 /** Each type of primitive is listed here.
  * IMPORTANT NOTE:  the are listed in order of operand priority (except for the NotAPrimitive and Void values).
@@ -33,6 +32,8 @@ enum class PrimitiveType : unsigned char {
 std::string to_string(PrimitiveType dataType);
 
 class ScalarType;
+class GenericType;
+class ClassType;
 
 namespace Primitives {
     extern ScalarType Int32;
@@ -44,11 +45,15 @@ namespace Primitives {
     ScalarType *fromKeyword(const std::string &keyword);
 }
 
-class Type : public gc {
+class Type : public Object {
 public:
+    virtual UniqueId astNodeId() const { return (UniqueId)-1; }
     virtual std::string name() const = 0;
+    virtual std::string nameForDisplay() const { return name(); }
+
     virtual bool isSameType(const type::Type *) const = 0;
     virtual bool isPrimitive() const { return primitiveType() != PrimitiveType::NotAPrimitive; };
+    virtual bool isGeneric() const { return false; }
     virtual bool isActualType() { return true; }
     virtual bool isVoid() const { return primitiveType() == PrimitiveType::Void; };
     virtual bool isClass() const { return false; };
@@ -67,24 +72,39 @@ class ResolutionDeferredType : public Type {
     }
 public:
     ResolutionDeferredType() { }
-    ResolutionDeferredType(Type *actualType) : actualType_{actualType} { }
+    ResolutionDeferredType(Type *actualType) : actualType_{actualType->actualType()} { }
 
     bool isActualType() override { return false; }
 
-    bool isResolved() { return actualType_ != nullptr; }
+    bool isResolved() {
+        //No actualType_ means not resolved.
+        if(!actualType_) {
+            return false;
+        }
+
+        //Have an actual type that is another ResolutionDeferredType?  Ask it instead.
+        if(auto rdt = dynamic_cast<ResolutionDeferredType*>(actualType_)) {
+            return rdt->isResolved();
+        }
+
+        //We definitively know that this type has been resolved.
+        return true;
+    }
+
 
     void resolve(Type* type) {
 //        ASSERT(! dynamic_cast<ResolutionDeferredType*>(type)
 //               && "ResolutionDeferredType should not resolve to an instance of ResolutionDeferredType")
-
+#ifdef ANODE_DEBUG
+        if(actualType_ && (!isInstanceOf<GenericType>(actualType_) || !isInstanceOf<ClassType>(type))) {
+            ASSERT_FAIL("ResolutionDeferredType may only be resolved once unless you're specifying the CompleteClassType of a generic type!");
+        }
+#endif
         actualType_ = type;
     }
 
     Type *actualType() const override {
         assertResolved();
-
-        //TODO:  detect cycles - how to handle them?  Error?
-
         return actualType_->actualType();
     }
 
@@ -101,6 +121,10 @@ public:
     bool isPrimitive() const override {
         assertResolved();
         return actualType()->isPrimitive();
+    }
+
+    virtual bool isGeneric() const override {
+        return actualType()->isGeneric();
     }
 
     bool isVoid() const override {
@@ -240,7 +264,6 @@ public:
 
     unsigned ordinal() const { return ordinal_; }
     Type *type() const override { return type_; }
-
 };
 
 class ClassMethod : public ClassMember {
@@ -254,25 +277,40 @@ public:
     scope::FunctionSymbol *symbol() const { return symbol_; }
 };
 
+
+class GenericType;
+
 class ClassType : public Type {
+    const UniqueId astNodeId_;
     std::string name_;
+    std::string displayName_;
     gc_vector<ClassField*> orderedFields_;
     gc_unordered_map<std::string, ClassField*> fields_;
     gc_unordered_map<std::string, ClassMethod*> methods_;
+    GenericType *genericType_ = nullptr;
+
 public:
-    explicit ClassType(const std::string &name) : name_{name} {
+    ClassType(UniqueId astNodeId, const std::string &name, const std::string &displayName)
+        : astNodeId_{astNodeId},
+          name_{name},
+          displayName_{displayName}
+    {
         ASSERT(!name_.empty());
     }
 
+    UniqueId astNodeId() const override { return astNodeId_; }
     std::string name() const override { return name_; }
 
     bool isSameType(const type::Type *other) const override {
         //We don't expect multiple instances of ClassType to be created which reference the same class
         //so this simple check suffices.
-        return other->actualType() == this;
+        return other->actualType() == this->actualType();
     }
 
     bool isClass() const override { return true; }
+    GenericType *genericType() { return genericType_; }
+    void setGenericType(GenericType *genericType) { genericType_ = genericType; }
+
     PrimitiveType primitiveType() const override { return PrimitiveType::NotAPrimitive; }
 
     bool canDoArithmetic() const override { return false; };
@@ -299,4 +337,59 @@ public:
     void addMethod(const std::string &name, scope::FunctionSymbol *symbol);
 };
 
-}}
+class ExpandedClassEntry {
+    gc_vector<type::Type*> templateArgs_;
+    type::ClassType* classType_;
+public:
+    ExpandedClassEntry(gc_vector<type::Type*> templateArgs, ClassType *classType_)
+        : templateArgs_{templateArgs}, classType_(classType_) { }
+
+    type::ClassType* classType() const { return classType_; }
+
+    bool templateArgsMatch(const gc_vector<type::Type*> &otherArgs) const {
+        ASSERT(templateArgs_.size() == otherArgs.size());
+
+        // O(n)... could be optimized.
+        for(size_t i = 0; i < templateArgs_.size(); ++i) {
+            if(!templateArgs_[i]->isSameType(otherArgs[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+class GenericType : public Type {
+    UniqueId astNodeId_;
+    std::string name_;
+    std::vector<std::string> templateParameterNames_;
+    gc_vector<ExpandedClassEntry> expandedClasses_;
+public:
+    GenericType(UniqueId astNodeId, std::string name, std::vector<std::string> templateParameterNames)
+        : astNodeId_{astNodeId}, name_{name}, templateParameterNames_{templateParameterNames}
+    { }
+
+    virtual UniqueId astNodeId() const override { return astNodeId_; }
+    std::string name() const override { return name_; }
+    bool isSameType(const type::Type *otherType) const override { return this == otherType; };
+    virtual bool isGeneric() const override { return true; }
+
+    std::vector<std::string> templateParameterNames() { return templateParameterNames_; }
+    int templateParameterCount() { return (int) templateParameterNames_.size(); }
+
+    ClassType *findExpandedClassType(const gc_vector<type::Type*> &templateArgs) {
+        // O(n)... could also be optimized
+        for(const auto &entry : expandedClasses_) {
+            if(entry.templateArgsMatch(templateArgs)) {
+               return entry.classType();
+            }
+        }
+        return nullptr;
+    }
+
+    void addExpandedClass(const gc_vector<type::Type*> &templateArgs, type::ClassType *classType) {
+        expandedClasses_.emplace_back(templateArgs, classType);
+    }
+};
+
+}}}

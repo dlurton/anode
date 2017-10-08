@@ -6,7 +6,10 @@
 
 namespace anode { namespace front  { namespace passes {
 
-class ScopeFollowingVisitor : public ast::AstVisitor {
+bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode *node, error::ErrorStream &es, scope::SymbolTable *startingSymbolTable);
+gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es);
+
+class ScopeFollowingAstVisitor : public ast::AstVisitor {
 
     //We use this only as a stack but it has to be a deque so we can iterate over its contents.
     gc_deque<scope::SymbolTable*> symbolTableStack_;
@@ -20,6 +23,10 @@ protected:
     size_t scopeDepth() { return symbolTableStack_.size(); }
 
 public:
+    void pushScope(scope::SymbolTable *st) {
+        symbolTableStack_.push_back(st);
+    }
+
     void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         symbolTableStack_.push_back(funcDeclStmt->parameterScope());
     }
@@ -38,15 +45,34 @@ public:
         symbolTableStack_.pop_back();
     }
 
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        symbolTableStack_.push_back(expansion->templateParameterScope());
+    }
+
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        ASSERT(expansion->templateParameterScope() == symbolTableStack_.back());
+        symbolTableStack_.pop_back();
+    }
 };
 
 
 /** Sets each SymbolTable's parent scope. */
-class SetSymbolTableParentsPass : public ScopeFollowingVisitor {
+class SetSymbolTableParentsPass : public ScopeFollowingAstVisitor {
+    ast::AnodeWorld &world_;
 public:
+    SetSymbolTableParentsPass(ast::AnodeWorld &world_) : world_(world_) { }
+
+    void visitingModule(ast::Module *module) override {
+        module->scope()->setParent(world_.globalScope());
+    }
     void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         funcDeclStmt->parameterScope()->setParent(topScope());
-        ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
+        ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
+    }
+
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        expansion->templateParameterScope()->setParent(topScope());
+        ScopeFollowingAstVisitor::visitingTemplateExpansionExprStmt(expansion);
     }
 
     void visitingCompoundExpr(ast::CompoundExpr *expr) override {
@@ -54,29 +80,54 @@ public:
         if(scopeDepth()) {
             expr->scope()->setParent(topScope());
         }
-        ScopeFollowingVisitor::visitingCompoundExpr(expr);
+        ScopeFollowingAstVisitor::visitingCompoundExpr(expr);
     }
 };
 
-
-class PopulateSymbolTablesPass : public ScopeFollowingVisitor {
+class PopulateSymbolTablesPass : public ScopeFollowingAstVisitor {
     error::ErrorStream &errorStream_;
 public:
 
     explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) {  }
 
-    void visitingClassDefinition(ast::ClassDefinition *cd) override {
-        auto *classSymbol = new scope::TypeSymbol(cd->classType());
+    scope::SymbolTable *currentScope() {
+        scope::SymbolTable *ts = topScope();
+        if (ts->storageKind() == scope::StorageKind::TemplateParameter) {
+            return ts->parent();
+        }
 
-        topScope()->addSymbol(classSymbol);
+        return ts;
+    }
 
-        ScopeFollowingVisitor::visitingClassDefinition(cd);
+//    void visitingGenericClassDefinition(ast::GenericClassDefinition *cd) override {
+//
+//    }
+
+    void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
+        //Classes that are defined within expanded templates do not get their own symbols
+        //Only the generic version of them do. During symbol resolution, the symbol of the GenericType is
+        //resolved and the resolved GenericType is used to determine the Type of the expanded class.
+        if(!cd->hasTemplateArguments()) {
+            type::Type *definedType = cd->definedType();
+
+            if (auto definedClassType = dynamic_cast<type::ClassType *>(definedType)) {
+                if (definedClassType->genericType() != nullptr) {
+                    ScopeFollowingAstVisitor::visitingCompleteClassDefinition(cd);
+                    return;
+                }
+            }
+
+            auto *classSymbol = new scope::TypeSymbol(definedType);
+            currentScope()->addSymbol(classSymbol);
+        }
+
+        ScopeFollowingAstVisitor::visitingCompleteClassDefinition(cd);
     }
 
     void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
         scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name(), funcDeclStmt->functionType());
 
-        topScope()->addSymbol(funcSymbol);
+        currentScope()->addSymbol(funcSymbol);
         funcDeclStmt->setSymbol(funcSymbol);
 
         for(auto p : funcDeclStmt->parameters()) {
@@ -93,11 +144,11 @@ public:
             }
         }
 
-        ScopeFollowingVisitor::visitingFuncDefStmt(funcDeclStmt);
+        ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
     void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-        if(topScope()->findSymbol(expr->name())) {
+        if(currentScope()->findSymbol(expr->name())) {
             errorStream_.error(
                 error::ErrorKind::SymbolAlreadyDefinedInScope,
                 expr->sourceSpan(),
@@ -106,14 +157,43 @@ public:
 
         } else {
             auto symbol = new scope::VariableSymbol(expr->name(), expr->typeRef()->type());
-            topScope()->addSymbol(symbol);
+            currentScope()->addSymbol(symbol);
             expr->setSymbol(symbol);
+        }
+    }
+
+    virtual void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
+        if(currentScope()->findSymbol(templ->name())) {
+            errorStream_.error(
+                error::ErrorKind::SymbolAlreadyDefinedInScope,
+                templ->sourceSpan(),
+                "Symbol '%s' is already defined in this scope.",
+                templ->name().c_str());
+        } else {
+            auto symbol = new scope::TemplateSymbol(templ->name(), templ->nodeId());
+            currentScope()->addSymbol(symbol);
+        }
+
+        //Grab top-level classes within the scope of the template.
+        for(auto exprStmt : templ->body()->expressions()) {
+            if(auto cd = dynamic_cast<ast::GenericClassDefinition*>(exprStmt)) {
+                if(currentScope()->findSymbol(cd->name())) {
+                    errorStream_.error(
+                        error::ErrorKind::SymbolAlreadyDefinedInScope,
+                        templ->sourceSpan(),
+                        "Symbol '%s' is already defined in this scope.",
+                        templ->name().c_str());
+                } else {
+                    auto symbol = new scope::TypeSymbol(cd->name(), cd->definedType());
+                    currentScope()->addSymbol(symbol);
+                }
+            }
         }
     }
 };
 
-class PrepareClassesVisitor : public ScopeFollowingVisitor {
-    void visitingClassDefinition(ast::ClassDefinition *cd) override {
+class PrepareClassesVisitor : public ast::AstVisitor {
+    void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
         cd->populateClassType();
 
         auto bodyStatements = cd->body()->expressions();
@@ -121,13 +201,13 @@ class PrepareClassesVisitor : public ScopeFollowingVisitor {
             auto funcDefStmt = dynamic_cast<ast::FuncDefStmt*>(maybeFuncDefStmt);
             if(!funcDefStmt) continue;
 
-            funcDefStmt->symbol()->setThisSymbol(new scope::VariableSymbol("this", cd->classType()));
+            funcDefStmt->symbol()->setThisSymbol(new scope::VariableSymbol("this", cd->definedType()));
         }
     }
 
 };
 
-class ResolveSymbolsPass : public ScopeFollowingVisitor {
+class ResolveSymbolsPass : public ScopeFollowingAstVisitor {
     error::ErrorStream &errorStream_;
     gc_unordered_set<scope::Symbol*> definedSymbols_;
 public:
@@ -163,34 +243,47 @@ public:
     }
 };
 
-class ResolveTypesPass : public ScopeFollowingVisitor {
+class ResolveTypesPass : public ScopeFollowingAstVisitor {
+    ast::AnodeWorld &world_;
     error::ErrorStream &errorStream_;
+    ast::Module *module_ = nullptr;
 public:
-    explicit ResolveTypesPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) {
-
+    explicit ResolveTypesPass(ast::AnodeWorld &world, error::ErrorStream &errorStream)
+        : world_{world}, errorStream_{errorStream} {
+        world_.globalScope();//TODO: remove this is just to prevent warning.
     }
 
-    void visitTypeRef(ast::TypeRef *typeRef) override {
-        //This will eventually be a lot more sophisticated than this
-        type::Type* type = type::Primitives::fromKeyword(typeRef->name());
-        //If it wasn't a primitive type...
-        if(type == nullptr) {
-            scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
-            auto *classSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
+    void visitingModule(ast::Module *module) override {
+        module_ = module;
+    }
 
-            if(classSymbol == nullptr) {
+    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
+        std::string resolvedName = typeRef->name();
+        type::Type* type = type::Primitives::fromKeyword(resolvedName);
+
+        //If it was a primitive type...
+        if(type) {
+            typeRef->setType(type);
+        } else {
+            scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
+
+            //Symbol doesn't exist in accessible scope?
+            if(!maybeType) {
+                errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().c_str());
+                return;
+            }
+
+            auto *typeSymbol = dynamic_cast<scope::TypeSymbol*>(maybeType);
+
+            //Symbol does exist but isn't a type.
+            if(typeSymbol == nullptr) {
                 errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
                 return;
             }
 
-            type = classSymbol->type();
+            type = typeSymbol->type()->actualType();
             typeRef->setType(type);
         }
-
-        if(!type) {
-            errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().c_str());
-        }
-        typeRef->setType(type);
     }
 };
 
@@ -273,7 +366,6 @@ public:
                     methodRef->name().c_str());
             }
         }
-
     }
 };
 
@@ -290,7 +382,7 @@ public:
             if(!binaryExpr->lValue()->canWrite()) {
                 errorStream_.error(
                     error::ErrorKind::CannotAssignToLValue,
-                    binaryExpr->operatorSpan(), "Cannot assign a value to the expression left of '='");
+                    binaryExpr->operatorSpan(), "cannot Cannot assign a value to the expression left of '='");
             }
         } else if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
             if(!binaryExpr->type()->canDoArithmetic()) {
@@ -365,28 +457,188 @@ public:
     }
 };
 
-void runAllPasses(ast::Module *module, error::ErrorStream &es) {
+/** Stores the all templates in the AnodeWorld instance by UniqueId so they can be fetched later when they're expanded. */
+class TemplateWorldRecorderPass : public ScopeFollowingAstVisitor {
+    ast::AnodeWorld &world_;
+public:
+    explicit TemplateWorldRecorderPass(ast::AnodeWorld &world) : world_(world) { }
 
-    std::vector<ast::AstVisitor*> passes;
+    virtual void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
+        world_.addTemplate(templ);
+    }
+};
 
-    //Having so many visitors is probably not great for performance because each of these visits the
-    //entire tree but does very little in each individual pass. When/if it becomes an issue it should
-    //be possible to merge some of these passes together. For now, the modularity of the existing
-    //arrangement is highly desirable.
+/** Enacts explicit template expansions. */
+class TemplateExpanderPass : public ast::AstVisitor {
+    ast::AnodeWorld &world_;
+    error::ErrorStream &errorStream_;
+    ast::Module *module_ = nullptr;
+public:
 
-    // Order is important below.  There is necessary "temporal coupling"  and a requirement of
-    // an at least partially mutable AST here but there's not an easy way around these as far as
-    // I can tell because it's impossible to know all the information needed at parse time.
+    TemplateExpanderPass(ast::AnodeWorld &world_, error::ErrorStream &errorStream_) : world_(world_), errorStream_(errorStream_) {
+
+    }
+    void visitingModule(ast::Module *module) override {
+        errorStream_.errorCount();//TODO remove this prevention of warning
+        module_ = module;
+    }
+
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        scope::Symbol *foundSymbol = expansion->templateParameterScope()->parent()->recursiveFindSymbol(expansion->templateName());
+        ASSERT(foundSymbol && "TODO:  error when template name not found");
+
+        auto templateSymbol = upcast<scope::TemplateSymbol>(foundSymbol);
+        ast::TemplateExprStmt *templ = world_.getTemplate(templateSymbol->astNodeId());
+        ASSERT(templ && "Couldn't find template by astNodeId");
+
+        //For each template argument
+        //Create create a Symbol of name of the corresponding parameter referring to the TypeRef.  (AliasSymbol?)
+        gc_vector<ast::TemplateParameter*> tParams = templ->parameters();
+        gc_vector<ast::TypeRef*> tArgs = expansion->typeArguments();
+        ASSERT(tParams.size() == tArgs.size() && "TODO:  error when number of template arguments does not match parameters");
+
+        //TODO:  refactor TemplateExpansionExprStmt to store this as a field.
+        gc_vector<ast::TemplateArgument*> templateArgs;
+
+        for(unsigned int i = 0; i < tParams.size(); ++i) {
+            expansion->templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name(), tArgs[i]->type()));
+            templateArgs.push_back(new ast::TypeRefTemplateArgument(tParams[i]->name(), tArgs[i]));
+        }
+
+        expansion->setExpandedTemplate(templ->body()->deepCopyExpandTemplate(templateArgs));
+
+        auto visitors = getPreTemplateExpansionPassses(world_, errorStream_);
+        runPasses(visitors, expansion->expandedTemplate(), errorStream_, expansion->templateParameterScope());
+    }
+};
+
+class PopulateGenericTypesWithCompleteTypesPass : public ast::AstVisitor {
+    error::ErrorStream &errorStream_;
+
+    class PopulateGenericTypesSubPass : public ScopeFollowingAstVisitor {
+        gc_vector<type::Type*> templateArguments_;
+    public:
+        PopulateGenericTypesSubPass(const gc_vector<type::Type *> &templateArgs) : templateArguments_(templateArgs) { }
+
+        void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
+            auto genericType = upcast<type::ClassType>(cd->definedType())->genericType();
+            ASSERT(genericType);
+            ASSERT(genericType->findExpandedClassType(templateArguments_) == nullptr
+                && "TODO:  semantic error when the same template is expanded in the same scope more than once with the same arguments")
+
+            genericType->addExpandedClass(templateArguments_, upcast<type::ClassType>(cd->definedType()));
+        }
+    };
+
+public:
+    explicit PopulateGenericTypesWithCompleteTypesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) { }
+
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        errorStream_.errorCount(); //TODO:  remove this compiler warning eliminator
+
+        gc_vector<type::Type*> typeArguments;
+        gc_vector<scope::TypeSymbol*> argumentSymbols = expansion->templateParameterScope()->types();
+        typeArguments.reserve(argumentSymbols.size());
+        for(auto argSymbol : argumentSymbols) {
+            typeArguments.push_back(argSymbol->type());
+        }
+
+        PopulateGenericTypesSubPass pass{typeArguments};
+        pass.pushScope(expansion->templateParameterScope());
+        expansion->expandedTemplate()->accept(&pass);
+    }
+};
+
+class ConvertGenericTypeRefsToCompletePass : public ast::AstVisitor {
+    error::ErrorStream &errorStream_;
+public:
+    ConvertGenericTypeRefsToCompletePass(error::ErrorStream &errorStream) : errorStream_(errorStream) { }
+
+    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
+        errorStream_.errorCount(); //TODO:  remove this compiler warning eliminator
+        if(typeRef->type()->isGeneric()) {
+            gc_vector<type::Type*> templateArgs;
+            for(ast::ResolutionDeferredTypeRef *rdtr : typeRef->templateArgs()) {
+                templateArgs.push_back(rdtr->type()->actualType());
+            }
+            auto genericType = upcast<type::GenericType>(typeRef->type()->actualType());
+            ASSERT(genericType->templateParameterCount() == (int)templateArgs.size()
+                   && "TODO: error message when incorrect number of args");
+
+            type::ClassType *expandedType = genericType->findExpandedClassType(templateArgs);
+            ASSERT(expandedType && "I'm not sure if this should be a semantic error or just an ASSERTion.")
+            typeRef->setType(expandedType);
+        }
+    }
+};
+
+bool runPasses(
+    const gc_vector<ast::AstVisitor*> &visitors,
+    ast::AstNode *node,
+    error::ErrorStream &es,
+    scope::SymbolTable *startingSymbolTable) {
+
+    for(ast::AstVisitor *pass : visitors) {
+        if(startingSymbolTable)
+        if(auto sfav = dynamic_cast<ScopeFollowingAstVisitor*>(pass)) {
+            sfav->pushScope(startingSymbolTable);
+        }
+        node->accept(pass);
+        //If an error occurs during any pass, stop executing passes immediately because
+        //some passes depend on the success of previous passes.
+        if(es.errorCount() > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es) {
+    gc_vector<ast::AstVisitor*> passes;
 
     //Symbol resolution works recursively, examining the current scope first and then
     //searching each parent until the symbol is found.
-    passes.emplace_back(new SetSymbolTableParentsPass());
+    passes.push_back(new SetSymbolTableParentsPass(world));
+
     //Build the symbol tables so that symbol resolution works
     //Symbol tables are really just metadata generated from global definitions (i.e. class, func, etc.)
-    passes.emplace_back(new PopulateSymbolTablesPass(es));
+    passes.push_back(new PopulateSymbolTablesPass(es));
+
+    passes.push_back(new TemplateExpanderPass(world, es));
+
+    return passes;
+}
+
+//TODO:  make this a method on AnodeWorld! Will need to move AnodeWorld out of ::ast first, however...
+void runAllPasses(ast::AnodeWorld &world, ast::Module *module, error::ErrorStream &es) {
+
+    //Having so many visitors is probably not great for performance because most of these visit the
+    //entire tree but does very little in each individual pass. When/if performance becomes an issue it should
+    //be possible to merge some of these passes together. For now, the modularity of the existing
+    //arrangement is highly desirable.
+
+    // Order of the individual passes is important because there is necessary "temporal coupling"  and a requirement of
+    // an at least partially mutable AST here but there's not an easy way around these as far as
+    // I can tell because it's impossible to know all the information needed at parse time.
+
+    gc_vector<ast::AstVisitor*> passes;
+    passes.push_back(new TemplateWorldRecorderPass(world));
+    if(runPasses(passes, module, es, nullptr)) return;
+
+    passes = getPreTemplateExpansionPassses(world, es);
+    if(runPasses(passes, module, es, nullptr)) return;
+
+    passes.clear();
+
     //Resolve all ast::TypeRefs here (i.e. variables, arguments, class fields, function arguments, etc)
     //will know to the type::Type after this phase
-    passes.emplace_back(new ResolveTypesPass(es));
+    passes.push_back(new ResolveTypesPass(world, es));
+
+    passes.push_back(new PopulateGenericTypesWithCompleteTypesPass(es));
+
+    passes.push_back(new ConvertGenericTypeRefsToCompletePass(es));
+
     //Symbol references (i.e. variable, call sites, etc) find their corresponding symbols here.
     passes.emplace_back(new ResolveSymbolsPass(es));
     //Create type::ClassType and populate all the fields, for all classes
@@ -405,14 +657,7 @@ void runAllPasses(ast::Module *module, error::ErrorStream &es) {
     passes.emplace_back(new CastExprSemanticPass(es));
     passes.emplace_back(new FuncCallSemanticsPass(es));
 
-    for(ast::AstVisitor *pass : passes) {
-        module->accept(pass);
-        //If an error occurs during any pass, stop executing passes immediately because
-        //each pass depends on the success of previous passes.
-        if(es.errorCount() > 0) {
-            break;
-        }
-    }
+    runPasses(passes, module, es, nullptr);
 }
 
 }}}

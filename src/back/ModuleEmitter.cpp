@@ -9,7 +9,6 @@
 #include "GlobalVariableAstVisitor.h"
 
 
-using namespace anode::ast;
 
 /**
  * The best way I have found to figure out what instructions to use with LLVM is to
@@ -18,6 +17,8 @@ using namespace anode::ast;
  */
 
 namespace anode { namespace back {
+using namespace anode::front;
+using namespace anode::front::ast;
 
 void createLlvmStructsForClasses(ast::Module *anodeModule, CompileContext &cc) {
     CreateStructsAstVisitor visitor{cc};
@@ -103,6 +104,11 @@ public:
             ASSERT_FAIL("Failed LLVM module verification.");
         }
 
+        //Copy global variables to the global scope so they can be shared among modules..
+        for(auto symbolToExport : module->scope()->symbols()) {
+            //TODO:  naming collisions here?
+            cc_.world().globalScope()->addSymbol(symbolToExport->cloneForExport());
+        }
     }
 
 private:
@@ -148,7 +154,8 @@ private:
 };
 
 std::unique_ptr<llvm::Module> emitModule(
-    anode::ast::Module *module,
+    anode::front::ast::AnodeWorld &world,
+    anode::front::ast::Module *module,
     anode::back::TypeMap &typeMap,
     llvm::LLVMContext &llvmContext,
     llvm::TargetMachine *targetMachine
@@ -157,7 +164,7 @@ std::unique_ptr<llvm::Module> emitModule(
     std::unique_ptr<llvm::Module> llvmModule = std::make_unique<llvm::Module>(module->name(), llvmContext);
     llvm::IRBuilder<> irBuilder{llvmContext};
 
-    CompileContext cc{llvmContext, *llvmModule.get(), irBuilder, typeMap};
+    CompileContext cc{world, llvmContext, *llvmModule.get(), irBuilder, typeMap};
     ModuleEmitter visitor{cc, *targetMachine};
     visitor.emitModule(module);
 

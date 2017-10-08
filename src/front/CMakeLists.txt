@@ -17,7 +17,7 @@ set(FRONT_SRC_FILES
         parser/char.h
         parser/AnodeParser.cpp
         SourceReader.h
-        parse.cpp scope.cpp)
+        parse.cpp scope.cpp unique_id.cpp ../include/anode/front/unique_id.h)
 
 find_library(LIB_UUID uuid)
 

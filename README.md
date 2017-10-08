@@ -1,7 +1,26 @@
 # Anode Programming Language
 
-[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)](https://travis-ci.org/dlurton/anode)
+[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=templates)](https://travis-ci.org/dlurton/anode)
 
+TODO:  in this branch:
+
+ - Either change references to `ast::TemplateArgument` to `std::string` or fully utilize `ast::TemplateArgument` 
+ and its descendant.
+ - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
+ - Numerous TODOs in ASSERT messages mostly surrounding the creation of semantic errors
+ - Search for other TODOs within comments and see if they can be done or removed.
+ - Additional testing -- nested templates and expansions within templates for example.
+    - Possibly should prevent nested templates - but not expansions within templates.
+    - What happens when the same template is expanded twice
+        - in the same scope
+        - in different scopes
+        - in different modules
+ - Descions regarding scoping of symbols defined within templates - should they be added to the same scope as
+ they are currently or defined within the same "logical" scope in which the template is defined? (I'm guessing the later 
+ will be preferrable.)
+ - Other things I'm sure I can't think of at the moment.
+ - Before merging back to master, change the build status badge link URL (above) back to the master branch.
+    
 Anode is yet another embryonic programming language using LLVM as a back-end.
 
 There's a basic REPL you can use.  Statements entered there will be parsed and then:
@@ -119,6 +138,24 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     - Functions may be invoked:  `anInt:int = someFunction()`    
     - Primitive types may be used as function arguments:
         - `func someFunc:void(arg1:int, arg2:float, arg3:bool) someExpression`
+ - Templates!
+``` 
+    template LinkedList(TItem) {
+        class Node {
+            item:TItem
+            next:Node<TItem>
+        }
+    }
+    # Node<int> is not a valid type until the LinkedList<> template has been expanded
+    # The line below explicity expands the LinkedList template, specifying TItem to be of type int.    
+    expand LinkedList(int) 
+    # (eventually, explicit template instantiation will not be required for types like this...)
+    
+    n1:Node<int> = new Node<int>()
+    n1.next = new Node<int>()
+    n1.item = 10
+    n1.next.item = 11
+```
         
 #### Really Really Rough Feature Backlog
 
