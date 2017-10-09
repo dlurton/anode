@@ -284,6 +284,19 @@ public:
 };
 
 
+template<typename TItem>
+gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom) {
+    gc_vector<TItem> copy;
+    for(auto item : copyFrom) {
+        copy.push_back(item->deepCopyForTemplate());
+    }
+    return copy;
+}
+
+/** Represents an instance of a template argument.
+ * This class is currently very simple and only exposes the corresponding parameter's name but will likely be more complex
+ * in the future when we support more than just types as arguments to templates.
+ */
 class TemplateArgument {
     std::string parameterName_;
 public:
@@ -292,29 +305,6 @@ public:
 //    virtual std::string namePart() const = 0;
 };
 typedef gc_vector<TemplateArgument*> TemplateArgVector;
-template<typename TItem>
-gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom, const TemplateArgVector &templateArgs) {
-    gc_vector<TItem> copy;
-    for(auto item : copyFrom) {
-        copy.push_back(item->deepCopyForTemplate(templateArgs));
-    }
-    return copy;
-}
-class TypeRefTemplateArgument : public TemplateArgument {
-private:
-    TypeRef *typeRef_;
-public:
-    TypeRefTemplateArgument(const std::string &parameterName, TypeRef *typeRef) : TemplateArgument(parameterName), typeRef_(typeRef) { }
-
-    TypeRef *typeRef() {
-        return typeRef_;
-    }
-
-//    std::string namePart() const override {
-//        return typeRef_;
-//    }
-};
-
 
 /** Base class for all expressions. */
 class ExprStmt : public Stmt {
@@ -327,16 +317,6 @@ public:
     virtual bool canWrite() const = 0;
     virtual ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const = 0;
 };
-
-
-template<typename TItem>
-gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom) {
-    gc_vector<TItem> copy;
-    for(auto item : copyFrom) {
-        copy.push_back(item->deepCopyForTemplate());
-    }
-    return copy;
-}
 
 
 

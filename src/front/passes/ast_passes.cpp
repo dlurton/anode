@@ -502,7 +502,7 @@ public:
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
             expansion->templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name(), tArgs[i]->type()));
-            templateArgs.push_back(new ast::TypeRefTemplateArgument(tParams[i]->name(), tArgs[i]));
+            templateArgs.push_back(new ast::TemplateArgument(tParams[i]->name()));
         }
 
         expansion->setExpandedTemplate(templ->body()->deepCopyExpandTemplate(templateArgs));

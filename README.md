@@ -4,6 +4,9 @@
 
 TODO:  in this branch:
 
+ - Improve error messages... Error messages referencing types need to include the template argument's type name in the
+ error message and not the parameter's name.  Need to handle if a TypeRef is resolved or not when displaying
+ completed generic types.
  - Either change references to `ast::TemplateArgument` to `std::string` or fully utilize `ast::TemplateArgument` 
  and its descendant.
  - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
