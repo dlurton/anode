@@ -337,13 +337,14 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
         //TODO:  error when templates are nested or adjust to allow for nested templates
         consumeOpenParen();
-        while(lexer_.peekToken()->kind() != TokenKind::CLOSE_PAREN) {
-            Token *identifier = consumeIdentifier();
-            parameters.push_back(new ast::TemplateParameter(identifier->span(), identifier->text()));
-            //TODO: allows trailing ,  Bad?
-            consumeOptional(TokenKind::COMMA);
+        if(!consumeOptional(TokenKind::CLOSE_PAREN)) {
+            do {
+                Token *identifier = consumeIdentifier();
+                parameters.push_back(new ast::TemplateParameter(identifier->span(), identifier->text()));
+                consumeOptional(TokenKind::COMMA);
+            } while(consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, "',' or ')'")->kind() == TokenKind::COMMA);
         }
-        consumeCloseParen();
+
 
         templateParameters_ = parameters;
         auto *body = upcast<ast::ExpressionList>(parseExpressionList(consumeOpenCurly()));
