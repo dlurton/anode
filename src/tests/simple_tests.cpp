@@ -667,8 +667,6 @@ TEST_CASE("class") {
     REQUIRE(!test<bool>(ec, "someWidget.c"));
     REQUIRE(test<bool>(ec, "someWidget.c = true"));
     REQUIRE(test<bool>(ec, "someWidget.c"));
-
-    //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
 TEST_CASE("class with references to another class") {
@@ -700,8 +698,6 @@ TEST_CASE("class with references to another class") {
     REQUIRE(!test<bool>(ec, "instance.a2.c"));
     REQUIRE(test<bool>(ec, "instance.a2.c = true"));
     REQUIRE(test<bool>(ec, "instance.a2.c"));
-
-    //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
 TEST_CASE("class with reference to itself") {
