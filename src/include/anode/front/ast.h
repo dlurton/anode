@@ -292,7 +292,6 @@ public:
 //    virtual std::string namePart() const = 0;
 };
 typedef gc_vector<TemplateArgument*> TemplateArgVector;
-
 template<typename TItem>
 gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom, const TemplateArgVector &templateArgs) {
     gc_vector<TItem> copy;
@@ -301,16 +300,6 @@ gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom, const TemplateA
     }
     return copy;
 }
-
-template<typename TItem>
-gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom) {
-    gc_vector<TItem> copy;
-    for(auto item : copyFrom) {
-        copy.push_back(item->deepCopyForTemplate());
-    }
-    return copy;
-}
-
 class TypeRefTemplateArgument : public TemplateArgument {
 private:
     TypeRef *typeRef_;
@@ -336,8 +325,20 @@ public:
 
     virtual type::Type *type() const  = 0;
     virtual bool canWrite() const = 0;
-    virtual ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgsconst) const = 0;
+    virtual ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const = 0;
 };
+
+
+template<typename TItem>
+gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom) {
+    gc_vector<TItem> copy;
+    for(auto item : copyFrom) {
+        copy.push_back(item->deepCopyForTemplate());
+    }
+    return copy;
+}
+
+
 
 /** Like CompoundExpr but does not create a lexical scope. */
 class ExpressionList : public ExprStmt {

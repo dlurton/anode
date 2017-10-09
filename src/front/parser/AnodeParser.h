@@ -122,26 +122,26 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             operatorToken->span());
     }
 
-    ast::ExprStmt *parseExpressionList(Token *openCurly) {
-        gc_vector<ast::ExprStmt*> stmts;
+    /** Fills the specified gc_vector with ExprStmt* until }.
+     * @returns The } token. */
+    Token *parseUntilCloseCurly(gc_vector<ast::ExprStmt*> &stmts) {
         Token *closeCurly;
 
         do {
             stmts.push_back(parseExpr());
         } while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY)));
 
-        return new ast::ExpressionList(getSourceSpan(openCurly->span(), closeCurly->span()), stmts);
+        return closeCurly;
     }
 
-    //TODO:  share code with parseExpressionList
+    ast::ExprStmt *parseExpressionList(Token *openCurly) {
+        gc_vector<ast::ExprStmt*> stmts;
+        Token *closeCurly = parseUntilCloseCurly(stmts);
+        return new ast::ExpressionList(getSourceSpan(openCurly->span(), closeCurly->span()), stmts);
+    }
     ast::ExprStmt *parseCompoundStmt(Token *openCurly) {
         gc_vector<ast::ExprStmt*> stmts;
-        Token *closeCurly;
-
-        do {
-            stmts.push_back(parseExpr());
-        } while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY)));
-
+        Token *closeCurly = parseUntilCloseCurly(stmts);
         return new ast::CompoundExpr(getSourceSpan(openCurly->span(), closeCurly->span()), storageKindStack_.top(), stmts);
     }
 

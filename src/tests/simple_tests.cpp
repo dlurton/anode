@@ -680,20 +680,20 @@ TEST_CASE("class with references to another class") {
     REQUIRE(test<int>(ec, "instance.a1.a") == 234);
 
     REQUIRE(test<float>(ec, "instance.a1.b") == 0.0);
-    REQUIRE(test<float>(ec, "instance.a1.b = 234.0") == 234.0);
-    REQUIRE(test<float>(ec, "instance.a1.b") == 234.0);
+    REQUIRE(test<float>(ec, "instance.a1.b = 345.0") == 345.0);
+    REQUIRE(test<float>(ec, "instance.a1.b") == 345.0);
 
     REQUIRE(!test<bool>(ec, "instance.a1.c"));
     REQUIRE(test<bool>(ec, "instance.a1.c = true"));
     REQUIRE(test<bool>(ec, "instance.a1.c"));
 
     REQUIRE(test<int>(ec, "instance.a2.a") == 0);
-    REQUIRE(test<int>(ec, "instance.a2.a = 345") == 345);
-    REQUIRE(test<int>(ec, "instance.a2.a") == 345);
+    REQUIRE(test<int>(ec, "instance.a2.a = 456") == 456);
+    REQUIRE(test<int>(ec, "instance.a2.a") == 456);
 
     REQUIRE(test<float>(ec, "instance.a2.b") == 0.0);
-    REQUIRE(test<float>(ec, "instance.a2.b = 345.0") == 345.0);
-    REQUIRE(test<float>(ec, "instance.a2.b") == 345.0);
+    REQUIRE(test<float>(ec, "instance.a2.b = 567.0") == 567.0);
+    REQUIRE(test<float>(ec, "instance.a2.b") == 567.0);
 
     REQUIRE(!test<bool>(ec, "instance.a2.c"));
     REQUIRE(test<bool>(ec, "instance.a2.c = true"));
