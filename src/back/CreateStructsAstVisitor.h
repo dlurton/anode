@@ -29,7 +29,6 @@ public:
         }
 
         structType->setBody(memberTypes);
-
     }
 };
 

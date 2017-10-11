@@ -137,7 +137,7 @@ public:
     }
 
     void visitingNewExpr(ast::NewExpr *expr) override {
-        auto structType = cc().typeMap().toLlvmType(expr->type());
+        auto structType = cc().typeMap().toLlvmType(expr->type())->getPointerElementType();
         uint64_t size = cc().llvmModule().getDataLayout().getTypeAllocSize(structType);
 
         std::vector<llvm::Value *> arguments;
@@ -218,8 +218,7 @@ protected:
         llvm::Value *instance = emitExpr(expr->lValue(), cc());
 
         auto classType = dynamic_cast<type::ClassType *>(expr->lValue()->type()->actualType());
-        ASSERT(
-            classType != nullptr && " TODO: add semantics check to ensure that lvalues of dot operators are of types that have members.");
+        ASSERT(classType != nullptr && "lvalues of dot operator must be a ClassType (did the semantic check fail?)");
 
         llvm::Value *ptrOrValue = createStructGep(classType, instance, expr->memberName());
 

@@ -22,9 +22,7 @@ extern "C" {
     }
 
     uint64_t anode_malloc(unsigned int size) {
-        //void *mem = GC_MALLOC(size);
-        //TODO:  figure out why memory allocated with regular GC_MALLOC is getting collected prematurely.  THIS IS TEMPORARY!
-        void *mem = GC_malloc_atomic_uncollectable(size);
+        void *mem = GC_MALLOC(size);
         std::memset(mem, 0, size);
         return (uint64_t) mem;
     }

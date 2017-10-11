@@ -244,17 +244,10 @@ public:
 };
 
 class ResolveTypesPass : public ScopeFollowingAstVisitor {
-    ast::AnodeWorld &world_;
     error::ErrorStream &errorStream_;
-    ast::Module *module_ = nullptr;
 public:
-    explicit ResolveTypesPass(ast::AnodeWorld &world, error::ErrorStream &errorStream)
-        : world_{world}, errorStream_{errorStream} {
-        world_.globalScope();//TODO: remove this is just to prevent warning.
-    }
-
-    void visitingModule(ast::Module *module) override {
-        module_ = module;
+    explicit ResolveTypesPass(error::ErrorStream &errorStream)
+        : errorStream_{errorStream} {
     }
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
@@ -633,7 +626,7 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module *module, error::ErrorStrea
 
     //Resolve all ast::TypeRefs here (i.e. variables, arguments, class fields, function arguments, etc)
     //will know to the type::Type after this phase
-    passes.push_back(new ResolveTypesPass(world, es));
+    passes.push_back(new ResolveTypesPass(es));
 
     passes.push_back(new PopulateGenericTypesWithCompleteTypesPass(es));
 

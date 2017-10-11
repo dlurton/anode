@@ -21,35 +21,6 @@
 //Includes gc and gc_cleanup classes.
 #include <gc/gc_cpp.h>
 
-#include <vector>
-#include <unordered_map>
-
-////To disable GC temporarily, comment out the #includes above and uncomment the 4 lines below.
-//class gc { };
-//class gc_cleanup { };
-//#define GC_collect_a_little() (false);
-//#define GC_INIT();
-
-
-//Uncomment to enable GC for everything... currently makes LLVM's assertions fail for some unknown reason.
-//#define USE_LIBGC_FOR_EVERYTHING
-
-#ifdef USE_LIBGC_FOR_EVERYTHING
-
-inline void * operator new(size_t n)  {
-    return GC_malloc(n);
-}
-
-inline void * operator new[](size_t n) {
-    return GC_malloc(n);
-}
-inline void operator delete(void *) { }
-inline void operator delete(void *, size_t) { }
-inline void operator delete[](void *)  { }
-inline void operator delete[](void *, size_t ) { }
-
-#endif
-
 namespace anode {
 
 class no_new {
