@@ -5,4 +5,4 @@ export ANODE_BUILD_TYPE=Debug
 
 cd $(dirname $(readlink -f ${0}))
 
-./build-anode
+./build-bdwgc

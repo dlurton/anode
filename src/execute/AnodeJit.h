@@ -7,26 +7,34 @@ namespace anode {
     namespace execute {
 
         class AnodeeSectionMemoryManager : public llvm::SectionMemoryManager {
+            //std::vector<std::pair<uint8_t*, uint8_t*>> addedRoots_;
+        public:
+            //This is the reason there can only be one instance of AnodeJit:
+            //Invoking GC_remove_roots(...) seems to cause bdwgc to become very unstable.
+            //I don't know if I'm misusing it or if something is wrong with bdwgc or with bdwgc on linux.
+            //In any case, we can add all the roots we want but for the time being there is no stable way to remove them...
+            ~AnodeeSectionMemoryManager() {
+                std::cerr << "Warning: ~AnodeeSectionMemoryManager() was called...  BDWGC is probably unstable now.\n";
+//                for(auto pair : addedRoots_) {
+//                    GC_remove_roots(pair.first, pair.second);
+//                }
+            }
 
             uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment, unsigned SectionID, llvm::StringRef SectionName,
                                          bool isReadOnly) override {
+
                 uint8_t *sectionStart = llvm::SectionMemoryManager::allocateDataSection(Size, Alignment, SectionID, SectionName, isReadOnly);
-//                if(!isReadOnly) {
-//                    GC_is_visible(sectionStart);
-//                    uint8_t *sectionEnd = sectionStart + Size;
-//                    GC_add_roots(sectionStart, sectionEnd);
-//                }
+
+                //if(!isReadOnly) {
+                    //GC_is_visible(sectionStart);
+                    uint8_t *sectionEnd = sectionStart + Size + 1;
+                    //addedRoots_.emplace_back(sectionStart, sectionEnd);
+
+                    GC_add_roots(sectionStart, sectionEnd);
+                //}
                 return sectionStart;
             }
-
-//            bool finalizeMemory(std::string *ErrMsg) override {
-//                bool memory = llvm::SectionMemoryManager::finalizeMemory(ErrMsg);
-//                GC_remove_roots(...)
-//                return memory;
-//            }
         };
-
-        std::unique_ptr<llvm::Module> irgenAndTakeOwnership(front::ast::FuncDefStmt &FnAST, const std::string &Suffix);
 
         //The original version of this (llvm::orc::createResolver(...)) doesn't seem to want to compile no matter what I do.
         template<typename DylibLookupFtorT, typename ExternalLookupFtorT>
@@ -42,13 +50,12 @@ namespace anode {
          */
         class AnodeJit {
         private:
+            llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
             std::unique_ptr<llvm::TargetMachine> TM;
             const llvm::DataLayout DL;
-            llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
             llvm::orc::IRCompileLayer<decltype(ObjectLayer), llvm::orc::SimpleCompiler> CompileLayer;
 
             using OptimizeFunction = std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
-
             llvm::orc::IRTransformLayer<decltype(CompileLayer), OptimizeFunction> OptimizeLayer;
 
             std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackMgr;
@@ -60,9 +67,9 @@ namespace anode {
             using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
             AnodeJit()
-                : TM(llvm::EngineBuilder().selectTarget()),
+                : ObjectLayer([]() { return std::make_shared<AnodeeSectionMemoryManager>(); }),
+                  TM(llvm::EngineBuilder().selectTarget()),
                   DL(TM->createDataLayout()),
-                  ObjectLayer([]() { return std::make_shared<AnodeeSectionMemoryManager>(); }),
                   CompileLayer(ObjectLayer, llvm::orc::SimpleCompiler(*TM)),
                   OptimizeLayer(CompileLayer,
                                 [this](std::shared_ptr<llvm::Module> M) {

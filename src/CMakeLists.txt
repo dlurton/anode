@@ -2,9 +2,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(anode)
-
+message("****************************************************")
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
-
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build, options are: Debug Release." FORCE)
@@ -13,6 +12,8 @@ endif(NOT CMAKE_BUILD_TYPE)
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DANODE_DEBUG=1)
 endif()
+
+message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -24,7 +25,6 @@ string(TOLOWER ${EXTERNS_DIR} EXTERNS_DIR)
 set(ANODE_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/include/anode")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wextra -Wpedantic -stdlib=libstdc++ -std=c++14")
-
 
 #https://github.com/ivmai/bdwgc/blob/76fd95b4803197954c60c585e4dfc795c4d5c533/doc/README.linux
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,-defsym,_DYNAMIC=0")
@@ -43,6 +43,7 @@ include_directories(${ANODE_INCLUDE_DIR})
 # NOTE: yes, the "lib/include" and "lib/lib" here is stupid -- libgc also builds libcords which complains if it's not
 # being installed in a path that doesn't end with /usr/local/lib.  Of course that means everything is installed in these silly paths when
 # I'm not using the defaults.
+message("EXTERNS_DIR is ${EXTERNS_DIR}")
 include_directories(${EXTERNS_DIR}/bdwgc/usr/local/lib/include)
 find_library(LIB_GC gc PATHS ${EXTERNS_DIR}/bdwgc/usr/local/lib/lib NO_DEFAULT_PATH)
 message(STATUS "Found libgc: ${LIB_GC}")
