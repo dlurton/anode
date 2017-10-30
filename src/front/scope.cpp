@@ -66,6 +66,14 @@ Symbol *SymbolTable::recursiveFindSymbol(const std::string &name) const {
 void SymbolTable::addSymbol(Symbol *symbol) {
     ASSERT(storageKind_ != StorageKind::NotSet);
     ASSERT(!symbol->name().empty());
+#ifdef ANODE_DEBUG
+    if(findSymbol(symbol->name())) {
+        throw exception::DebugAssertionFailedException(string::format("Symbol '%s' already exists in this SymbolTable", symbol->name().c_str()));
+    }
+    if(symbol->name() == "TItem")
+        std::cout << "TItem\n";
+#endif
+
     ASSERT(!findSymbol(symbol->name()));
 
     if(!symbol->isFullyQualified()) {

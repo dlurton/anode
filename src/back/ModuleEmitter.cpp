@@ -4,10 +4,8 @@
 #include "emit.h"
 #include "CompileContext.h"
 #include "CompileAstVisitor.h"
-#include "CreateStructsAstVisitor.h"
 #include "llvm.h"
 #include "GlobalVariableAstVisitor.h"
-
 
 
 /**
@@ -20,11 +18,6 @@ namespace anode { namespace back {
 using namespace anode::front;
 using namespace anode::front::ast;
 
-void createLlvmStructsForClasses(ast::Module *anodeModule, CompileContext &cc) {
-    CreateStructsAstVisitor visitor{cc};
-    anodeModule->accept(&visitor);
-}
-
 class ModuleEmitter : public gc {
     CompileContext &cc_;
     llvm::TargetMachine &targetMachine_;
@@ -33,7 +26,6 @@ class ModuleEmitter : public gc {
     int resultExprStmtCount_ = 0;
     llvm::Function *resultFunc_ = nullptr;
     llvm::Value *executionContextPtrValue_ = nullptr;
-    scope::SymbolTable *globalScope_ = nullptr;
 
 public:
     ModuleEmitter(CompileContext &cc, llvm::TargetMachine &targetMachine)
@@ -72,7 +64,6 @@ public:
 
 public:
     void emitModule(Module *module)  {
-        globalScope_ = module->scope();
 
         cc_.llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
@@ -81,8 +72,6 @@ public:
         startModuleInitFunc(module);
 
         declareExecutionContextGlobal();
-
-        createLlvmStructsForClasses(module, cc_);
 
         emitGlobals(module, cc_);
 

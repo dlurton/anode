@@ -28,3 +28,17 @@ n2.item = 20.0
 n2.next.item = 21.0
 assert(n2.item == 20.0)
 assert(n2.next.item == 21.0)
+
+
+class Item {
+    value:int
+}
+
+expand TNode(Item)
+
+n3:Node<int> = new Node<int>()
+n3.next = new Node<int>()
+n3.item = 20
+n3.next.item = 21
+assert(n3.item == 20)
+assert(n3.next.item == 21)

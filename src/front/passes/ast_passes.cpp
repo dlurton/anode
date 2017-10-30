@@ -466,17 +466,33 @@ class TemplateExpanderPass : public ast::AstVisitor {
     ast::AnodeWorld &world_;
     error::ErrorStream &errorStream_;
     ast::Module *module_ = nullptr;
+    bool visitingExpansion_ = false;
+
 public:
 
     TemplateExpanderPass(ast::AnodeWorld &world_, error::ErrorStream &errorStream_) : world_(world_), errorStream_(errorStream_) {
 
     }
+
+    bool shouldVisitChildren() override {
+        return !visitingExpansion_;
+    }
+
+
     void visitingModule(ast::Module *module) override {
         errorStream_.errorCount();//TODO remove this prevention of warning
         module_ = module;
     }
 
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *) override {
+        visitingExpansion_ = false;
+    }
+
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        visitingExpansion_ = true;
+        if(expansion->expandedTemplate() != nullptr) {
+            return;
+        }
         scope::Symbol *foundSymbol = expansion->templateParameterScope()->parent()->recursiveFindSymbol(expansion->templateName());
         ASSERT(foundSymbol && "TODO:  error when template name not found");
 
@@ -516,9 +532,9 @@ class PopulateGenericTypesWithCompleteTypesPass : public ast::AstVisitor {
         void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
             auto genericType = upcast<type::ClassType>(cd->definedType())->genericType();
             ASSERT(genericType);
-            ASSERT(genericType->findExpandedClassType(templateArguments_) == nullptr
-                && "TODO:  semantic error when the same template is expanded in the same scope more than once with the same arguments")
-
+            if(genericType->findExpandedClassType(templateArguments_)) {
+                return;
+            }
             genericType->addExpandedClass(templateArguments_, upcast<type::ClassType>(cd->definedType()));
         }
     };

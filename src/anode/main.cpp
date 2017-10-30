@@ -287,7 +287,7 @@ public:
     ~SomeGarbage() {
         destructionCount++;
     }
-    int randomWahteverIdoncare;
+    int randomWahteverIdoncare = 0;
 
     void foo() { randomWahteverIdoncare++; }
 };
@@ -299,7 +299,6 @@ void generateSomeGarbage() {
         garbage->foo();
     }
 }
-
 
 void sigsegv_handler(int) {
     std::cerr << "SIGSEGV!\n";
@@ -317,13 +316,13 @@ void initializeGC() {
     GC_INIT();
 
     generateSomeGarbage();
-    while (GC_collect_a_little());
+    GC_gcollect();
 
     //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
     std::cout << "destructionCount: " << destructionCount << std::endl;
     if (destructionCount == 0) {
         std::cout << "**************************************************************************\n";
-        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
+        std::cout << "WARNING: libgc doesn't appear to be collecting anything.\n";
         std::cout << "**************************************************************************\n";
     }
 }

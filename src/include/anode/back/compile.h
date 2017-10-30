@@ -29,14 +29,15 @@ namespace anode { namespace back {
 
     class TypeMap : no_assign, no_copy {
         gc_unordered_map<const front::type::Type *, llvm::Type *> typeMap_;
+        llvm::LLVMContext &llvmContext_;
     public:
-        TypeMap(llvm::LLVMContext &llvmContext) {
+        TypeMap(llvm::LLVMContext &llvmContext) : llvmContext_{llvmContext} {
 
-            mapTypes(&front::type::Primitives::Void, llvm::Type::getVoidTy(llvmContext));
-            mapTypes(&front::type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext));
-            mapTypes(&front::type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext));
-            mapTypes(&front::type::Primitives::Float, llvm::Type::getFloatTy(llvmContext));
-            mapTypes(&front::type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext));
+            mapTypes(&front::type::Primitives::Void, llvm::Type::getVoidTy(llvmContext_));
+            mapTypes(&front::type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext_));
+            mapTypes(&front::type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext_));
+            mapTypes(&front::type::Primitives::Float, llvm::Type::getFloatTy(llvmContext_));
+            mapTypes(&front::type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext_));
         }
 
         void mapTypes(front::type::Type *anodeType, llvm::Type *llvmType) {
@@ -45,7 +46,27 @@ namespace anode { namespace back {
 
         llvm::Type *toLlvmType(front::type::Type *anodeType) {
             ASSERT(anodeType);
-            llvm::Type *foundType = typeMap_[anodeType->actualType()];
+            front::type::Type *actualType = anodeType->actualType();
+            llvm::Type *foundType = typeMap_[actualType];
+            
+            auto classType = dynamic_cast<front::type::ClassType*>(actualType);
+            if(foundType == nullptr && classType != nullptr) {
+                gc_vector<front::type::ClassField*> fields = classType->fields();
+
+                std::vector<llvm::Type *> fieldTypes;
+                fieldTypes.reserve(fields.size());
+
+                llvm::StructType *structType = llvm::StructType::create(llvmContext_, classType->name());
+                llvm::PointerType *pointerType = structType->getPointerTo(0);
+                mapTypes(classType, pointerType);
+
+                for (auto s : fields) {
+                    fieldTypes.push_back(toLlvmType(s->type()));
+                }
+
+                structType->setBody(fieldTypes);
+                return pointerType;
+            }
 
             ASSERT(foundType && "Anode type to LLVM type Mapping must exist!");
             return foundType;

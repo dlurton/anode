@@ -329,6 +329,10 @@ public:
         fields_.emplace(name, field);
     }
 
+    gc_vector<ClassField*> fields() {
+        return orderedFields_;
+    }
+
     ClassMethod *findMethod(const std::string &name) const {
         auto found = methods_.find(name);
         return found == methods_.end() ? nullptr : found->second;

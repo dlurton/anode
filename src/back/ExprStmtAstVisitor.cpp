@@ -154,7 +154,8 @@ public:
                 llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->symbol()->fullyQualifiedName());
                 ASSERT(globalVariable);
                 globalVariable->setAlignment(ALIGNMENT);
-                globalVariable->setInitializer(cc().getDefaultValueForType(expr->type()));
+                llvm::Constant *val = cc().getDefaultValueForType(expr->type());
+                globalVariable->setInitializer(val);
                 break;
             }
             case scope::StorageKind::Local: {

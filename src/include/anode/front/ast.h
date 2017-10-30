@@ -1333,7 +1333,7 @@ public:
         //new instances of the class meant for complete types from deepCopyExpandTemplate()
         ASSERT(ct);
 
-        for (auto variable : this->body()->scope()->symbols()) {
+        for (auto variable : this->body()->scope()->variables()) {
             ct->addField(variable->name(), variable->type());
         }
 
