@@ -127,7 +127,6 @@ protected:
                 t->span(),
                 message,
                 t->text().c_str());
-
             throw ParseAbortedException();
         }
 
@@ -147,8 +146,6 @@ protected:
                     t->span(),
                     message,
                     t->text().c_str());
-
-                throw ParseAbortedException();
             }
 
             left = foundInfixParselet(left, t);

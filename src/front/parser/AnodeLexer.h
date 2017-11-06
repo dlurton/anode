@@ -3,7 +3,7 @@
 
 #include "common/containers.h"
 #include "front/source.h"
-#include "front/error.h"
+#include "front/ErrorStream.h"
 
 #include "Token.h"
 #include "char.h"
@@ -109,13 +109,6 @@ private:
     /** Discards a single-line comment if one is next.
      * @eturns true if a comment was discarded. */
     bool discardSingleLineComment();
-
-    void errorUnexpectedEofInMultilineComment() {
-        errorStream_.error(
-            error::ErrorKind::UnexpectedEofInMultilineComment,
-            getSourceSpanForCurrentToken(),
-            "Unexpected end-of-input within multi-line comment");
-    }
 
     /** Discards a multi-line comment if one is next..
      * @eturns true if a comment was discarded. */

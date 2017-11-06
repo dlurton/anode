@@ -16,7 +16,7 @@ namespace anode { namespace source {
             : line_(line), position_(position) { }
 
         std::size_t line() const  { return line_; }
-        std::size_t position() const { return line_; }
+        std::size_t position() const { return position_; }
 
         std::string toString() {
             return string::format("(%d, %d)", line_, position_);

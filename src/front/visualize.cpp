@@ -1,5 +1,5 @@
 #include "front/visualize.h"
-#include "common/string_format.h"
+#include "common/string.h"
 
 #include <iostream>
 #include <algorithm>

@@ -1,6 +1,6 @@
 #include "front/ast_passes.h"
 #include "front/scope.h"
-#include "front/error.h"
+#include "front/ErrorStream.h"
 
 #include "AddImplicitCastsPass.h"
 
@@ -426,6 +426,7 @@ public:
                 "Incorrect number of arguments.  Expected %d but found %d",
                 parameterTypes.size(),
                 arguments.size());
+            return;
         }
 
         for(size_t i = 0; i < arguments.size(); ++i) {
@@ -656,15 +657,16 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module *module, error::ErrorStrea
     passes.emplace_back(new ResolveDotExprMemberPass(es));
     //Insert implicit casts where they are allowed
     passes.emplace_back(new AddImplicitCastsPass(es));
+    //
+    passes.emplace_back(new BinaryExprSemanticsPass(es));
+
+    //Finally, on to some semantics checking:
+    passes.emplace_back(new CastExprSemanticPass(es));
+    passes.emplace_back(new FuncCallSemanticsPass(es));
+
     //Dot expressions immediately to the left of '=' should be properly marked as "writes" so the correct
     //LLVM IR can be emitted for them.  (No way to know this at parse time.)
     passes.emplace_back(new MarkDotExprWritesPass());
-
-    //Finally, on to some semantics checking:
-
-    passes.emplace_back(new BinaryExprSemanticsPass(es));
-    passes.emplace_back(new CastExprSemanticPass(es));
-    passes.emplace_back(new FuncCallSemanticsPass(es));
 
     runPasses(passes, module, es, nullptr);
 }

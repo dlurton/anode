@@ -1,4 +1,4 @@
-#include "front/error.h"
+#include "front/ErrorStream.h"
 #include "execute/execute.h"
 #include "back/compile.h"
 #include "test_util.h"

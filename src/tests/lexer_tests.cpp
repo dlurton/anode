@@ -9,6 +9,7 @@
 #include <sstream>
 
 using namespace anode;
+using namespace anode::front;
 using namespace anode::front::parser;
 
 

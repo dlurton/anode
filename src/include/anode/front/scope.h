@@ -4,7 +4,7 @@
 #include "common/exception.h"
 #include "type.h"
 #include "front/unique_id.h"
-#include "common/string_format.h"
+#include "common/string.h"
 #include <string>
 
 namespace anode { namespace front { namespace scope {

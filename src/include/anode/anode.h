@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "common/string_format.h"
+#include "common/string.h"
 //TO DO:  make these no-ops for release builds.
 #define ASSERT_FAIL(message) \
     throw ::anode::exception::DebugAssertionFailedException(::anode::string::format("%s:%d: Debug assertion failed: %s", __FILE__, __LINE__, message));

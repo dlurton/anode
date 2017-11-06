@@ -9,7 +9,7 @@ find_library(LIB_LINENOISE linenoise PATHS ${EXTERNS_DIR}/linenoise-ng/lib)
 set(ANODE_SOURCE_FILES main.cpp
         ${ANODE_INCLUDE_DIR}/common/containers.h
         ${ANODE_INCLUDE_DIR}/front/parse.h
-        ${ANODE_INCLUDE_DIR}/common/stacktrace.h cxxopts.h)
+        ${ANODE_INCLUDE_DIR}/common/stacktrace.h cxxopts.h ../include/anode/front/ErrorKind.h)
 
 find_library(LIB_UUID uuid REQUIRED)
 add_executable(anode ${ANODE_SOURCE_FILES})

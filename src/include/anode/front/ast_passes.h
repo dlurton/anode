@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ast.h"
-#include "error.h"
+#include "ErrorStream.h"
 #include "common/containers.h"
 
 namespace anode { namespace front  { namespace passes {

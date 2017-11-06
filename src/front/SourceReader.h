@@ -14,7 +14,7 @@ namespace anode { namespace front { namespace parser {
 class SourceReader : no_new, no_copy, no_assign {
     string_t inputName_;
     std::istream &inputStream_;
-    size_t lineNo_ = 1;
+    int lineNo_;
     size_t charPositionInLine_ = 1;
     std::deque<char_t> lookahead_;
 
@@ -30,8 +30,8 @@ class SourceReader : no_new, no_copy, no_assign {
     }
 
 public:
-    SourceReader(const string_t &inputName_, std::istream &inputStream)
-        : inputName_(inputName_), inputStream_(inputStream) {  }
+    SourceReader(const string_t &inputName_, std::istream &inputStream, int lineNumOffset = 1)
+        : inputName_(inputName_), inputStream_(inputStream), lineNo_{lineNumOffset} {  }
 
     string_t inputName() { return inputName_; }
 

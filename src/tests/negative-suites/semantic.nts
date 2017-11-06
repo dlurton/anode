@@ -1,0 +1,168 @@
+
+#############################################################################
+undefined_variable = 1
+?VariableNotDefined, 3, 1
+
+#############################################################################
+#can't cast class to primitive
+class SomeClass { a:int }
+instance:SomeClass = 1
+?InvalidImplicitCastInBinaryExpr, 5, 20
+
+#############################################################################
+#can't assign integer to bool
+someValue:int = 1.0
+?InvalidImplicitCastInBinaryExpr, 4, 15
+
+#############################################################################
+#can't assign float to integer
+someValue:int = 1.0
+?InvalidImplicitCastInBinaryExpr, 4, 15
+
+#############################################################################
+#can't use + operator with booleans
+true + false
+?OperatorCannotBeUsedWithType, 4, 6
+
+#############################################################################
+#can't use + operator with class types
+class SomeClass { a:int }
+foo:SomeClass
+bar:SomeClass
+foo + bar
+?OperatorCannotBeUsedWithType, 7, 5
+
+#############################################################################
+#can't use bool and int together
+i:int = true
+?InvalidImplicitCastInBinaryExpr, 4, 7
+
+#############################################################################
+class S { i:int } n:S
+if(n) 1
+?InvalidImplicitCastInIfCondition, 4, 4
+
+#############################################################################
+class S { i:int } n:S
+if(true) n else 1
+?InvalidImplicitCastInIfBodies, 4, 1
+
+#############################################################################
+class S { i:int } n:S
+while(n) 1
+?InvalidImplicitCastInInWhileCondition, 4, 7
+
+#############################################################################
+func f:int() true
+?InvalidImplicitCastInImplicitReturn, 3, 14
+
+#############################################################################
+func f:void(a:int) { 1 }
+f(true)
+?InvalidImplicitCastInFunctionCallArgument, 4, 3
+
+#############################################################################
+class S { i:int }
+n:S
+assert(n)
+?InvalidImplicitCastInAssertCondition, 5, 8
+
+#############################################################################
+foo:int
+foo:bool
+?SymbolAlreadyDefinedInScope, 4, 1
+
+#############################################################################
+abcdef = 1
+?VariableNotDefined, 3, 1
+
+#############################################################################
+func foo:void() { n = 1 n:int } # Note this rule does not apply to classes, functions or global variables
+?VariableUsedBeforeDefinition, 3, 19
+
+#############################################################################
+abc:Unknown
+?TypeNotDefined, 3, 5
+
+#############################################################################
+#can't cast SomeClass to integer
+class SomeClass { a:int }
+instance:SomeClass
+cast<int>(instance)
+?InvalidExplicitCast, 6, 1
+
+#############################################################################
+#can't cast int to SomeClass
+class SomeClass { a:int }
+cast<SomeClass>(1)
+?InvalidExplicitCast, 5, 1
+
+#############################################################################
+#can't assign a value to literal bool
+true = false
+?CannotAssignToLValue, 4, 6
+
+#############################################################################
+#can't assign a value to literal int
+1 = 1
+?CannotAssignToLValue, 4, 3
+
+#############################################################################
+#can't assign a value to literal float
+1.0 = 1.0
+?CannotAssignToLValue, 4, 5
+
+#############################################################################
+#can't assign a value to function
+func foo:int() 1
+foo = 1
+NOTE: this is currently ignored because in order for it to work we need a const modifier which we do not yet have
+Normally, variables of function types should be allowed to be assignable.
+?#CannotAssignToLValue,3,6
+
+#############################################################################
+#can't assign a value to member function
+class SomeClass { func foo:int() 10 }
+i:SomeClass
+i.foo = 1
+NOTE: this is currently ignored because in order for it to work we need a const modifier which we do not yet have
+?#CannotAssignToLValue, 1, 1
+
+#############################################################################
+#can't use variable name in place of type (both are symbols)
+f:int
+n:f
+?SymbolIsNotAType, 5, 3
+
+#############################################################################
+#can't use dot notation with primitive types (this is likely to change at some point)
+f:int
+f.foo
+?LeftOfDotNotClass, 5, 2
+
+#############################################################################
+#can't access an undefined class field
+class C { i:int }
+c:C
+c.n
+?ClassMemberNotFound, 6, 2
+
+#############################################################################
+#Can't invoke non-existent method
+class C { func i:int() 1 }
+c:C
+c.n()
+?MethodNotDefined, 6, 3
+
+#############################################################################
+#too few arguments to function
+func f:void(a:int)
+f()
+?IncorrectNumberOfArguments, 5, 1
+
+#############################################################################
+#too many arguments to function
+func f:void(a:int)
+f(1, 1)
+?IncorrectNumberOfArguments, 5, 1
+

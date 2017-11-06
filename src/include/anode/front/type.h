@@ -4,7 +4,7 @@
 #include "common/exception.h"
 #include "common/containers.h"
 
-#include "common/string_format.h"
+#include "common/string.h"
 
 
 
