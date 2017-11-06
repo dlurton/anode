@@ -782,7 +782,8 @@ protected:
     std::string name_;
 
 public:
-    VariableRefExpr(source::SourceSpan sourceSpan, const std::string &name) : ExprStmt(sourceSpan), name_{ name } {
+    VariableRefExpr(source::SourceSpan sourceSpan, const std::string &name, VariableAccess access = VariableAccess::Read)
+        : ExprStmt(sourceSpan), access_{access}, name_{ name } {
         ASSERT(name.size() > 0);
     }
 
@@ -803,7 +804,7 @@ public:
 
     bool canWrite() const override { return true; };
 
-    VariableAccess variableAccess() { return access_; };
+    VariableAccess variableAccess() const { return access_; }
     void setVariableAccess(VariableAccess access) { access_ = access; }
 
     virtual void accept(AstVisitor *visitor) override {
@@ -811,7 +812,9 @@ public:
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new VariableRefExpr(sourceSpan_, name_);
+        VariableRefExpr *varRef = new VariableRefExpr(sourceSpan_, name_, access_);
+        varRef->access_ = access_;
+        return varRef;
     }
 
 };
@@ -821,8 +824,8 @@ public:
 class VariableDeclExpr : public VariableRefExpr {
     TypeRef* typeRef_;
 public:
-    VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name, TypeRef* typeRef)
-        : VariableRefExpr(sourceSpan, name),
+    VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name, TypeRef* typeRef, VariableAccess access = VariableAccess::Read)
+        : VariableRefExpr(sourceSpan, name, access),
           typeRef_(typeRef)
     {
     }
@@ -843,7 +846,7 @@ public:
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new VariableDeclExpr(sourceSpan_, name_, typeRef_->deepCopyForTemplate());
+        return new VariableDeclExpr(sourceSpan_, name_, typeRef_->deepCopyForTemplate(), variableAccess());
     }
 };
 

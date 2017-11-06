@@ -63,12 +63,12 @@ public:
 
         std::vector<llvm::Value *> args;
 
-        for (auto arg : expr->arguments()) {
-            args.push_back(emitExpr(arg, cc()));
-        }
-
         if (expr->instanceExpr()) {
             args.push_back(emitExpr(expr->instanceExpr(), cc()));
+        }
+
+        for (auto arg : expr->arguments()) {
+            args.push_back(emitExpr(arg, cc()));
         }
 
         llvm::Value *value = emitExpr(expr->funcExpr(), cc());

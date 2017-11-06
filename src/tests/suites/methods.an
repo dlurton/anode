@@ -1,27 +1,41 @@
 
-class Counter {
-    count:int
+{ # Methods with no arguments
+    class Counter {
+        count:int
 
-    func increment:void() count = count + 1
-    func decrement:void() count = count - 1
+        func increment:void() count = count + 1
+        func decrement:void() count = count - 1
 
-    func getCount:int() count
+        func getCount:int() count
+    }
+
+
+    c:Counter = new Counter()
+
+    assert(c.getCount() == 0)
+
+    c.increment()
+    assert(c.getCount() == 1)
+
+    c.increment()
+    assert(c.getCount() == 2)
+
+    c.decrement()
+    assert(c.getCount() == 1)
+
+    c.decrement()
+    assert(c.getCount() == 0)
+
 }
 
-
-c:Counter = new Counter()
-
-assert(c.getCount() == 0)
-
-c.increment()
-assert(c.getCount() == 1)
-
-c.increment()
-assert(c.getCount() == 2)
-
-c.decrement()
-assert(c.getCount() == 1)
-
-c.decrement()
-assert(c.getCount() == 0)
+{ # methods with an argument
+    class Widget {
+        widgetId:int
+        func getWidgetId:int() widgetId
+        func setWidgetId:void(id:int) widgetId = id
+    }
+    w:Widget = new Widget()
+    w.setWidgetId(512)
+    assert(512 == w.getWidgetId())
+}
 

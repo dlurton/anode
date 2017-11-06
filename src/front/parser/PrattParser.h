@@ -82,6 +82,8 @@ protected:
                 error::ErrorKind::UnexpectedToken,
                 token->span(),
                 "Expected " + humanReadableExpectedText);
+
+            throw ParseAbortedException();
         }
         return token;
     }
@@ -93,6 +95,8 @@ protected:
                 error::ErrorKind::UnexpectedToken,
                 token->span(),
                 "Expected " + humanReadableExpectedText);
+
+            throw ParseAbortedException();
         }
         return token;
     }

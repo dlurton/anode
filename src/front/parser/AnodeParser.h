@@ -139,6 +139,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         Token *closeCurly = parseUntilCloseCurly(stmts);
         return new ast::ExpressionList(getSourceSpan(openCurly->span(), closeCurly->span()), stmts);
     }
+
     ast::ExprStmt *parseCompoundStmt(Token *openCurly) {
         gc_vector<ast::ExprStmt*> stmts;
         Token *closeCurly = parseUntilCloseCurly(stmts);
@@ -360,12 +361,14 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     ast::ExprStmt *parseExpand(Token *expandKeyword) {
         gc_vector<ast::TypeRef*> templateArgs;
         Token *templateName = consumeIdentifier();
-        Token *terminator = nullptr;
         consumeOpenParen();
+        Token *terminator = consumeOptional(TokenKind::CLOSE_PAREN);
 
-        do {
-            templateArgs.push_back(parseTypeRef());
-        } while ((terminator = consume(TokenKind::CLOSE_PAREN, TokenKind::COMMA, "'>' or ','"))->kind() == TokenKind::COMMA);
+        if(terminator == nullptr) {
+            do {
+                templateArgs.push_back(parseTypeRef());
+            } while ((terminator = consume(TokenKind::CLOSE_PAREN, TokenKind::COMMA, "'>' or ','"))->kind() == TokenKind::COMMA);
+        }
 
         return new ast::TemplateExpansionExprStmt(
             getSourceSpan(expandKeyword->span(), terminator->span()),
