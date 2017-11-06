@@ -1,0 +1,13 @@
+
+
+template TCommonFields(TIgnore) {
+    func f:int() 123
+}
+
+class CommonClass {
+    expand TCommonFields(int)
+}
+
+c:CommonClass = new CommonClass()
+assert(123 == c.f())
+

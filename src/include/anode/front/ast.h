@@ -1338,6 +1338,7 @@ public:
         }
 
         for (auto method : this->body()->scope()->functions()) {
+            method->setThisSymbol(new scope::VariableSymbol("this", this->definedType()));
             ct->addMethod(method->name(), method);
         }
     }

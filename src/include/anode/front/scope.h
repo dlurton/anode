@@ -219,6 +219,8 @@ public:
 
     /** The symbol to be used by the "this" argument within instance methods.  */
     VariableSymbol *thisSymbol() {
+        ASSERT(storageKind() == StorageKind::Instance);
+        ASSERT(thisSymbol_);
         return thisSymbol_;
     }
 

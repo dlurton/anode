@@ -15,23 +15,25 @@ template TNode(TItem) {
         item:TItem
     }
 }
+{
+    expand TList(int)
 
-expand TList(int)
+    list:LinkedList<int> = new LinkedList<int>()
+    list.head = new Node<int>()
+    list.head.next = new Node<int>()
+    list.head.item = 10
+    list.head.next.item = 11
+    assert(list.head.item == 10)
+    assert(list.head.next.item == 11)
+}
+{
+    expand TList(float)
 
-list:LinkedList<int> = new LinkedList<int>()
-list.head = new Node<int>()
-list.head.next = new Node<int>()
-list.head.item = 10
-list.head.next.item = 11
-assert(list.head.item == 10)
-assert(list.head.next.item == 11)
-
-expand TList(float)
-
-list2:LinkedList<float> = new LinkedList<float>()
-list2.head = new Node<float>()
-list2.head.next = new Node<float>()
-list2.head.item = 10.0
-list2.head.next.item = 11.0
-assert(list2.head.item == 10.0)
-assert(list2.head.next.item == 11.0)
+    list2:LinkedList<float> = new LinkedList<float>()
+    list2.head = new Node<float>()
+    list2.head.next = new Node<float>()
+    list2.head.item = 10.0
+    list2.head.next.item = 11.0
+    assert(list2.head.item == 10.0)
+    assert(list2.head.next.item == 11.0)
+}

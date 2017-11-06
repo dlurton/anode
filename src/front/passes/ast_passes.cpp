@@ -195,16 +195,7 @@ public:
 class PrepareClassesVisitor : public ast::AstVisitor {
     void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
         cd->populateClassType();
-
-        auto bodyStatements = cd->body()->expressions();
-        for(auto maybeFuncDefStmt : bodyStatements) {
-            auto funcDefStmt = dynamic_cast<ast::FuncDefStmt*>(maybeFuncDefStmt);
-            if(!funcDefStmt) continue;
-
-            funcDefStmt->symbol()->setThisSymbol(new scope::VariableSymbol("this", cd->definedType()));
-        }
     }
-
 };
 
 class ResolveSymbolsPass : public ScopeFollowingAstVisitor {

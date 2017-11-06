@@ -70,8 +70,6 @@ void SymbolTable::addSymbol(Symbol *symbol) {
     if(findSymbol(symbol->name())) {
         throw exception::DebugAssertionFailedException(string::format("Symbol '%s' already exists in this SymbolTable", symbol->name().c_str()));
     }
-    if(symbol->name() == "TItem")
-        std::cout << "TItem\n";
 #endif
 
     ASSERT(!findSymbol(symbol->name()));
