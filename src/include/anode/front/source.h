@@ -19,7 +19,7 @@ namespace anode { namespace source {
         std::size_t position() const { return position_; }
 
         std::string toString() {
-            return string::format("(%d, %d)", line_, position_);
+            return string::format("%d, %d", line_, position_);
         }
     };
     bool operator== (SourceLocation a, SourceLocation b);
@@ -43,7 +43,7 @@ namespace anode { namespace source {
         SourceLocation end() const { return end_; }
 
         std::string toString() {
-            return string::format("%s %s", name_.c_str(), start_.toString().c_str());
+            return string::format("%s:%s", name_.c_str(), start_.toString().c_str());
         }
 
         static SourceSpan Any;

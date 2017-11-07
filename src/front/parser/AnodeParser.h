@@ -19,6 +19,11 @@ static source::SourceSpan getSourceSpan(const SourceSpan &start, const SourceSpa
 
 class AnodeParser : public PrattParser<ast::ExprStmt> {
     gc_vector<ast::TemplateParameter*> templateParameters_;
+    bool parsingTemplate_ = false;
+
+    inline static ast::Identifier createIdentifier(Token *t) {
+        return ast::Identifier(t->span(), t->text());
+    }
 
     std::stack<scope::StorageKind> storageKindStack_;
 
@@ -127,9 +132,9 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     Token *parseUntilCloseCurly(gc_vector<ast::ExprStmt*> &stmts) {
         Token *closeCurly;
 
-        do {
+        while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY))) {
             stmts.push_back(parseExpr());
-        } while(!(closeCurly = consumeOptional(TokenKind::CLOSE_CURLY)));
+        }
 
         return closeCurly;
     }
@@ -333,16 +338,19 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     }
 
     ast::ExprStmt *parseTemplate(Token *templateKeyword) {
+        if(parsingTemplate_) {
+            errorStream_.error(error::ErrorKind::CannotNestTemplates, templateKeyword->span(), "Cannot nest templates");
+            throw ParseAbortedException();
+        }
+        parsingTemplate_ = true;
         Token *templateName = consumeIdentifier();
         gc_vector<ast::TemplateParameter*> parameters;
 
-        //TODO:  error when templates are nested or adjust to allow for nested templates
         consumeOpenParen();
         if(!consumeOptional(TokenKind::CLOSE_PAREN)) {
             do {
                 Token *identifier = consumeIdentifier();
                 parameters.push_back(new ast::TemplateParameter(identifier->span(), identifier->text()));
-                consumeOptional(TokenKind::COMMA);
             } while(consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, "',' or ')'")->kind() == TokenKind::COMMA);
         }
 
@@ -351,6 +359,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         auto *body = upcast<ast::ExpressionList>(parseExpressionList(consumeOpenCurly()));
         templateParameters_.clear();
 
+
+        parsingTemplate_ = false;
         return new ast::TemplateExprStmt(
             getSourceSpan(templateKeyword->span(), body->sourceSpan()),
             templateName->text(),
@@ -372,7 +382,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
         return new ast::TemplateExpansionExprStmt(
             getSourceSpan(expandKeyword->span(), terminator->span()),
-            templateName->text(), templateArgs);
+            createIdentifier(templateName), templateArgs);
     }
 
     ast::ExprStmt *parseDotExpr(ast::ExprStmt *lValue, Token *operatorToken) {

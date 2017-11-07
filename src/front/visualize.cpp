@@ -226,7 +226,7 @@ public:
     }
 
     virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt *expansion) override {
-        writer_.writeln("TemplateExpansionExprStmt: " + expansion->templateName());
+        writer_.writeln("TemplateExpansionExprStmt: " + expansion->templatedId().text());
         writer_.incIndent();
     }
 

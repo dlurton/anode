@@ -10,15 +10,12 @@ TODO:  in this branch:
  - Either change references to `ast::TemplateArgument` to `std::string` or fully utilize `ast::TemplateArgument` 
  and its descendant.
  - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
- - Numerous TODOs in ASSERT messages mostly surrounding the creation of semantic errors
  - Search for other TODOs within comments and see if they can be done or removed.
- - Additional testing -- nested templates and expansions within templates for example.
-    - Possibly should prevent nested templates - but not expansions within templates.
-    - What happens when the same template is expanded twice
-        - in the same scope
-        - in different scopes
-        - in different modules
- - Descions regarding scoping of symbols defined within templates - should they be added to the same scope as
+- What happens when the same template is expanded twice
+    - in the same scope
+    - in different scopes
+    - in different modules
+ - Decisions regarding scoping of symbols defined within templates - should they be added to the same scope as
  they are currently or defined within the same "logical" scope in which the template is defined? (I'm guessing the later 
  will be preferrable.)
  - Other things I'm sure I can't think of at the moment.
@@ -34,8 +31,10 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  
 It's also possible to execute scripts directly, i.e.
 
-    ./bin/anode path/to/source_file.an
+    ./bin/<build type>/anode path/to/source_file.an
     
+Where `<build type>` is either `Release` or `Debug`.
+
 A `.an` file may also include a shebang line, i.e.
 
     #!/path/to/anode/executable 

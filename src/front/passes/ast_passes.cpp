@@ -366,7 +366,7 @@ public:
             if(!binaryExpr->lValue()->canWrite()) {
                 errorStream_.error(
                     error::ErrorKind::CannotAssignToLValue,
-                    binaryExpr->operatorSpan(), "cannot Cannot assign a value to the expression left of '='");
+                    binaryExpr->operatorSpan(), "Cannot assign a value to the expression left of '='");
             }
         } else if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
             if(!binaryExpr->type()->canDoArithmetic()) {
@@ -485,8 +485,14 @@ public:
         if(expansion->expandedTemplate() != nullptr) {
             return;
         }
-        scope::Symbol *foundSymbol = expansion->templateParameterScope()->parent()->recursiveFindSymbol(expansion->templateName());
-        ASSERT(foundSymbol && "TODO:  error when template name not found");
+        scope::Symbol *foundSymbol = expansion->templateParameterScope()->parent()->recursiveFindSymbol(expansion->templatedId().text());
+        if(!foundSymbol) {
+            errorStream_.error(
+                error::ErrorKind::TemplateDoesNotExist,
+                expansion->templatedId().span(),
+                "Temolate does not exist within the current scope");
+            return;
+        }
 
         auto templateSymbol = upcast<scope::TemplateSymbol>(foundSymbol);
         ast::TemplateExprStmt *templ = world_.getTemplate(templateSymbol->astNodeId());
@@ -496,7 +502,18 @@ public:
         //Create create a Symbol of name of the corresponding parameter referring to the TypeRef.  (AliasSymbol?)
         gc_vector<ast::TemplateParameter*> tParams = templ->parameters();
         gc_vector<ast::TypeRef*> tArgs = expansion->typeArguments();
-        ASSERT(tParams.size() == tArgs.size() && "TODO:  error when number of template arguments does not match parameters");
+
+        if(tParams.size() != tArgs.size()) {
+            const char *wasWere = tArgs.size() == 1 ? "was" : "were";
+            errorStream_.error(
+                error::ErrorKind::IncorrectNumberOfTemplateArguments,
+                expansion->sourceSpan(),
+                "Incorrect number of template arguments - expected %d but %d %s specified",
+                tParams.size(),
+                tArgs.size(),
+                wasWere);
+            return;
+        }
 
         //TODO:  refactor TemplateExpansionExprStmt to store this as a field.
         gc_vector<ast::TemplateArgument*> templateArgs;
@@ -563,12 +580,33 @@ public:
                 templateArgs.push_back(rdtr->type()->actualType());
             }
             auto genericType = upcast<type::GenericType>(typeRef->type()->actualType());
-            ASSERT(genericType->templateParameterCount() == (int)templateArgs.size()
-                   && "TODO: error message when incorrect number of args");
+            if(genericType->templateParameterCount() != (int)templateArgs.size()) {
+                errorStream_.error(
+                    error::ErrorKind::IncorrectNumberOfGenericArguments,
+                    typeRef->sourceSpan(),
+                    "Incorrect number of generic argument for type '%s'",
+                    genericType->name().c_str());
+                return;
+            }
 
             type::ClassType *expandedType = genericType->findExpandedClassType(templateArgs);
-            ASSERT(expandedType && "I'm not sure if this should be a semantic error or just an ASSERTion.")
+            if(!expandedType) {
+                errorStream_.error(
+                    error::ErrorKind::GenericTypeWasNotExpandedWithSpecifiedArguments,
+                    typeRef->sourceSpan(),
+                    "Generic type '%s' was not expanded with the specified type arguments",
+                    genericType->name().c_str());
+                return;
+            }
             typeRef->setType(expandedType);
+        } else {
+            if(typeRef->hasTemplateArguments()) {
+                errorStream_.error(
+                    error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
+                    typeRef->sourceSpan(),
+                    "Type '%s' is not generic but is referenced with generic arguments",
+                    typeRef->type()->name().c_str());
+            }
         }
     }
 };

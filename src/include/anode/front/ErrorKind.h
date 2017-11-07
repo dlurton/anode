@@ -19,6 +19,7 @@ BETTER_ENUM(ErrorKind, short,
     UnexpectedToken,
     Syntax,
     SurpriseToken,
+    CannotNestTemplates,
 
     //Semantic errors
     InvalidImplicitCastInBinaryExpr,
@@ -39,7 +40,12 @@ BETTER_ENUM(ErrorKind, short,
     LeftOfDotNotClass,
     ClassMemberNotFound,
     IncorrectNumberOfArguments,
-    MethodNotDefined
+    MethodNotDefined,
+    TemplateDoesNotExist,
+    IncorrectNumberOfTemplateArguments,
+    IncorrectNumberOfGenericArguments,
+    TypeIsNotGenericButIsReferencedWithGenericArgs,
+    GenericTypeWasNotExpandedWithSpecifiedArguments
 );
 
 }}}

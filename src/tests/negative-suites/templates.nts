@@ -1,0 +1,67 @@
+#############################################################################
+# reference unknown template
+expand UndefinedTemplate()
+?TemplateDoesNotExist, 3, 8
+
+#############################################################################
+# nested templates
+template TOuter() {
+    template TInner() { }
+}
+?CannotNestTemplates, 5, 5
+
+#############################################################################
+# too few template arguments
+template TTemplate(T, TT) { }
+expand TTemplate(int)
+?IncorrectNumberOfTemplateArguments, 5, 1
+
+#############################################################################
+# too many template arguments
+template TTemplate(T, TT) { }
+expand TTemplate(int, float, bool)
+?IncorrectNumberOfTemplateArguments, 5, 1
+
+#############################################################################
+# too few generic arguments
+template TTemplate(T, TT) {
+    class C { }
+}
+expand TTemplate(int, float)
+c:C<int>
+?IncorrectNumberOfGenericArguments, 8, 3
+
+#############################################################################
+# too many generic arguments
+template TTemplate(T, TT) {
+    class C { }
+}
+expand TTemplate(int, float)
+c:C<int, float, bool>
+?IncorrectNumberOfGenericArguments, 8, 3
+
+#############################################################################
+# assignment of variable with generic type with a value of the same generic type but different type arguments
+template TTemplate(T) {
+    class Temp { }
+}
+expand TTemplate(int)
+expand TTemplate(float)
+tempInt:Temp<int>
+tempFloat:Temp<float> = tempInt
+?InvalidImplicitCastInBinaryExpr, 10, 23
+
+#############################################################################
+# can't reference non-generic classes as if they were generic
+class S { }
+a:S<int>
+?TypeIsNotGenericButIsReferencedWithGenericArgs, 5, 3
+
+#############################################################################
+# can't instantiate non-expanded generic classes
+template Temp(T) {
+    class S { }
+}
+expand Temp(int)
+a:S<float>
+?GenericTypeWasNotExpandedWithSpecifiedArguments, 8, 3

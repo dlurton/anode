@@ -160,7 +160,17 @@ public:
 
 extern unsigned long astNodesDestroyedCount;
 
+class Identifier {
+    source::SourceSpan span_;
+    std::string text_;
 
+public:
+    Identifier(source::SourceSpan span, std::string text)
+        : span_(span), text_(text) { }
+
+    const std::string &text() const { return text_; }
+    const source::SourceSpan &span() const { return span_; }
+};
 
 /** Base class for all nodes */
 class AstNode : public Object, no_copy, no_assign {
@@ -501,7 +511,7 @@ public:
 };
 
 class TemplateExpansionExprStmt : public ExprStmt {
-    std::string templateName_;
+    Identifier templateName_;
     //TODO:  convert below to vector of TemplateArgument*
     gc_vector<ast::TypeRef*> typeArguments_;
     ast::ExprStmt *expandedTemplate_ = nullptr;
@@ -509,7 +519,7 @@ class TemplateExpansionExprStmt : public ExprStmt {
 public:
     TemplateExpansionExprStmt(
         source::SourceSpan sourceSpan,
-        const std::string &templateName,
+        const Identifier &templateName,
         gc_vector<ast::TypeRef*> typeArguments)
         : ExprStmt(sourceSpan),
           templateName_{templateName},
@@ -519,7 +529,8 @@ public:
 
     type::Type *type() const override { return &type::Primitives::Void; }
     virtual bool canWrite() const override { return false; };
-    std::string templateName() { return templateName_; }
+
+    const Identifier &templatedId() { return templateName_; }
     gc_vector<ast::TypeRef*> typeArguments() { return typeArguments_; }
 
     scope::SymbolTable *templateParameterScope() { return &templateParameterScope_; }
@@ -1290,14 +1301,15 @@ class CompleteClassDefinition : public ClassDefinitionBase {
 
         if(!arguments.empty()) {
             className += '<';
-            for(size_t i = 0; i < arguments.size() - 1; ++i) {
-                className += ',';
-            }
+//            for(size_t i = 0; i < arguments.size() - 1; ++i) {
+//                className += ',';
+//            }
 
             auto itr = arguments.begin();
             className += (*itr++)->parameterName();
             for(; itr != arguments.end(); ++itr) {
-                className += (*itr++)->parameterName();
+                className += ',';
+                className += (*itr)->parameterName();
             }
             className += '>';
         }
