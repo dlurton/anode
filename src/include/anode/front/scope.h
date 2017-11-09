@@ -185,7 +185,7 @@ public:
     }
 
     virtual std::string toString() const override {
-        return name_ + ":" + (type() ? type()->name() : "<unresolved type>");
+        return name_ + ":" + (type() ? type()->nameForDisplay() : "<unresolved type>");
     }
 
     Symbol *cloneForExport() override {
@@ -210,7 +210,7 @@ public:
 
     std::string name() const override { return name_; };
 
-    std::string toString() const override { return name_ + ":" + functionType_->returnType()->name() + "()"; }
+    std::string toString() const override { return name_ + ":" + functionType_->returnType()->nameForDisplay() + "()"; }
 
     type::Type *type() const override { return functionType_; }
 
@@ -267,7 +267,7 @@ public:
 
     std::string name() const override { return name_; }
 
-    std::string toString() const override { return type_->name(); }
+    std::string toString() const override { return type_->nameForDisplay(); }
 
     type::Type *type() const override { return type_->actualType(); }
 

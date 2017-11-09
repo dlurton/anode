@@ -113,6 +113,11 @@ public:
         return actualType()->name();
     }
 
+    std::string nameForDisplay() const override {
+        assertResolved();
+        return actualType_->nameForDisplay();
+    }
+
     bool isSameType(const type::Type *otherType) const override {
         assertResolved();
         return actualType()->isSameType(otherType);
@@ -269,10 +274,7 @@ public:
 class ClassMethod : public ClassMember {
     scope::FunctionSymbol *symbol_;
 public:
-    explicit ClassMethod(const std::string &name, scope::FunctionSymbol *symbol) : ClassMember(name), symbol_{symbol} {
-
-    }
-
+    explicit ClassMethod(const std::string &name, scope::FunctionSymbol *symbol) : ClassMember(name), symbol_{symbol} { }
     Type *type() const override;
     scope::FunctionSymbol *symbol() const { return symbol_; }
 };
@@ -283,23 +285,40 @@ class GenericType;
 class ClassType : public Type {
     const UniqueId astNodeId_;
     std::string name_;
-    std::string displayName_;
     gc_vector<ClassField*> orderedFields_;
     gc_unordered_map<std::string, ClassField*> fields_;
     gc_unordered_map<std::string, ClassMethod*> methods_;
     GenericType *genericType_ = nullptr;
+    gc_vector<Type*> typeArguments_;
 
 public:
-    ClassType(UniqueId astNodeId, const std::string &name, const std::string &displayName)
+    ClassType(UniqueId astNodeId, const std::string &name, gc_vector<Type*> typeArguments)
         : astNodeId_{astNodeId},
           name_{name},
-          displayName_{displayName}
+          typeArguments_{typeArguments}
     {
         ASSERT(!name_.empty());
     }
 
     UniqueId astNodeId() const override { return astNodeId_; }
     std::string name() const override { return name_; }
+
+    std::string nameForDisplay() const override {
+        std::string className = name_;
+
+        if(!typeArguments_.empty()) {
+            className += '<';
+
+            auto itr = typeArguments_.begin();
+            className += (*itr++)->nameForDisplay();
+            for(; itr != typeArguments_.end(); ++itr) {
+                className += ", ";
+                className += (*itr)->nameForDisplay();
+            }
+            className += '>';
+        }
+        return className;
+    }
 
     bool isSameType(const type::Type *other) const override {
         //We don't expect multiple instances of ClassType to be created which reference the same class

@@ -38,13 +38,15 @@ public:
         if (errorCount_ == 0) {
             firstError_ = ErrorDetail(error, sourceSpan);
         }
-        output_ << sourceSpan.toString() << " error: " << string::format(format, args ...) << std::endl;
+        std::string message = string::format(format, args ...);
+        output_ << sourceSpan.toString() << " error: " << message << std::endl;
         ++errorCount_;
     }
 
     template<typename ... Args>
     void warning(source::SourceSpan sourceSpan, const std::string &format, Args ... args) {
-        output_ << sourceSpan.toString() << " warning: " << string::format(format, args ...) << std::endl;
+        std::string message = string::format(format, args ...);
+        output_ << sourceSpan.toString() << " warning: " << message << std::endl;
         ++warningCount_;
     }
 };

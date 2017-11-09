@@ -59,7 +59,7 @@ public:
     }
 
     void visitingUnaryExpr(UnaryExpr *expr) override {
-        writer_.writeln("UnaryExpr: " + to_string(expr->operation()) + ", " + expr->type()->name());
+        writer_.writeln("UnaryExpr: " + to_string(expr->operation()) + ", " + expr->type()->nameForDisplay());
         writer_.incIndent();
     }
 

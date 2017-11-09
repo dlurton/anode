@@ -4,6 +4,8 @@
 set(FRONT_SRC_FILES
         ${ANODE_INCLUDE_DIR}/common
         ${ANODE_INCLUDE_DIR}/front
+        ${ANODE_INCLUDE_DIR}/front/type.h
+        ${ANODE_INCLUDE_DIR}/front/ErrorStream.h
         ast.cpp
         visualize.cpp
         type.cpp

@@ -303,17 +303,16 @@ gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom) {
     return copy;
 }
 
-/** Represents an instance of a template argument.
- * This class is currently very simple and only exposes the corresponding parameter's name but will likely be more complex
- * in the future when we support more than just types as arguments to templates.
- */
+/** Represents an instance of a template argument. */
 class TemplateArgument {
     std::string parameterName_;
+    TypeRef *typeRef_;
 public:
-    TemplateArgument(const std::string &parameterName) : parameterName_{parameterName} { }
+    TemplateArgument(const std::string &parameterName, TypeRef* typeRef) : parameterName_{parameterName}, typeRef_{typeRef} { }
     std::string parameterName() { return parameterName_; }
-//    virtual std::string namePart() const = 0;
+    TypeRef* typeRef() const { return typeRef_; }
 };
+
 typedef gc_vector<TemplateArgument*> TemplateArgVector;
 
 /** Base class for all expressions. */
@@ -447,7 +446,6 @@ public:
     }
 
 };
-
 
 class TemplateParameter : public Stmt {
     const std::string name_;
@@ -804,7 +802,7 @@ public:
     }
 
     std::string name() const { return name_; }
-    std::string toString() const { return name_ + ":" + this->type()->name(); }
+    std::string toString() const { return name_ + ":" + this->type()->nameForDisplay(); }
 
     scope::Symbol *symbol() {
         return symbol_;
@@ -1174,7 +1172,7 @@ public:
     }
 
     virtual std::string name() const { return name_; }
-    std::string toString() const { return name_ + ":" + this->type()->name(); }
+    std::string toString() const { return name_ + ":" + this->type()->nameForDisplay(); }
 
     scope::FunctionSymbol *symbol() { return symbol_; }
     void setSymbol(scope::FunctionSymbol *symbol) {
@@ -1291,31 +1289,18 @@ public:
     std::string name() const { return name_; }
 };
 
+inline gc_vector<type::Type*> toVectorOfType(const gc_vector<TemplateArgument*> &arguments) {
+    gc_vector<type::Type*> vectorOfTypes;
+    vectorOfTypes.reserve(arguments.size());
+    for(auto arg : arguments) {
+        vectorOfTypes.push_back(arg->typeRef()->type());
+    }
+    return vectorOfTypes;
+}
 
 class CompleteClassDefinition : public ClassDefinitionBase {
     gc_vector<TemplateArgument*> templateArguments_;
     type::Type *definedType_;
-
-    inline static std::string getDisplayName(const std::string &name, const gc_vector<TemplateArgument *> &arguments) {
-        std::string className = name;
-
-        if(!arguments.empty()) {
-            className += '<';
-//            for(size_t i = 0; i < arguments.size() - 1; ++i) {
-//                className += ',';
-//            }
-
-            auto itr = arguments.begin();
-            className += (*itr++)->parameterName();
-            for(; itr != arguments.end(); ++itr) {
-                className += ',';
-                className += (*itr)->parameterName();
-            }
-            className += '>';
-        }
-        return className;
-    }
-
 
 public:
     CompleteClassDefinition(
@@ -1323,7 +1308,7 @@ public:
         const std::string &name,
         ast::CompoundExpr *body
     ) : ClassDefinitionBase{span, name, body},
-        definedType_{new type::ClassType(AstNode::nodeId(), name, name)}
+        definedType_{new type::ClassType(AstNode::nodeId(), name, toVectorOfType(templateArguments_))}
     { }
 
     CompleteClassDefinition(
@@ -1333,7 +1318,7 @@ public:
         ast::CompoundExpr *body
     ) : ClassDefinitionBase{span, name, body},
         templateArguments_{templateArgs},
-        definedType_{new type::ClassType(AstNode::nodeId(), name, getDisplayName(name, templateArgs))}
+        definedType_{new type::ClassType(AstNode::nodeId(), name, toVectorOfType(templateArguments_))}
     { }
 
     /** The type of the class being defined. */

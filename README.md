@@ -4,20 +4,15 @@
 
 TODO:  in this branch:
 
- - Improve error messages... Error messages referencing types need to include the template argument's type name in the
- error message and not the parameter's name.  Need to handle if a TypeRef is resolved or not when displaying
- completed generic types.
- - Either change references to `ast::TemplateArgument` to `std::string` or fully utilize `ast::TemplateArgument` 
- and its descendant.
- - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
- - Search for other TODOs within comments and see if they can be done or removed.
-- What happens when the same template is expanded twice
+ - Test/prevent/handle circular references between type arguments.  Is this even possible?
+ - Test/handle generic types as type arguments to templates.
+ - What happens when the same template is expanded twice
     - in the same scope
     - in different scopes
-    - in different modules
- - Decisions regarding scoping of symbols defined within templates - should they be added to the same scope as
- they are currently or defined within the same "logical" scope in which the template is defined? (I'm guessing the later 
- will be preferrable.)
+    - in different modules error message and not the parameter's name.  Need to handle if a TypeRef is resolved or not when displaying
+ completed generic types.
+ - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
+ - Search for other TODOs within comments and see if they can be done or removed.
  - Other things I'm sure I can't think of at the moment.
  - Before merging back to master, change the build status badge link URL (above) back to the master branch.
     
@@ -140,7 +135,7 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     - Functions may be invoked:  `anInt:int = someFunction()`    
     - Primitive types may be used as function arguments:
         - `func someFunc:void(arg1:int, arg2:float, arg3:bool) someExpression`
- - Templates!
+ - Templates!  The tempplates feature is preliminary in form, but working!  It is a means to implement generic types:
 ``` 
     template LinkedList(TItem) {
         class Node {
@@ -158,8 +153,22 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     n1.item = 10
     n1.next.item = 11
 ```
-        
-#### Really Really Rough Feature Backlog
+ - Templates can also be used as a means of reducing code duplication without having to resort to inheritance.  The
+ snippet below gives `WidgetDocumentItem` the `documentItemId` field and `assignDocumentItemId()` method.
+```
+    template CommonDocumentItemMembers() {
+        documentItemId:int
+        func assignDocumentItemId() {
+            ...generate unique documentItemId...
+        }
+    }
+    class WidgetDocumentItem {
+        expand CommonDocumentItemMembers()
+    }
+``` 
+    
+ 
+#### Really Remally Rough Feature Backlog
 
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 

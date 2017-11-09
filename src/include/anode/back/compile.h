@@ -56,7 +56,7 @@ namespace anode { namespace back {
                 std::vector<llvm::Type *> fieldTypes;
                 fieldTypes.reserve(fields.size());
 
-                llvm::StructType *structType = llvm::StructType::create(llvmContext_, classType->name());
+                llvm::StructType *structType = llvm::StructType::create(llvmContext_, classType->nameForDisplay());
                 llvm::PointerType *pointerType = structType->getPointerTo(0);
                 mapTypes(classType, pointerType);
 

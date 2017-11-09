@@ -296,8 +296,8 @@ public:
                 error::ErrorKind::InvalidExplicitCast,
                 expr->sourceSpan(),
                 "Cannot cast from '%s' to '%s'",
-                fromType->name().c_str(),
-                toType->name().c_str());
+                fromType->nameForDisplay().c_str(),
+                toType->nameForDisplay().c_str());
         }
     }
 };
@@ -322,7 +322,7 @@ public:
                 error::ErrorKind::ClassMemberNotFound,
                 expr->dotSourceSpan(),
                 "Class '%s' does not have a member named '%s'",
-                classType->name().c_str(),
+                classType->nameForDisplay().c_str(),
                 expr->memberName().c_str());
             return;
         }
@@ -346,7 +346,7 @@ public:
                     error::ErrorKind::MethodNotDefined,
                     methodRef->sourceSpan(),
                     "Type '%s' does not have a method named '%s'.",
-                    instanceType->name().c_str(),
+                    instanceType->nameForDisplay().c_str(),
                     methodRef->name().c_str());
             }
         }
@@ -375,7 +375,7 @@ public:
                     binaryExpr->operatorSpan(),
                     "Operator '%s' cannot be used with type '%s'.",
                     ast::to_string(binaryExpr->operation()).c_str(),
-                    binaryExpr->type()->name().c_str());
+                    binaryExpr->type()->nameForDisplay().c_str());
             }
         }
     }
@@ -431,8 +431,8 @@ public:
                         argument->sourceSpan(),
                         "Cannot implicitly cast argument %d from '%s' to '%s'.",
                         i,
-                        argument->type()->name().c_str(),
-                        parameterType->name().c_str());
+                        argument->type()->nameForDisplay().c_str(),
+                        parameterType->nameForDisplay().c_str());
                 } else {
                     auto implicitCast = ast::CastExpr::createImplicit(argument, parameterType);
                     funcCallExpr->replaceArgument(i, implicitCast);
@@ -520,7 +520,7 @@ public:
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
             expansion->templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name(), tArgs[i]->type()));
-            templateArgs.push_back(new ast::TemplateArgument(tParams[i]->name()));
+            templateArgs.push_back(new ast::TemplateArgument(tParams[i]->name(), tArgs[i]));
         }
 
         expansion->setExpandedTemplate(templ->body()->deepCopyExpandTemplate(templateArgs));
@@ -585,7 +585,7 @@ public:
                     error::ErrorKind::IncorrectNumberOfGenericArguments,
                     typeRef->sourceSpan(),
                     "Incorrect number of generic argument for type '%s'",
-                    genericType->name().c_str());
+                    genericType->nameForDisplay().c_str());
                 return;
             }
 
@@ -595,7 +595,7 @@ public:
                     error::ErrorKind::GenericTypeWasNotExpandedWithSpecifiedArguments,
                     typeRef->sourceSpan(),
                     "Generic type '%s' was not expanded with the specified type arguments",
-                    genericType->name().c_str());
+                    genericType->nameForDisplay().c_str());
                 return;
             }
             typeRef->setType(expandedType);
@@ -605,7 +605,7 @@ public:
                     error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
                     typeRef->sourceSpan(),
                     "Type '%s' is not generic but is referenced with generic arguments",
-                    typeRef->type()->name().c_str());
+                    typeRef->type()->nameForDisplay().c_str());
             }
         }
     }

@@ -52,8 +52,8 @@ public:
                     error::ErrorKind::InvalidImplicitCastInBinaryExpr,
                     binaryExpr->operatorSpan(),
                     message,
-                    binaryExpr->rValue()->type()->name().c_str(),
-                    binaryExpr->lValue()->type()->name().c_str());
+                    binaryExpr->rValue()->type()->nameForDisplay().c_str(),
+                    binaryExpr->lValue()->type()->nameForDisplay().c_str());
             }
         }
     }
@@ -70,7 +70,7 @@ public:
                     error::ErrorKind::InvalidImplicitCastInIfCondition,
                     ifExpr->condition()->sourceSpan(),
                     "Cannot implicitly cast condition expression from '%s' to 'bool'.",
-                    ifExpr->condition()->type()->name().c_str());
+                    ifExpr->condition()->type()->nameForDisplay().c_str());
             }
         }
 
@@ -92,9 +92,9 @@ public:
                 errorStream_.error(
                     error::ErrorKind::InvalidImplicitCastInIfBodies,
                     ifExpr->sourceSpan(),
-                    "Cannot implicitly cast  '%s' to '%s' or vice-versa",
-                    ifExpr->thenExpr()->type()->name().c_str(),
-                    ifExpr->elseExpr()->type()->name().c_str());
+                    "Cannot implicitly cast '%s' to '%s' or vice-versa",
+                    ifExpr->thenExpr()->type()->nameForDisplay().c_str(),
+                    ifExpr->elseExpr()->type()->nameForDisplay().c_str());
             }
         }
     }
@@ -111,7 +111,7 @@ public:
                     error::ErrorKind::InvalidImplicitCastInInWhileCondition,
                     whileExpr->condition()->sourceSpan(),
                     "Cannot implicitly cast condition expression from '%s' to 'bool'.",
-                    whileExpr->condition()->type()->name().c_str());
+                    whileExpr->condition()->type()->nameForDisplay().c_str());
             }
         }
     }
@@ -125,8 +125,8 @@ public:
                     error::ErrorKind::InvalidImplicitCastInImplicitReturn,
                     funcDef->body()->sourceSpan(),
                     "Cannot implicitly cast implicit return value from '%s' to '%s'.",
-                    funcDef->body()->type()->name().c_str(),
-                    funcDef->returnType()->name().c_str());
+                    funcDef->body()->type()->nameForDisplay().c_str(),
+                    funcDef->returnType()->nameForDisplay().c_str());
             } else {
                 funcDef->setBody(ast::CastExpr::createImplicit(funcDef->body(), funcDef->returnType()));
             }
@@ -145,11 +145,10 @@ public:
                     error::ErrorKind::InvalidImplicitCastInAssertCondition,
                     assertExprStmt->condition()->sourceSpan(),
                     "Cannot implicitly cast condition expression from '%s' to 'bool'.",
-                    assertExprStmt->condition()->type()->name().c_str());
+                    assertExprStmt->condition()->type()->nameForDisplay().c_str());
             }
         }
     }
-
 };
 
 }}}
