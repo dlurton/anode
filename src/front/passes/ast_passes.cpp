@@ -9,7 +9,23 @@ namespace anode { namespace front  { namespace passes {
 bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode *node, error::ErrorStream &es, scope::SymbolTable *startingSymbolTable);
 gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es);
 
-class ScopeFollowingAstVisitor : public ast::AstVisitor {
+class ErrorContextAstVisitor : public ast::AstVisitor {
+protected:
+    error::ErrorStream &errorStream_;
+
+    ErrorContextAstVisitor(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
+public:
+
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        errorStream_.pushContextMessage("While inside template expansion at: " + expansion->sourceSpan().toString());
+    }
+
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *) override {
+        errorStream_.popContextMessage();
+    }
+};
+
+class ScopeFollowingAstVisitor : public ErrorContextAstVisitor {
 
     //We use this only as a stack but it has to be a deque so we can iterate over its contents.
     gc_deque<scope::SymbolTable*> symbolTableStack_;
@@ -21,6 +37,8 @@ protected:
     }
 
     size_t scopeDepth() { return symbolTableStack_.size(); }
+
+    ScopeFollowingAstVisitor(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
 public:
     void pushScope(scope::SymbolTable *st) {
@@ -46,12 +64,14 @@ public:
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
         symbolTableStack_.push_back(expansion->templateParameterScope());
     }
 
     void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
         ASSERT(expansion->templateParameterScope() == symbolTableStack_.back());
         symbolTableStack_.pop_back();
+        ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
     }
 };
 
@@ -60,7 +80,8 @@ public:
 class SetSymbolTableParentsPass : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
 public:
-    SetSymbolTableParentsPass(ast::AnodeWorld &world_) : world_(world_) { }
+    SetSymbolTableParentsPass(error::ErrorStream &errorStream, ast::AnodeWorld &world_)
+        : ScopeFollowingAstVisitor(errorStream), world_(world_) { }
 
     void visitingModule(ast::Module *module) override {
         module->scope()->setParent(world_.globalScope());
@@ -71,6 +92,7 @@ public:
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+
         expansion->templateParameterScope()->setParent(topScope());
         ScopeFollowingAstVisitor::visitingTemplateExpansionExprStmt(expansion);
     }
@@ -85,10 +107,9 @@ public:
 };
 
 class PopulateSymbolTablesPass : public ScopeFollowingAstVisitor {
-    error::ErrorStream &errorStream_;
 public:
-
-    explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) {  }
+    explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream)
+        : ScopeFollowingAstVisitor(errorStream) {  }
 
     scope::SymbolTable *currentScope() {
         scope::SymbolTable *ts = topScope();
@@ -199,10 +220,9 @@ class PrepareClassesVisitor : public ast::AstVisitor {
 };
 
 class ResolveSymbolsPass : public ScopeFollowingAstVisitor {
-    error::ErrorStream &errorStream_;
     gc_unordered_set<scope::Symbol*> definedSymbols_;
 public:
-    explicit ResolveSymbolsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit ResolveSymbolsPass(error::ErrorStream &errorStream_) : ScopeFollowingAstVisitor(errorStream_) { }
 
     void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
         ASSERT(expr->symbol() && "Symbol must be resolved before this point.");
@@ -235,10 +255,9 @@ public:
 };
 
 class ResolveTypesPass : public ScopeFollowingAstVisitor {
-    error::ErrorStream &errorStream_;
 public:
     explicit ResolveTypesPass(error::ErrorStream &errorStream)
-        : errorStream_{errorStream} {
+        : ScopeFollowingAstVisitor(errorStream) {
     }
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
@@ -353,10 +372,9 @@ public:
     }
 };
 
-class BinaryExprSemanticsPass : public ast::AstVisitor {
-    error::ErrorStream &errorStream_;
+class BinaryExprSemanticsPass : public ErrorContextAstVisitor {
 public:
-    explicit BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
     void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
         if(binaryExpr->isComparison()) {
@@ -390,10 +408,9 @@ class MarkDotExprWritesPass : public ast::AstVisitor {
     }
 };
 
-class FuncCallSemanticsPass : public ast::AstVisitor {
-    error::ErrorStream &errorStream_;
+class FuncCallSemanticsPass : public ErrorContextAstVisitor {
 public:
-    explicit FuncCallSemanticsPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit FuncCallSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
     void visitedFuncCallExpr(ast::FuncCallExpr *funcCallExpr) override {
         if(!funcCallExpr->funcExpr()->type()->isFunction()) {
@@ -446,7 +463,8 @@ public:
 class TemplateWorldRecorderPass : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
 public:
-    explicit TemplateWorldRecorderPass(ast::AnodeWorld &world) : world_(world) { }
+    explicit TemplateWorldRecorderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world)
+        : ScopeFollowingAstVisitor(errorStream), world_(world) { }
 
     virtual void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
         world_.addTemplate(templ);
@@ -454,17 +472,15 @@ public:
 };
 
 /** Enacts explicit template expansions. */
-class TemplateExpanderPass : public ast::AstVisitor {
+class TemplateExpanderPass : public ErrorContextAstVisitor {
     ast::AnodeWorld &world_;
-    error::ErrorStream &errorStream_;
     ast::Module *module_ = nullptr;
     bool visitingExpansion_ = false;
 
 public:
 
-    TemplateExpanderPass(ast::AnodeWorld &world_, error::ErrorStream &errorStream_) : world_(world_), errorStream_(errorStream_) {
-
-    }
+    TemplateExpanderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world_)
+        : ErrorContextAstVisitor(errorStream), world_(world_) { }
 
     bool shouldVisitChildren() override {
         return !visitingExpansion_;
@@ -476,11 +492,14 @@ public:
         module_ = module;
     }
 
-    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *) override {
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
         visitingExpansion_ = false;
+        ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
+
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
         visitingExpansion_ = true;
         if(expansion->expandedTemplate() != nullptr) {
             return;
@@ -530,13 +549,12 @@ public:
     }
 };
 
-class PopulateGenericTypesWithCompleteTypesPass : public ast::AstVisitor {
-    error::ErrorStream &errorStream_;
-
+class PopulateGenericTypesWithCompleteTypesPass : public ErrorContextAstVisitor {
     class PopulateGenericTypesSubPass : public ScopeFollowingAstVisitor {
         gc_vector<type::Type*> templateArguments_;
     public:
-        PopulateGenericTypesSubPass(const gc_vector<type::Type *> &templateArgs) : templateArguments_(templateArgs) { }
+        PopulateGenericTypesSubPass(error::ErrorStream &errorStream, const gc_vector<type::Type *> &templateArgs)
+            : ScopeFollowingAstVisitor(errorStream), templateArguments_(templateArgs) { }
 
         void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
             auto genericType = upcast<type::ClassType>(cd->definedType())->genericType();
@@ -549,10 +567,10 @@ class PopulateGenericTypesWithCompleteTypesPass : public ast::AstVisitor {
     };
 
 public:
-    explicit PopulateGenericTypesWithCompleteTypesPass(error::ErrorStream &errorStream) : errorStream_(errorStream) { }
+    explicit PopulateGenericTypesWithCompleteTypesPass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
-        errorStream_.errorCount(); //TODO:  remove this compiler warning eliminator
+        ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
 
         gc_vector<type::Type*> typeArguments;
         gc_vector<scope::TypeSymbol*> argumentSymbols = expansion->templateParameterScope()->types();
@@ -561,16 +579,15 @@ public:
             typeArguments.push_back(argSymbol->type());
         }
 
-        PopulateGenericTypesSubPass pass{typeArguments};
+        PopulateGenericTypesSubPass pass{errorStream_, typeArguments};
         pass.pushScope(expansion->templateParameterScope());
         expansion->expandedTemplate()->accept(&pass);
     }
 };
 
-class ConvertGenericTypeRefsToCompletePass : public ast::AstVisitor {
-    error::ErrorStream &errorStream_;
+class ConvertGenericTypeRefsToCompletePass : public ErrorContextAstVisitor {
 public:
-    ConvertGenericTypeRefsToCompletePass(error::ErrorStream &errorStream) : errorStream_(errorStream) { }
+    ConvertGenericTypeRefsToCompletePass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
         errorStream_.errorCount(); //TODO:  remove this compiler warning eliminator
@@ -638,13 +655,13 @@ gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &worl
 
     //Symbol resolution works recursively, examining the current scope first and then
     //searching each parent until the symbol is found.
-    passes.push_back(new SetSymbolTableParentsPass(world));
+    passes.push_back(new SetSymbolTableParentsPass(es, world));
 
     //Build the symbol tables so that symbol resolution works
     //Symbol tables are really just metadata generated from global definitions (i.e. class, func, etc.)
     passes.push_back(new PopulateSymbolTablesPass(es));
 
-    passes.push_back(new TemplateExpanderPass(world, es));
+    passes.push_back(new TemplateExpanderPass(es, world));
 
     return passes;
 }
@@ -662,7 +679,7 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module *module, error::ErrorStrea
     // I can tell because it's impossible to know all the information needed at parse time.
 
     gc_vector<ast::AstVisitor*> passes;
-    passes.push_back(new TemplateWorldRecorderPass(world));
+    passes.push_back(new TemplateWorldRecorderPass(es, world));
     if(runPasses(passes, module, es, nullptr)) return;
 
     passes = getPreTemplateExpansionPassses(world, es);
