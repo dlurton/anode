@@ -261,12 +261,16 @@ public:
     }
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
+        if(typeRef->isResolved()) {
+            return;
+        }
         std::string resolvedName = typeRef->name();
-        type::Type* type = type::Primitives::fromKeyword(resolvedName);
+        type::Type* type = type::ScalarType::fromKeyword(resolvedName);
 
         //If it was a primitive type...
         if(type) {
             typeRef->setType(type);
+            return;
         } else {
             scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
 
@@ -284,7 +288,7 @@ public:
                 return;
             }
 
-            type = typeSymbol->type()->actualType();
+            type = typeSymbol->type();
             typeRef->setType(type);
         }
     }
@@ -488,7 +492,6 @@ public:
 
 
     void visitingModule(ast::Module *module) override {
-        errorStream_.errorCount();//TODO remove this prevention of warning
         module_ = module;
     }
 
@@ -549,13 +552,17 @@ public:
     }
 };
 
+/**
+ * Adds each CompleteClassDefinition instance and the template arguments used to expand it to the GenericClassDefinition
+ * from which it originated so that it may later be resolved.
+ */
 class PopulateGenericTypesWithCompleteTypesPass : public ErrorContextAstVisitor {
+
     class PopulateGenericTypesSubPass : public ScopeFollowingAstVisitor {
         gc_vector<type::Type*> templateArguments_;
     public:
         PopulateGenericTypesSubPass(error::ErrorStream &errorStream, const gc_vector<type::Type *> &templateArgs)
             : ScopeFollowingAstVisitor(errorStream), templateArguments_(templateArgs) { }
-
         void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
             auto genericType = upcast<type::ClassType>(cd->definedType())->genericType();
             ASSERT(genericType);
@@ -585,24 +592,27 @@ public:
     }
 };
 
+/**
+ * After symbol table resolution reference to generic types have been resolved to GenericType instances.
+ * This this visitor will look up the type::ClassType which was added to the type::GenericType instances during
+ * PopulateGenericTypesWithCompleteTypesPass.
+ */
 class ConvertGenericTypeRefsToCompletePass : public ErrorContextAstVisitor {
 public:
     ConvertGenericTypeRefsToCompletePass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
-        errorStream_.errorCount(); //TODO:  remove this compiler warning eliminator
         if(typeRef->type()->isGeneric()) {
-            gc_vector<type::Type*> templateArgs;
-            for(ast::ResolutionDeferredTypeRef *rdtr : typeRef->templateArgs()) {
-                templateArgs.push_back(rdtr->type()->actualType());
-            }
+            gc_vector<type::Type*> templateArgs = typeRef->resolutionDeferredType()->typeArguments();
             auto genericType = upcast<type::GenericType>(typeRef->type()->actualType());
             if(genericType->templateParameterCount() != (int)templateArgs.size()) {
                 errorStream_.error(
                     error::ErrorKind::IncorrectNumberOfGenericArguments,
                     typeRef->sourceSpan(),
-                    "Incorrect number of generic argument for type '%s'",
-                    genericType->nameForDisplay().c_str());
+                    "Incorrect number of generic arguments for type '%s' - expected %d but found %d",
+                    genericType->nameForDisplay().c_str(),
+                    genericType->templateParameterCount(),
+                    templateArgs.size());
                 return;
             }
 
@@ -615,15 +625,15 @@ public:
                     genericType->nameForDisplay().c_str());
                 return;
             }
+
             typeRef->setType(expandedType);
-        } else {
-            if(typeRef->hasTemplateArguments()) {
-                errorStream_.error(
-                    error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
-                    typeRef->sourceSpan(),
-                    "Type '%s' is not generic but is referenced with generic arguments",
-                    typeRef->type()->nameForDisplay().c_str());
-            }
+
+        } else if(typeRef->hasTemplateArguments()) {
+            errorStream_.error(
+                error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
+                typeRef->sourceSpan(),
+                "Type '%s' is not generic but is referenced with generic arguments",
+                typeRef->type()->nameForDisplay().c_str());
         }
     }
 };

@@ -1,5 +1,7 @@
 {
 
+    # template expansion/generic class with simple scalar type arguments.
+
     template TNode(TItem) {
 
         #Top level definition picks up "ambient" template parameters.
@@ -26,6 +28,7 @@
     assert(n2.item == 20.0)
     assert(n2.next.item == 21.0)
 
+    # template expansion/generic class with class type argument.
 
     class Item {
         value:int
@@ -41,6 +44,9 @@
     assert(n3.next.item == 21)
 
 } {
+
+    #Template expansions with various primitives.
+
     template TTest(TTypeA, TTypeB, TTypeC) {
         class Test {
             a:TTypeA b:TTypeB c:TTypeC
@@ -79,4 +85,27 @@
     assert(789.0 == t3.c)
     t3.a = false
     assert(false == t3.a)
-}
+} {
+
+    #template expansion which has a generic type as one of its arguments.
+
+    template TBar(T) {
+        class Bar {
+          a:T
+        }
+    }
+    template TFoo(T) {
+        class Foo {
+            b:T
+        }
+    }
+
+    expand TBar(int)
+    expand TFoo(Bar<int>)
+
+    f:Foo<Bar<int>> = new Foo<Bar<int>>()
+    f.b = new Bar<int>()
+    f.b.a = 1024
+
+    assert(f.b.a == 1024)
+ }

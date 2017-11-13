@@ -96,9 +96,9 @@ gc_vector<VariableSymbol *> SymbolTable::variables() {
 gc_vector<TypeSymbol *> SymbolTable::types() {
     gc_vector<TypeSymbol*> classes;
     for (auto symbol : orderedSymbols_) {
-        auto variable = dynamic_cast<scope::TypeSymbol*>(symbol);
-        if(variable)
-            classes.push_back(variable);
+        auto type = dynamic_cast<scope::TypeSymbol*>(symbol);
+        if(type)
+            classes.push_back(type);
     }
 
     return classes;

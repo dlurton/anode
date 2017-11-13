@@ -245,7 +245,7 @@ public:
 
     std::string name() const override { return name_; }
     std::string toString() const override { return string::format("%s-%d", name_.c_str(), astNodeId_); }
-    type::Type *type() const override { return &type::Primitives::Void; }
+    type::Type *type() const override { return &type::ScalarType::Void; }
     UniqueId astNodeId() { return astNodeId_; }
 
 
@@ -269,7 +269,7 @@ public:
 
     std::string toString() const override { return type_->nameForDisplay(); }
 
-    type::Type *type() const override { return type_->actualType(); }
+    type::Type *type() const override { return type_; }
 
     Symbol *cloneForExport() override {
         ASSERT(storageKind() == StorageKind::Global);

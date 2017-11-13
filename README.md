@@ -2,10 +2,9 @@
 
 [![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=templates)](https://travis-ci.org/dlurton/anode)
 
-TODO:  in this branch:
+TODO: in this branch:
 
  - Test/prevent/handle circular references between type arguments.  Is this even possible?
- - Test/handle generic types as type arguments to templates.
  - What happens when the same template is expanded twice
     - in the same scope
     - in different scopes

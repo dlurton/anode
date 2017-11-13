@@ -35,16 +35,6 @@ class ScalarType;
 class GenericType;
 class ClassType;
 
-namespace Primitives {
-    extern ScalarType Int32;
-    extern ScalarType Float;
-    extern ScalarType Double;
-    extern ScalarType Bool;
-    extern ScalarType Void;
-
-    ScalarType *fromKeyword(const std::string &keyword);
-}
-
 class Type : public Object {
 public:
     virtual UniqueId astNodeId() const { return (UniqueId)-1; }
@@ -65,20 +55,49 @@ public:
     virtual Type* actualType() const { return const_cast<Type*>(this); }
 };
 
+/**
+ * UnresolvedType is a special placeholder type for types that haven't yet been resolved.
+ * This allows attempts to access the type of a unresolved TypeRef succeed, even if the type isn't capable of
+ * participating in any expression in a meaningful way.
+ * This type can't participate in arithmetic, and can't be implicitly or explicitly cast to any other type, and
+ * is never considered to be the type as another type, even when compared to itself.
+ */
+class UnresolvedType : public Type {
+public:
+    UniqueId astNodeId() const override { return (UniqueId)-1; }
+    std::string name() const override { return "<unresolved>"; }
+    std::string nameForDisplay() const override { return "<unresolved>"; }
+
+    bool isSameType(const type::Type *) const override { return false; }
+    bool isPrimitive() const override { return primitiveType() != PrimitiveType::NotAPrimitive; };
+    bool isGeneric() const override { return false; }
+    bool isActualType() override { return true; }
+    bool isVoid() const override { return false; };
+    bool isClass() const override { return false; };
+    bool isFunction() const override { return false; }
+    PrimitiveType primitiveType() const override { return PrimitiveType::NotAPrimitive; };
+    bool canDoArithmetic() const override { return false; }
+    bool canImplicitCastTo(const Type *) const override { return false; }
+    bool canExplicitCastTo(const Type *) const override { return false; }
+    Type* actualType() const override { return const_cast<UnresolvedType*>(this); }
+
+    static UnresolvedType Instance;
+};
+
 class ResolutionDeferredType : public Type {
-    Type *actualType_ = nullptr;
+    Type *actualType_ = &UnresolvedType::Instance;
+    gc_vector<Type*> typeArguments_;
     void assertResolved() const {
-        ASSERT(actualType_ && "ResolutionDeferredType has not been resolved yet.");
+        ASSERT(isResolved() && "ResolutionDeferredType has not been resolved yet.");
     }
 public:
-    ResolutionDeferredType() { }
-    ResolutionDeferredType(Type *actualType) : actualType_{actualType->actualType()} { }
+    ResolutionDeferredType(const gc_vector<Type*> typeArguments)
+        : typeArguments_{typeArguments} { }
 
     bool isActualType() override { return false; }
 
-    bool isResolved() {
-        //No actualType_ means not resolved.
-        if(!actualType_) {
+    bool isResolved() const {
+        if(actualType_ == &UnresolvedType::Instance) {
             return false;
         }
 
@@ -91,13 +110,12 @@ public:
         return true;
     }
 
+    gc_vector<type::Type*> typeArguments() { return typeArguments_; }
 
     void resolve(Type* type) {
-//        ASSERT(! dynamic_cast<ResolutionDeferredType*>(type)
-//               && "ResolutionDeferredType should not resolve to an instance of ResolutionDeferredType")
 #ifdef ANODE_DEBUG
-        if(actualType_ && (!isInstanceOf<GenericType>(actualType_) || !isInstanceOf<ClassType>(type))) {
-            ASSERT_FAIL("ResolutionDeferredType may only be resolved once unless you're specifying the CompleteClassType of a generic type!");
+        if(isResolved() && (!isInstanceOf<GenericType>(actualType_) || !isInstanceOf<ClassType>(type))) {
+            ASSERT_FAIL("Something is probably wrong if you're attempting to resolve this instance of ResolutionDeferredType more than once!");
         }
 #endif
         actualType_ = type;
@@ -219,6 +237,13 @@ public:
 
         return operandPriority() >= otherScalar->operandPriority();
     };
+
+    static ScalarType Int32;
+    static ScalarType Float;
+    static ScalarType Double;
+    static ScalarType Bool;
+    static ScalarType Void;
+    static ScalarType *fromKeyword(const std::string &keyword);
 };
 
 class FunctionType : public Type {

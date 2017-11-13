@@ -33,11 +33,11 @@ namespace anode { namespace back {
     public:
         TypeMap(llvm::LLVMContext &llvmContext) : llvmContext_{llvmContext} {
 
-            mapTypes(&front::type::Primitives::Void, llvm::Type::getVoidTy(llvmContext_));
-            mapTypes(&front::type::Primitives::Bool, llvm::Type::getInt1Ty(llvmContext_));
-            mapTypes(&front::type::Primitives::Int32, llvm::Type::getInt32Ty(llvmContext_));
-            mapTypes(&front::type::Primitives::Float, llvm::Type::getFloatTy(llvmContext_));
-            mapTypes(&front::type::Primitives::Double, llvm::Type::getDoubleTy(llvmContext_));
+            mapTypes(&front::type::ScalarType::Void, llvm::Type::getVoidTy(llvmContext_));
+            mapTypes(&front::type::ScalarType::Bool, llvm::Type::getInt1Ty(llvmContext_));
+            mapTypes(&front::type::ScalarType::Int32, llvm::Type::getInt32Ty(llvmContext_));
+            mapTypes(&front::type::ScalarType::Float, llvm::Type::getFloatTy(llvmContext_));
+            mapTypes(&front::type::ScalarType::Double, llvm::Type::getDoubleTy(llvmContext_));
         }
 
         void mapTypes(front::type::Type *anodeType, llvm::Type *llvmType) {

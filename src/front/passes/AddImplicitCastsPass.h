@@ -15,16 +15,16 @@ public:
     void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
         if (binaryExpr->binaryExprKind() == ast::BinaryExprKind::Logical) {
 
-            if (!binaryExpr->lValue()->type()->isSameType(&type::Primitives::Bool)) {
+            if (!binaryExpr->lValue()->type()->isSameType(&type::ScalarType::Bool)) {
 
-                ast::CastExpr *rValue = ast::CastExpr::createImplicit(binaryExpr->lValue(), &type::Primitives::Bool);
+                ast::CastExpr *rValue = ast::CastExpr::createImplicit(binaryExpr->lValue(), &type::ScalarType::Bool);
                 binaryExpr->setLValue(rValue);
 
             }
 
-            if (!binaryExpr->rValue()->type()->isSameType(&type::Primitives::Bool)) {
+            if (!binaryExpr->rValue()->type()->isSameType(&type::ScalarType::Bool)) {
 
-                ast::CastExpr *lValue = ast::CastExpr::createImplicit(binaryExpr->rValue(), &type::Primitives::Bool);
+                ast::CastExpr *lValue = ast::CastExpr::createImplicit(binaryExpr->rValue(), &type::ScalarType::Bool);
                 binaryExpr->setRValue(lValue);
 
             }
@@ -60,10 +60,10 @@ public:
 
     void visitedIfExpr(ast::IfExprStmt *ifExpr) override {
 
-        if(!ifExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
-            if (ifExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+        if(!ifExpr->condition()->type()->isSameType(&type::ScalarType::Bool)) {
+            if (ifExpr->condition()->type()->canImplicitCastTo(&type::ScalarType::Bool)) {
 
-                ifExpr->setCondition(ast::CastExpr::createImplicit(ifExpr->condition(), &type::Primitives::Bool));
+                ifExpr->setCondition(ast::CastExpr::createImplicit(ifExpr->condition(), &type::ScalarType::Bool));
 
             } else {
                 errorStream_.error(
@@ -101,10 +101,10 @@ public:
 
     void visitingWhileExpr(ast::WhileExpr *whileExpr) override {
         //Can we deduplicate this code? (duplicate is in AddImplicitCastsVisitor::visitedIfExpr)
-        if(!whileExpr->condition()->type()->isSameType(&type::Primitives::Bool)) {
-            if (whileExpr->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+        if(!whileExpr->condition()->type()->isSameType(&type::ScalarType::Bool)) {
+            if (whileExpr->condition()->type()->canImplicitCastTo(&type::ScalarType::Bool)) {
 
-                whileExpr->setCondition(ast::CastExpr::createImplicit(whileExpr->condition(), &type::Primitives::Bool));
+                whileExpr->setCondition(ast::CastExpr::createImplicit(whileExpr->condition(), &type::ScalarType::Bool));
 
             } else {
                 errorStream_.error(
@@ -117,7 +117,7 @@ public:
     }
 
     void visitedFuncDeclStmt(ast::FuncDefStmt *funcDef) override {
-        if(funcDef->returnType()->isSameType(&type::Primitives::Void)) return;
+        if(funcDef->returnType()->isSameType(&type::ScalarType::Void)) return;
 
         if(!funcDef->returnType()->isSameType(funcDef->body()->type())) {
             if(!funcDef->body()->type()->canImplicitCastTo(funcDef->returnType())) {
@@ -135,10 +135,10 @@ public:
 
     void visitedAssertExprStmt(ast::AssertExprStmt *assertExprStmt) override {
 
-        if(!assertExprStmt->condition()->type()->isSameType(&type::Primitives::Bool)) {
-            if (assertExprStmt->condition()->type()->canImplicitCastTo(&type::Primitives::Bool)) {
+        if(!assertExprStmt->condition()->type()->isSameType(&type::ScalarType::Bool)) {
+            if (assertExprStmt->condition()->type()->canImplicitCastTo(&type::ScalarType::Bool)) {
 
-                assertExprStmt->setCondition(ast::CastExpr::createImplicit(assertExprStmt->condition(), &type::Primitives::Bool));
+                assertExprStmt->setCondition(ast::CastExpr::createImplicit(assertExprStmt->condition(), &type::ScalarType::Bool));
 
             } else {
                 errorStream_.error(

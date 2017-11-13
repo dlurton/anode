@@ -396,7 +396,7 @@ private:
 
         currentFunc->getBasicBlockList().push_back(endBlock);
         cc().irBuilder().SetInsertPoint(endBlock);
-        llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(&type::Primitives::Bool), 2, "logical_tmp");
+        llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(&type::ScalarType::Bool), 2, "logical_tmp");
 
         llvm::ConstantInt *shortCircuitLlvmValue
             = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));

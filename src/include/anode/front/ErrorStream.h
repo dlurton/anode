@@ -31,8 +31,11 @@ class ErrorStream : no_assign, no_copy {
     std::deque<std::string> contextMessageStack_;
 
     void showContext() {
-        for(const auto &contextMessage : contextMessageStack_) {
-             output_ << contextMessage << std::endl;
+        if(!contextMessageStack_.empty()) {
+            for (const auto &contextMessage : contextMessageStack_) {
+                output_ << contextMessage << std::endl;
+            }
+            output_ << "\t";
         }
     }
 

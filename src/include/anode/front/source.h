@@ -19,7 +19,7 @@ namespace anode { namespace source {
         std::size_t position() const { return position_; }
 
         std::string toString() {
-            return string::format("%d, %d", line_, position_);
+            return string::format("%d:%d", line_, position_);
         }
     };
     bool operator== (SourceLocation a, SourceLocation b);

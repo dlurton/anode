@@ -221,7 +221,7 @@ public:
 /** A reference to a data type that is known at parse time (used for primitive data types). */
 class KnownTypeRef : public TypeRef {
     type::Type *referencedType_;
-public:
+    public:
     KnownTypeRef(source::SourceSpan sourceSpan, type::Type *dataType)
         : TypeRef(sourceSpan), referencedType_{dataType}
     { }
@@ -255,14 +255,29 @@ inline std::string join(TIterator begin, TIterator end, std::string delimiter, s
 class ResolutionDeferredTypeRef : public TypeRef {
     const std::string name_;
     gc_vector<ResolutionDeferredTypeRef*> templateArgs_;
-    type::ResolutionDeferredType *referencedType_;
+    type::ResolutionDeferredType *referencedType_ = nullptr;
+
+    inline static gc_vector<type::Type*> getTypesFromTypeRefs(const gc_vector<ResolutionDeferredTypeRef*> &typeRefs) {
+        gc_vector<type::Type*> types;
+        types.reserve(typeRefs.size());
+        for(auto tr : typeRefs) {
+            types.push_back(tr->type());
+        }
+        return types;
+    }
 public:
     ResolutionDeferredTypeRef(const source::SourceSpan &sourceSpan, std::string name, const gc_vector<ResolutionDeferredTypeRef*> &args)
-        : TypeRef(sourceSpan), name_{name}, templateArgs_{args}, referencedType_(new type::ResolutionDeferredType()) { }
+        : TypeRef(sourceSpan), name_{name}, templateArgs_{args}, referencedType_(new type::ResolutionDeferredType(getTypesFromTypeRefs(templateArgs_))) { }
 
     std::string name() const override { return name_; }
 
     type::Type *type() const override {
+        ASSERT(referencedType_ && "Data type hasn't been resolved yet");
+        return referencedType_;
+    }
+
+    /** Convenience method so callers don't have to upcast return value of type() */
+    type::ResolutionDeferredType *resolutionDeferredType() {
         ASSERT(referencedType_ && "Data type hasn't been resolved yet");
         return referencedType_;
     }
@@ -480,7 +495,7 @@ public:
 
     gc_vector<ast::TemplateParameter*> &parameters() { return parameters_; }
 
-    type::Type *type() const override { return &type::Primitives::Void; }
+    type::Type *type() const override { return &type::ScalarType::Void; }
     bool canWrite() const override { return false; };
 
     std::string name() { return name_; }
@@ -525,7 +540,7 @@ public:
           templateParameterScope_{scope::StorageKind::TemplateParameter}
     { }
 
-    type::Type *type() const override { return &type::Primitives::Void; }
+    type::Type *type() const override { return &type::ScalarType::Void; }
     virtual bool canWrite() const override { return false; };
 
     const Identifier &templatedId() { return templateName_; }
@@ -560,7 +575,7 @@ class LiteralBoolExpr : public ExprStmt {
     bool const value_;
 public:
     LiteralBoolExpr(source::SourceSpan sourceSpan, const bool value) : ExprStmt(sourceSpan), value_(value) {}
-    type::Type *type() const override { return &type::Primitives::Bool; }
+    type::Type *type() const override { return &type::ScalarType::Bool; }
     bool value() const { return value_; }
 
     virtual bool canWrite() const override { return false; };
@@ -579,7 +594,7 @@ class LiteralInt32Expr : public ExprStmt {
     int const value_;
 public:
     LiteralInt32Expr(source::SourceSpan sourceSpan, const int value) : ExprStmt(sourceSpan), value_(value) {}
-    type::Type *type() const override { return &type::Primitives::Int32; }
+    type::Type *type() const override { return &type::ScalarType::Int32; }
     int value() const { return value_; }
 
     virtual bool canWrite() const override { return false; };
@@ -599,7 +614,7 @@ class LiteralFloatExpr : public ExprStmt {
 public:
     LiteralFloatExpr(source::SourceSpan sourceSpan, const float value) : ExprStmt(sourceSpan), value_(value) {}
 
-    type::Type *type() const override {  return &type::Primitives::Float; }
+    type::Type *type() const override {  return &type::ScalarType::Float; }
     float value() const { return value_; }
 
     bool canWrite() const override { return false; };
@@ -636,7 +651,7 @@ public:
 
     source::SourceSpan operatorSpan() { return operatorSpan_; }
 
-    type::Type *type() const override { return &type::Primitives::Bool; }
+    type::Type *type() const override { return &type::ScalarType::Bool; }
 
     ExprStmt *valueExpr() const { return valueExpr_; }
     void setLValue(ExprStmt *newLValue) { valueExpr_ = newLValue; }
@@ -702,7 +717,7 @@ public:
      * because some operation types (e.g. equality, logical and, or, etc) always yield boolean values.  */
     type::Type *type() const override {
         if(isComparison()) {
-            return &type::Primitives::Bool;
+            return &type::ScalarType::Bool;
         }
         return operandsType();
     }
@@ -961,7 +976,7 @@ public:
 
     type::Type *type() const override {
         if(elseExpr_ == nullptr || !thenExpr_->type()->isSameType(elseExpr_->type())) {
-            return &type::Primitives::Void;
+            return &type::ScalarType::Void;
         }
 
         return thenExpr_->type();
@@ -1018,7 +1033,7 @@ public:
 
     type::Type *type() const override {
         //For now, while expressions will not return a value.
-        return &type::Primitives::Void;
+        return &type::ScalarType::Void;
     }
 
     ExprStmt *condition() const { return condition_; }
@@ -1106,7 +1121,7 @@ public:
         parameterScope_.name() = name_ + "-parameters";
     }
 
-    type::Type *type() const override { return &type::Primitives::Void; }
+    type::Type *type() const override { return &type::ScalarType::Void; }
     bool canWrite() const override { return false; }
 
     std::string name() const { return name_; }
@@ -1278,7 +1293,7 @@ protected:
 public:
 
     /** The class definition, as an expression in the language, doesn't return a meaningful value. */
-    type::Type *type() const override { return &type::Primitives::Void; }
+    type::Type *type() const override { return &type::ScalarType::Void; }
 
     /** The type of the class being defined. */
     virtual type::Type *definedType() const = 0;
@@ -1466,7 +1481,7 @@ public:
     AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt *condition)
         : ExprStmt(sourceSpan), condition_{condition} { }
 
-    type::Type *type() const override { return &type::Primitives::Void; }
+    type::Type *type() const override { return &type::ScalarType::Void; }
     bool canWrite() const override { return false; }
     ast::ExprStmt *condition() { return condition_; }
     void setCondition(ast::ExprStmt *condition) { condition_ = condition; }
