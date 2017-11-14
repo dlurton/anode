@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
             std::stringstream errorOutput;
             error::ErrorStream errorStream{errorOutput};
             try {
-                auto module = parseModule(stream, string::format("%s, line: %d", filename.c_str(), startingLine), errorStream);
+                auto module = parseModule(stream, string::format("<test case ending at %s:%d>", filename.c_str(), startingLine), errorStream);
                 if (errorStream.errorCount() == 0) {
                     ast::AnodeWorld world;
                     front::passes::runAllPasses(world, module, errorStream);

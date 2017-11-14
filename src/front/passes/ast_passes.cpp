@@ -467,6 +467,7 @@ public:
 class TemplateWorldRecorderPass : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
 public:
+
     explicit TemplateWorldRecorderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world)
         : ScopeFollowingAstVisitor(errorStream), world_(world) { }
 
@@ -480,7 +481,6 @@ class TemplateExpanderPass : public ErrorContextAstVisitor {
     ast::AnodeWorld &world_;
     ast::Module *module_ = nullptr;
     bool visitingExpansion_ = false;
-
 public:
 
     TemplateExpanderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world_)
@@ -493,12 +493,6 @@ public:
 
     void visitingModule(ast::Module *module) override {
         module_ = module;
-    }
-
-    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
-        visitingExpansion_ = false;
-        ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
-
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
@@ -519,6 +513,16 @@ public:
         auto templateSymbol = upcast<scope::TemplateSymbol>(foundSymbol);
         ast::TemplateExprStmt *templ = world_.getTemplate(templateSymbol->astNodeId());
         ASSERT(templ && "Couldn't find template by astNodeId");
+        expansion->setTempl(templ);
+
+        if(world_.isExpanding(templ)) {
+             errorStream_.error(
+                 error::ErrorKind::CircularTemplateReference,
+                 expansion->sourceSpan(),
+                 "Cannot expand template '%s' -- circular template expansion detected",
+                 expansion->templatedId().text().c_str());
+        }
+        world_.addExpandingTemplate(templ);
 
         //For each template argument
         //Create create a Symbol of name of the corresponding parameter referring to the TypeRef.  (AliasSymbol?)
@@ -549,6 +553,13 @@ public:
 
         auto visitors = getPreTemplateExpansionPassses(world_, errorStream_);
         runPasses(visitors, expansion->expandedTemplate(), errorStream_, expansion->templateParameterScope());
+    }
+
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+        visitingExpansion_ = false;
+        world_.removeExpandingTemplate(expansion->templ());
+        ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
+
     }
 };
 

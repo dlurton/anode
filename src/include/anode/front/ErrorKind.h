@@ -7,7 +7,10 @@ namespace anode { namespace front { namespace error {
 /**Every distinct type of compilation error is listed here.  It allows assertions that that the semantic checks under test are
  * failing for the expected reasons.
  */
-BETTER_ENUM(ErrorKind, short,
+BETTER_ENUM(
+    ErrorKind,
+    short,
+
     NoError,
     //Lexer errors
     UnexpectedCharacter,
@@ -45,7 +48,8 @@ BETTER_ENUM(ErrorKind, short,
     IncorrectNumberOfTemplateArguments,
     IncorrectNumberOfGenericArguments,
     TypeIsNotGenericButIsReferencedWithGenericArgs,
-    GenericTypeWasNotExpandedWithSpecifiedArguments
+    GenericTypeWasNotExpandedWithSpecifiedArguments,
+    CircularTemplateReference
 );
 
 }}}

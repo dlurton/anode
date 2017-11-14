@@ -108,4 +108,24 @@
     f.b.a = 1024
 
     assert(f.b.a == 1024)
- }
+} {
+
+    #add fields and functions to a class via template expansion
+
+    template TCommon() {
+        widgetId:int
+        func setWidgetId:void(id:int) widgetId = id
+        func getWidgetId:int() widgetId
+    }
+
+    class CommonClass {
+        expand TCommon()
+        # access field defined within template
+        func getWidgetIdTimes10:int() widgetId * 10
+    }
+
+    c:CommonClass = new CommonClass()
+    c.setWidgetId(1024)
+    assert(1024 == c.getWidgetId())
+    assert(10240 == c.getWidgetIdTimes10())
+}

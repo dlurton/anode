@@ -65,3 +65,36 @@ template Temp(T) {
 expand Temp(int)
 a:S<float>
 ?GenericTypeWasNotExpandedWithSpecifiedArguments, 8, 3
+
+#############################################################################
+# circular template reference (1 template)
+template TFoo() {
+    expand TFoo()
+}
+expand TFoo()
+?CircularTemplateReference, 5, 5
+
+#############################################################################
+# circular template references (2 templates)
+template TFoo() {
+    expand TBar()
+}
+template TBar() {
+    expand TFoo()
+}
+expand TFoo()
+?CircularTemplateReference, 8, 5
+
+#############################################################################
+# circular template references (3 templates)
+template TFoo() {
+    expand TBar()
+}
+template TBar() {
+    expand TBat()
+}
+template TBat() {
+    expand TBar()
+}
+expand TFoo()
+?CircularTemplateReference, 11, 5

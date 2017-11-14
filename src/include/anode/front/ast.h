@@ -525,6 +525,7 @@ public:
 
 class TemplateExpansionExprStmt : public ExprStmt {
     Identifier templateName_;
+    TemplateExprStmt *template_ = nullptr;
     //TODO:  convert below to vector of TemplateArgument*
     gc_vector<ast::TypeRef*> typeArguments_;
     ast::ExprStmt *expandedTemplate_ = nullptr;
@@ -542,6 +543,9 @@ public:
 
     type::Type *type() const override { return &type::ScalarType::Void; }
     virtual bool canWrite() const override { return false; };
+
+    TemplateExprStmt *templ() { return template_; }
+    void setTempl(TemplateExprStmt *templ) { template_ = templ; }
 
     const Identifier &templatedId() { return templateName_; }
     gc_vector<ast::TypeRef*> typeArguments() { return typeArguments_; }
@@ -1537,6 +1541,9 @@ class AnodeWorld : public gc, no_assign, no_copy {
     scope::SymbolTable globalScope_{scope::StorageKind::Global, ""};
     gc_unordered_map<UniqueId, TemplateExprStmt*> templateIndex_;
 
+    gc_unordered_set<ast::TemplateExprStmt*> expandingTemplates_;
+
+
 public:
 
     scope::SymbolTable *globalScope() { return &globalScope_; }
@@ -1547,6 +1554,18 @@ public:
 
     TemplateExprStmt *getTemplate(UniqueId nodeId) {
         return templateIndex_[nodeId];
+    }
+
+    void addExpandingTemplate(ast::TemplateExprStmt *templ) {
+        expandingTemplates_.insert(templ);
+    }
+
+    bool isExpanding(ast::TemplateExprStmt *templ) {
+        return expandingTemplates_.count(templ) > 0;
+    }
+
+    void removeExpandingTemplate(ast::TemplateExprStmt *templ) {
+        expandingTemplates_.erase(templ);
     }
 
 };
