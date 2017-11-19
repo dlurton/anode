@@ -4,7 +4,6 @@
 
 TODO: in this branch:
 
- - Test/prevent/handle circular references between type arguments.  Is this even possible?
  - What happens when the same template is expanded twice
     - in the same scope
     - in different scopes

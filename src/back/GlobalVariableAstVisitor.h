@@ -41,15 +41,15 @@ class GlobalVariableAstVisitor : public CompileAstVisitor {
 public:
     explicit GlobalVariableAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
-    void visitingVariableDeclExpr(front::ast::VariableDeclExpr *varDef) override {
-        if(varDef->symbol()->storageKind() == front::scope::StorageKind::Global) {
-            auto variableSymbol = dynamic_cast<front::scope::VariableSymbol*>(varDef->symbol());
+    void visitingVariableDeclExpr(front::ast::VariableDeclExpr &varDef) override {
+        if(varDef.symbol()->storageKind() == front::scope::StorageKind::Global) {
+            auto variableSymbol = dynamic_cast<front::scope::VariableSymbol*>(varDef.symbol());
             ASSERT(variableSymbol)
             defineGlobal(variableSymbol);
         }
     }
 
-    void visitingModule(front::ast::Module *) override {
+    void visitingModule(front::ast::Module &) override {
 
         //Define all the external global variables now...
         //The reason for doing this here in addition to visitVariableDeclExpr is because symbols defined in other modules (isExternal)

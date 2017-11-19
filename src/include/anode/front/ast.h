@@ -73,86 +73,86 @@ public:
     virtual bool shouldVisitChildren() { return true; }
 
     //////////// Statements
-    virtual void visitingParameterDef(ParameterDef *) { }
-    virtual void visitedParameterDef(ParameterDef *) { }
+    virtual void visitingParameterDef(ParameterDef &) { }
+    virtual void visitedParameterDef(ParameterDef &) { }
 
-    virtual void visitingFuncDefStmt(FuncDefStmt *) { }
-    virtual void visitedFuncDeclStmt(FuncDefStmt *) { }
+    virtual void visitingFuncDefStmt(FuncDefStmt &) { }
+    virtual void visitedFuncDeclStmt(FuncDefStmt &) { }
 
-    virtual void visitingFuncCallExpr(FuncCallExpr *) {  }
-    virtual void visitedFuncCallExpr(FuncCallExpr *) { }
+    virtual void visitingFuncCallExpr(FuncCallExpr &) {  }
+    virtual void visitedFuncCallExpr(FuncCallExpr &) { }
 
-//    virtual void visitingClassDefinition(ClassDefinition *) { }
-//    virtual void visitedClassDefinition(ClassDefinition *) { }
+//    virtual void visitingClassDefinition(ClassDefinition &) { }
+//    virtual void visitedClassDefinition(ClassDefinition &) { }
 
-    virtual void visitingGenericClassDefinition(GenericClassDefinition *) { }
-    virtual void visitedGenericClassDefinition(GenericClassDefinition *) { }
+    virtual void visitingGenericClassDefinition(GenericClassDefinition &) { }
+    virtual void visitedGenericClassDefinition(GenericClassDefinition &) { }
 
-    virtual void visitingCompleteClassDefinition(CompleteClassDefinition *) { }
-    virtual void visitedCompleteClassDefinition(CompleteClassDefinition *) { }
+    virtual void visitingCompleteClassDefinition(CompleteClassDefinition &) { }
+    virtual void visitedCompleteClassDefinition(CompleteClassDefinition &) { }
 
-//    virtual void visitingReturnStmt(ReturnStmt *) { }
-//    virtual void visitedReturnStmt(ReturnStmt *) { }
+//    virtual void visitingReturnStmt(ReturnStmt &) { }
+//    virtual void visitedReturnStmt(ReturnStmt &) { }
 
     //////////// Expressions
-    virtual void visitingAssertExprStmt(AssertExprStmt *) { }
-    virtual void visitedAssertExprStmt(AssertExprStmt *) { }
+    virtual void visitingAssertExprStmt(AssertExprStmt &) { }
+    virtual void visitedAssertExprStmt(AssertExprStmt &) { }
 
-    virtual void visitingVariableDeclExpr(VariableDeclExpr *) { }
-    virtual void visitedVariableDeclExpr(VariableDeclExpr *) { }
+    virtual void visitingVariableDeclExpr(VariableDeclExpr &) { }
+    virtual void visitedVariableDeclExpr(VariableDeclExpr &) { }
 
-    virtual void visitingIfExpr(IfExprStmt *) { }
-    virtual void visitedIfExpr(IfExprStmt *) { }
+    virtual void visitingIfExpr(IfExprStmt &) { }
+    virtual void visitedIfExpr(IfExprStmt &) { }
 
-    virtual void visitingWhileExpr(WhileExpr *) { }
-    virtual void visitedWhileExpr(WhileExpr *) { }
+    virtual void visitingWhileExpr(WhileExpr &) { }
+    virtual void visitedWhileExpr(WhileExpr &) { }
 
-    virtual void visitingBinaryExpr(BinaryExpr *) { }
-    virtual void visitedBinaryExpr(BinaryExpr *) { }
+    virtual void visitingBinaryExpr(BinaryExpr &) { }
+    virtual void visitedBinaryExpr(BinaryExpr &) { }
 
-    virtual void visitingUnaryExpr(UnaryExpr *) { }
-    virtual void visitedUnaryExpr(UnaryExpr *) { }
+    virtual void visitingUnaryExpr(UnaryExpr &) { }
+    virtual void visitedUnaryExpr(UnaryExpr &) { }
 
-    virtual void visitLiteralBoolExpr(LiteralBoolExpr *) { }
+    virtual void visitLiteralBoolExpr(LiteralBoolExpr &) { }
 
-    virtual void visitLiteralInt32Expr(LiteralInt32Expr *) { }
+    virtual void visitLiteralInt32Expr(LiteralInt32Expr &) { }
 
-    virtual void visitLiteralFloatExpr(LiteralFloatExpr *) { }
+    virtual void visitLiteralFloatExpr(LiteralFloatExpr &) { }
 
-    virtual void visitVariableRefExpr(VariableRefExpr *) { }
+    virtual void visitVariableRefExpr(VariableRefExpr &) { }
 
-    virtual void visitMethodRefExpr(MethodRefExpr *) { }
+    virtual void visitMethodRefExpr(MethodRefExpr &) { }
 
-    virtual void visitingCastExpr(CastExpr *) { }
-    virtual void visitedCastExpr(CastExpr *) { }
+    virtual void visitingCastExpr(CastExpr &) { }
+    virtual void visitedCastExpr(CastExpr &) { }
 
-    virtual void visitingNewExpr(NewExpr *) { }
-    virtual void visitedNewExpr(NewExpr *) { }
+    virtual void visitingNewExpr(NewExpr &) { }
+    virtual void visitedNewExpr(NewExpr &) { }
 
-    virtual void visitingDotExpr(DotExpr *) { }
-    virtual void visitedDotExpr(DotExpr *) { }
+    virtual void visitingDotExpr(DotExpr &) { }
+    virtual void visitedDotExpr(DotExpr &) { }
 
-    virtual void visitingCompoundExpr(CompoundExpr *) { }
-    virtual void visitedCompoundExpr(CompoundExpr *) { }
+    virtual void visitingCompoundExpr(CompoundExpr &) { }
+    virtual void visitedCompoundExpr(CompoundExpr &) { }
 
-    virtual void visitingExpressionList(ExpressionList *) { }
-    virtual void visitedExpressionList(ExpressionList *) { }
+    virtual void visitingExpressionList(ExpressionList &) { }
+    virtual void visitedExpressionList(ExpressionList &) { }
 
-    virtual void visitingTemplateExprStmt(TemplateExprStmt *) { }
-    virtual void visitedTemplateExprStmt(TemplateExprStmt *) { }
+    virtual void visitingTemplateExprStmt(TemplateExprStmt &) { }
+    virtual void visitedTemplateExprStmt(TemplateExprStmt &) { }
 
-    virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt *) { }
-    virtual void visitedTemplateExpansionExprStmt(TemplateExpansionExprStmt *) { }
+    virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt &) { }
+    virtual void visitedTemplateExpansionExprStmt(TemplateExpansionExprStmt &) { }
 
     //////////// Misc
-    virtual void visitedResolutionDeferredTypeRef(ResolutionDeferredTypeRef *) { }
+    virtual void visitedResolutionDeferredTypeRef(ResolutionDeferredTypeRef &) { }
 
-    virtual void visitKnownTypeRef(KnownTypeRef *) { }
+    virtual void visitKnownTypeRef(KnownTypeRef &) { }
 
-    virtual void visitTemplateParameter(TemplateParameter *) { }
-    virtual void visitingModule(Module *) { }
+    virtual void visitTemplateParameter(TemplateParameter &) { }
+    virtual void visitingModule(Module &) { }
 
-    virtual void visitedModule(Module *) { }
+    virtual void visitedModule(Module &) { }
 };
 
 
@@ -234,7 +234,7 @@ public:
     }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitKnownTypeRef(this);
+        visitor->visitKnownTypeRef(*this);
     }
 };
 
@@ -295,7 +295,7 @@ public:
         for(auto ta : templateArgs_) {
             ta->accept(visitor);
         }
-        visitor->visitedResolutionDeferredTypeRef(this);
+        visitor->visitedResolutionDeferredTypeRef(*this);
     }
 
     TypeRef* deepCopyForTemplate() const override {
@@ -375,7 +375,7 @@ public:
     }
 
     virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingExpressionList(this);
+        visitor->visitingExpressionList(*this);
 
         if(visitor->shouldVisitChildren()) {
             //Copy expressions_ because expressions can be added while visiting children
@@ -385,7 +385,7 @@ public:
                 stmt->accept(visitor);
             }
         }
-        visitor->visitedExpressionList(this);
+        visitor->visitedExpressionList(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -438,7 +438,7 @@ public:
     }
 
     virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingCompoundExpr(this);
+        visitor->visitingCompoundExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             //Copy expressions_ because expressions can be added while visiting children
@@ -448,7 +448,7 @@ public:
                 stmt->accept(visitor);
             }
         }
-        visitor->visitedCompoundExpr(this);
+        visitor->visitedCompoundExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -470,7 +470,7 @@ public:
     const Identifier &name() const { return name_; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitTemplateParameter(this);
+        visitor->visitTemplateParameter(*this);
     }
 
     TemplateParameter *deepCopyForTemplate() const {
@@ -512,14 +512,14 @@ public:
     }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingTemplateExprStmt(this);
+        visitor->visitingTemplateExprStmt(*this);
 
         for(auto p : parameters_) {
             p->accept(visitor);
         }
 
         //Note that we do *not* visit body_ here.
-        visitor->visitedTemplateExprStmt(this);
+        visitor->visitedTemplateExprStmt(*this);
     }
 };
 
@@ -544,11 +544,11 @@ public:
     type::Type *type() const override { return &type::ScalarType::Void; }
     virtual bool canWrite() const override { return false; };
 
-    TemplateExprStmt *templ() { return template_; }
+    TemplateExprStmt *templ() const { return template_; }
     void setTempl(TemplateExprStmt *templ) { template_ = templ; }
 
-    const Identifier &templatedId() { return templateName_; }
-    gc_vector<ast::TypeRef*> typeArguments() { return typeArguments_; }
+    const Identifier &templatedId() const { return templateName_; }
+    gc_vector<ast::TypeRef*> typeArguments() const { return typeArguments_; }
 
     scope::SymbolTable *templateParameterScope() { return &templateParameterScope_; }
 
@@ -556,7 +556,7 @@ public:
     ast::ExprStmt *expandedTemplate() { return expandedTemplate_; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingTemplateExpansionExprStmt(this);
+        visitor->visitingTemplateExpansionExprStmt(*this);
         if(visitor->shouldVisitChildren()) {
             for(auto arg : typeArguments_) {
                 arg->accept(visitor);
@@ -565,7 +565,7 @@ public:
                 expandedTemplate_->accept(visitor);
             }
         }
-        visitor->visitedTemplateExpansionExprStmt(this);
+        visitor->visitedTemplateExpansionExprStmt(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -585,7 +585,7 @@ public:
     virtual bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitLiteralBoolExpr(this);
+        visitor->visitLiteralBoolExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -604,7 +604,7 @@ public:
     virtual bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitLiteralInt32Expr(this);
+        visitor->visitLiteralInt32Expr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -624,7 +624,7 @@ public:
     bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitLiteralFloatExpr(this);
+        visitor->visitLiteralFloatExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -665,12 +665,12 @@ public:
     UnaryOperationKind operation() const { return operation_; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingUnaryExpr(this);
+        visitor->visitingUnaryExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             valueExpr_->accept(visitor);
         }
-        visitor->visitedUnaryExpr(this);
+        visitor->visitedUnaryExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -779,13 +779,13 @@ public:
     }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingBinaryExpr(this);
+        visitor->visitingBinaryExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             lValue_->accept(visitor);
             rValue_->accept(visitor);
         }
-        visitor->visitedBinaryExpr(this);
+        visitor->visitedBinaryExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -836,7 +836,7 @@ public:
     void setVariableAccess(VariableAccess access) { access_ = access; }
 
     virtual void accept(AstVisitor *visitor) override {
-        visitor->visitVariableRefExpr(this);
+        visitor->visitVariableRefExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -864,13 +864,13 @@ public:
     virtual bool canWrite() const override { return true; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingVariableDeclExpr(this);
+        visitor->visitingVariableDeclExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             typeRef_->accept(visitor);
         }
 
-        visitor->visitedVariableDeclExpr(this);
+        visitor->visitedVariableDeclExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -912,14 +912,14 @@ public:
     ExprStmt *valueExpr() const { return valueExpr_; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingCastExpr(this);
+        visitor->visitingCastExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             toType_->accept(visitor);
             valueExpr_->accept(visitor);
         }
 
-        visitor->visitedCastExpr(this);
+        visitor->visitedCastExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -944,13 +944,13 @@ public:
     virtual bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingNewExpr(this);
+        visitor->visitingNewExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             typeRef_->accept(visitor);
         }
 
-        visitor->visitedNewExpr(this);
+        visitor->visitedNewExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -998,7 +998,7 @@ public:
     bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingIfExpr(this);
+        visitor->visitingIfExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             condition_->accept(visitor);
@@ -1007,7 +1007,7 @@ public:
                 elseExpr_->accept(visitor);
         }
 
-        visitor->visitedIfExpr(this);
+        visitor->visitedIfExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1049,14 +1049,14 @@ public:
     virtual bool canWrite() const override { return false; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingWhileExpr(this);
+        visitor->visitingWhileExpr(*this);
 
         if(visitor->shouldVisitChildren()) {
             condition_->accept(visitor);
             body_->accept(visitor);
         }
 
-        visitor->visitedWhileExpr(this);
+        visitor->visitedWhileExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1085,11 +1085,11 @@ public:
     void setSymbol(scope::VariableSymbol *symbol) { symbol_ = symbol; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingParameterDef(this);
+        visitor->visitingParameterDef(*this);
         if(visitor->shouldVisitChildren()) {
             typeRef_->accept(visitor);
         }
-        visitor->visitedParameterDef(this);
+        visitor->visitedParameterDef(*this);
     }
 
     ParameterDef *deepCopy() {
@@ -1153,7 +1153,7 @@ public:
     }
 
     virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingFuncDefStmt(this);
+        visitor->visitingFuncDefStmt(*this);
         if(visitor->shouldVisitChildren()) {
             returnTypeRef_->accept(visitor);
             for(auto p : parameters_) {
@@ -1161,7 +1161,7 @@ public:
             }
             body_->accept(visitor);
         }
-        visitor->visitedFuncDeclStmt(this);
+        visitor->visitedFuncDeclStmt(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1201,7 +1201,7 @@ public:
     bool canWrite() const override { return true; };
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitMethodRefExpr(this);
+        visitor->visitMethodRefExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
@@ -1255,7 +1255,7 @@ public:
     size_t argCount() { return arguments_.size(); }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingFuncCallExpr(this);
+        visitor->visitingFuncCallExpr(*this);
         if(visitor->shouldVisitChildren()) {
             funcExpr_->accept(visitor);
             if(instanceExpr_) {
@@ -1265,7 +1265,7 @@ public:
                 argument->accept(visitor);
             }
         }
-        visitor->visitedFuncCallExpr(this);
+        visitor->visitedFuncCallExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1363,11 +1363,11 @@ public:
     }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingCompleteClassDefinition(this);
+        visitor->visitingCompleteClassDefinition(*this);
         if (visitor->shouldVisitChildren()) {
             body()->accept(visitor);
         }
-        visitor->visitedCompleteClassDefinition(this);
+        visitor->visitedCompleteClassDefinition(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1410,11 +1410,11 @@ public:
 
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingGenericClassDefinition(this);
+        visitor->visitingGenericClassDefinition(*this);
         if (visitor->shouldVisitChildren()) {
             body()->accept(visitor);
         }
-        visitor->visitedGenericClassDefinition(this);
+        visitor->visitedGenericClassDefinition(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1467,11 +1467,11 @@ public:
     }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingDotExpr(this);
+        visitor->visitingDotExpr(*this);
         if (visitor->shouldVisitChildren()) {
             lValue_->accept(visitor);
         }
-        visitor->visitedDotExpr(this);
+        visitor->visitedDotExpr(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1491,11 +1491,11 @@ public:
     void setCondition(ast::ExprStmt *condition) { condition_ = condition; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingAssertExprStmt(this);
+        visitor->visitingAssertExprStmt(*this);
         if(visitor->shouldVisitChildren()) {
             condition_->accept(visitor);
         }
-        visitor->visitedAssertExprStmt(this);
+        visitor->visitedAssertExprStmt(*this);
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -1529,11 +1529,11 @@ public:
     CompoundExpr *body() { return body_; }
 
     void accept(AstVisitor *visitor) override {
-        visitor->visitingModule(this);
+        visitor->visitingModule(*this);
         if(visitor->shouldVisitChildren()) {
             body_->accept(visitor);
         }
-        visitor->visitedModule(this);
+        visitor->visitedModule(*this);
     }
 };
 

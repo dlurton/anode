@@ -74,14 +74,14 @@ public:
 
     bool prepareModule(ast::Module *module) override {
         error::ErrorStream errorStream {std::cerr};
-        anode::front::passes::runAllPasses(world_, module, errorStream);
+        anode::front::passes::runAllPasses(world_, *module, errorStream);
 
         if(errorStream.errorCount() > 0) {
             return true;
         }
 
         if(setPrettyPrintAst_) {
-            visualize::prettyPrint(module);
+            visualize::prettyPrint(*module);
             std::cout.flush();
         }
 

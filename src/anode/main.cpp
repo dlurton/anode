@@ -276,7 +276,7 @@ bool dumpAst(const std::string &startScriptFilename) {
         return true;
     }
 
-    anode::front::visualize::prettyPrint(module);
+    anode::front::visualize::prettyPrint(*module);
     return false;
 }
 } // namespace anode

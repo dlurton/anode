@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
                 if (errorStream.errorCount() == 0) {
                     ast::AnodeWorld world;
                     try {
-                        front::passes::runAllPasses(world, module, errorStream);
+                        front::passes::runAllPasses(world, *module, errorStream);
                     } catch(anode::exception::DebugAssertionFailedException &de) {
                         std::string msg = std::string("Debug assertion failed:\n\t") + de.what();
                         fail(filename, lineNum, formatErrorDetails(msg, source, errorOutput.str()));

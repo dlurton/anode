@@ -5,7 +5,7 @@
 
 namespace anode { namespace front {  namespace visualize {
 
-void prettyPrint(ast::AstNode *module);
+void prettyPrint(ast::AstNode &module);
 
 class IndentWriter {
     std::ostream &out_;

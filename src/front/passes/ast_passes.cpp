@@ -6,7 +6,7 @@
 
 namespace anode { namespace front  { namespace passes {
 
-bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode *node, error::ErrorStream &es, scope::SymbolTable *startingSymbolTable);
+bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode &node, error::ErrorStream &es, scope::SymbolTable *startingSymbolTable);
 gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es);
 
 class ErrorContextAstVisitor : public ast::AstVisitor {
@@ -16,11 +16,11 @@ protected:
     ErrorContextAstVisitor(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
 public:
 
-    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
-        errorStream_.pushContextMessage("While inside template expansion at: " + expansion->sourceSpan().toString());
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
+        errorStream_.pushContextMessage("While inside template expansion at: " + expansion.sourceSpan().toString());
     }
 
-    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *) override {
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &) override {
         errorStream_.popContextMessage();
     }
 };
@@ -33,18 +33,18 @@ class ScopeFollowingAstVisitor : public ErrorContextAstVisitor {
 protected:
 
     /** This is the topmost scope in the scope stack. */
-    scope::SymbolTable *topScope() {
+    scope::SymbolTable &topScope() {
         ASSERT(symbolTableStack_.size());
-        return symbolTableStack_.back();
+        return *symbolTableStack_.back();
     }
 
     /** This is the current scope from which all variables should be looked up.
      * This member function varies from {@ref topScope()} in that if the current scope a set of template expansions,
      * then it returns the top scope's parent scope.*/
-    scope::SymbolTable *currentScope() {
-        scope::SymbolTable *ts = topScope();
-        if (ts->storageKind() == scope::StorageKind::TemplateParameter) {
-            return ts->parent();
+    scope::SymbolTable &currentScope() {
+        scope::SymbolTable &ts = topScope();
+        if (ts.storageKind() == scope::StorageKind::TemplateParameter) {
+            return *ts.parent();
         }
 
         return ts;
@@ -55,35 +55,35 @@ protected:
     ScopeFollowingAstVisitor(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
 public:
-    void pushScope(scope::SymbolTable *st) {
-        symbolTableStack_.push_back(st);
+    void pushScope(scope::SymbolTable &st) {
+        symbolTableStack_.push_back(&st);
     }
 
-    void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
-        symbolTableStack_.push_back(funcDeclStmt->parameterScope());
+    void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
+        symbolTableStack_.push_back(funcDeclStmt.parameterScope());
     }
 
-    void visitedFuncDeclStmt(ast::FuncDefStmt *funcDeclStmt) override {
-        ASSERT(funcDeclStmt->parameterScope() == symbolTableStack_.back())
+    void visitedFuncDeclStmt(ast::FuncDefStmt &funcDeclStmt) override {
+        ASSERT(funcDeclStmt.parameterScope() == symbolTableStack_.back())
         symbolTableStack_.pop_back();
     }
 
-    void visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
-        symbolTableStack_.push_back(compoundExpr->scope());
+    void visitingCompoundExpr(ast::CompoundExpr &compoundExpr) override {
+        symbolTableStack_.push_back(compoundExpr.scope());
     }
 
-    void visitedCompoundExpr(ast::CompoundExpr *compoundExpr) override {
-        ASSERT(compoundExpr->scope() == symbolTableStack_.back());
+    void visitedCompoundExpr(ast::CompoundExpr &compoundExpr) override {
+        ASSERT(compoundExpr.scope() == symbolTableStack_.back());
         symbolTableStack_.pop_back();
     }
 
-    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
         ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
-        symbolTableStack_.push_back(expansion->templateParameterScope());
+        symbolTableStack_.push_back(expansion.templateParameterScope());
     }
 
-    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
-        ASSERT(expansion->templateParameterScope() == symbolTableStack_.back());
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
+        ASSERT(expansion.templateParameterScope() == symbolTableStack_.back());
         symbolTableStack_.pop_back();
         ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
     }
@@ -97,24 +97,24 @@ public:
     SetSymbolTableParentsPass(error::ErrorStream &errorStream, ast::AnodeWorld &world_)
         : ScopeFollowingAstVisitor(errorStream), world_(world_) { }
 
-    void visitingModule(ast::Module *module) override {
-        module->scope()->setParent(world_.globalScope());
+    void visitingModule(ast::Module &module) override {
+        module.scope()->setParent(world_.globalScope());
     }
-    void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
-        funcDeclStmt->parameterScope()->setParent(topScope());
+    void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
+        funcDeclStmt.parameterScope()->setParent(&topScope());
         ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
-    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
 
-        expansion->templateParameterScope()->setParent(topScope());
+        expansion.templateParameterScope()->setParent(&topScope());
         ScopeFollowingAstVisitor::visitingTemplateExpansionExprStmt(expansion);
     }
 
-    void visitingCompoundExpr(ast::CompoundExpr *expr) override {
+    void visitingCompoundExpr(ast::CompoundExpr &expr) override {
         //The first entry on the stack would be the global scope which has no parent
         if(scopeDepth()) {
-            expr->scope()->setParent(topScope());
+            expr.scope()->setParent(&topScope());
         }
         ScopeFollowingAstVisitor::visitingCompoundExpr(expr);
     }
@@ -125,10 +125,6 @@ public:
     explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream)
         : ScopeFollowingAstVisitor(errorStream) {  }
 
-//    void visitingGenericClassDefinition(ast::GenericClassDefinition *cd) override {
-//
-//    }
-
     void symbolPreviouslyDefinedError(const ast::Identifier &identifier) {
         errorStream_.error(
             error::ErrorKind::SymbolAlreadyDefinedInScope,
@@ -136,13 +132,13 @@ public:
             "Symbol '%s' was previously defined in the current scope",
             identifier.text().c_str());
     }
-    void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
+    void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
 
         //Classes that are defined within expanded templates do not get their own symbols
         //Only the generic version of them do. During symbol resolution, the symbol of the GenericType is
         //resolved and the resolved GenericType is used to determine the Type of the expanded class.
-        if (!cd->hasTemplateArguments()) {
-            type::Type *definedType = cd->definedType();
+        if (!cd.hasTemplateArguments()) {
+            type::Type *definedType = cd.definedType();
 
             if (auto definedClassType = dynamic_cast<type::ClassType *>(definedType)) {
                 if (definedClassType->genericType() != nullptr) {
@@ -151,35 +147,35 @@ public:
                 }
             }
 
-            if(currentScope()->findSymbol(cd->name().text())) {
-                symbolPreviouslyDefinedError(cd->name());
+            if(currentScope().findSymbol(cd.name().text())) {
+                symbolPreviouslyDefinedError(cd.name());
             } else {
                 auto *classSymbol = new scope::TypeSymbol(definedType);
-                currentScope()->addSymbol(classSymbol);
+                currentScope().addSymbol(classSymbol);
             }
         }
         ScopeFollowingAstVisitor::visitingCompleteClassDefinition(cd);
     }
 
-    void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
-        if(currentScope()->findSymbol(funcDeclStmt->name().text())) {
-            symbolPreviouslyDefinedError(funcDeclStmt->name());
+    void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
+        if(currentScope().findSymbol(funcDeclStmt.name().text())) {
+            symbolPreviouslyDefinedError(funcDeclStmt.name());
         } else {
-            scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name().text(), funcDeclStmt->functionType());
+            scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt.name().text(), funcDeclStmt.functionType());
 
-            currentScope()->addSymbol(funcSymbol);
-            funcDeclStmt->setSymbol(funcSymbol);
+            currentScope().addSymbol(funcSymbol);
+            funcDeclStmt.setSymbol(funcSymbol);
 
-            for (auto p : funcDeclStmt->parameters()) {
+            for (auto p : funcDeclStmt.parameters()) {
                 scope::VariableSymbol *symbol = new scope::VariableSymbol(p->name().text(), p->type());
-                if (funcDeclStmt->parameterScope()->findSymbol(p->name().text())) {
+                if (funcDeclStmt.parameterScope()->findSymbol(p->name().text())) {
                     errorStream_.error(
                         error::ErrorKind::SymbolAlreadyDefinedInScope,
                         p->span(),
                         "Duplicate parameter name '%s'",
                         p->name().text().c_str());
                 } else {
-                    funcDeclStmt->parameterScope()->addSymbol(symbol);
+                    funcDeclStmt.parameterScope()->addSymbol(symbol);
                     p->setSymbol(symbol);
                 }
             }
@@ -187,32 +183,32 @@ public:
         ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
-    void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-        if(currentScope()->findSymbol(expr->name().text())) {
-            symbolPreviouslyDefinedError(expr->name());
+    void visitingVariableDeclExpr(ast::VariableDeclExpr &expr) override {
+        if(currentScope().findSymbol(expr.name().text())) {
+            symbolPreviouslyDefinedError(expr.name());
         } else {
-            auto symbol = new scope::VariableSymbol(expr->name().text(), expr->typeRef()->type());
-            currentScope()->addSymbol(symbol);
-            expr->setSymbol(symbol);
+            auto symbol = new scope::VariableSymbol(expr.name().text(), expr.typeRef()->type());
+            currentScope().addSymbol(symbol);
+            expr.setSymbol(symbol);
         }
     }
 
-    void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
-        if (currentScope()->findSymbol(templ->name().text())) {
-            symbolPreviouslyDefinedError(templ->name());
+    void visitingTemplateExprStmt(ast::TemplateExprStmt &templ) override {
+        if (currentScope().findSymbol(templ.name().text())) {
+            symbolPreviouslyDefinedError(templ.name());
         } else {
-            auto symbol = new scope::TemplateSymbol(templ->name().text(), templ->nodeId());
-            currentScope()->addSymbol(symbol);
+            auto symbol = new scope::TemplateSymbol(templ.name().text(), templ.nodeId());
+            currentScope().addSymbol(symbol);
         }
 
         //Grab top-level classes within the scope of the template.
-        for (auto exprStmt : templ->body()->expressions()) {
+        for (auto exprStmt : templ.body()->expressions()) {
             if (auto cd = dynamic_cast<ast::GenericClassDefinition *>(exprStmt)) {
-                if (currentScope()->findSymbol(cd->name().text())) {
+                if (currentScope().findSymbol(cd->name().text())) {
                     symbolPreviouslyDefinedError(cd->name());
                 } else {
                     auto symbol = new scope::TypeSymbol(cd->name().text(), cd->definedType());
-                    currentScope()->addSymbol(symbol);
+                    currentScope().addSymbol(symbol);
                 }
             }
         }
@@ -221,8 +217,8 @@ public:
 };
 
 class PrepareClassesVisitor : public ast::AstVisitor {
-    void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
-        cd->populateClassType();
+    void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
+        cd.populateClassType();
     }
 };
 
@@ -231,32 +227,32 @@ class ResolveSymbolsPass : public ScopeFollowingAstVisitor {
 public:
     explicit ResolveSymbolsPass(error::ErrorStream &errorStream_) : ScopeFollowingAstVisitor(errorStream_) { }
 
-    void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-        ASSERT(expr->symbol() && "Symbol must be resolved before this point.");
-        if(expr->symbol()->storageKind() == scope::StorageKind::Local) {
-            definedSymbols_.emplace(expr->symbol());
+    void visitingVariableDeclExpr(ast::VariableDeclExpr &expr) override {
+        ASSERT(expr.symbol() && "Symbol must be resolved before this point.");
+        if(expr.symbol()->storageKind() == scope::StorageKind::Local) {
+            definedSymbols_.emplace(expr.symbol());
         }
     }
 
-    void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
-        if(expr->symbol()) return;
+    void visitVariableRefExpr(ast::VariableRefExpr &expr) override {
+        if(expr.symbol()) return;
 
-        scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name().text());
+        scope::Symbol *found = topScope().recursiveFindSymbol(expr.name().text());
         if(!found) {
-            errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Symbol '%s' was not defined in this scope.",
-                expr->name().text().c_str());
+            errorStream_.error(error::ErrorKind::VariableNotDefined, expr.sourceSpan(),  "Symbol '%s' was not defined in this scope.",
+                expr.name().text().c_str());
         } else {
 
             if(!found->type()->isClass() && !found->type()->isFunction()) {
                 if (found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
                     errorStream_.error(
-                        error::ErrorKind::VariableUsedBeforeDefinition, expr->sourceSpan(), "Variable '%s' used before its definition.",
-                        expr->name().text().c_str());
+                        error::ErrorKind::VariableUsedBeforeDefinition, expr.sourceSpan(), "Variable '%s' used before its definition.",
+                        expr.name().text().c_str());
                     return;
                 }
             }
 
-            expr->setSymbol(found);
+            expr.setSymbol(found);
         }
     }
 };
@@ -266,36 +262,24 @@ public:
     explicit ResolveTypesPass(error::ErrorStream &errorStream)
         : ScopeFollowingAstVisitor(errorStream) {
     }
-//
-//    void visitingTemplateExpansionStmt(ast::TemplateExpansionExprStmt *expr) {
-//        //Note:  TemplateExpansionExprStmt.accept() doesn't visit it's type arguments because
-//        //This needs to happen outside of the
-//        for(auto tr : expr->typeArguments()) {
-//            if (auto resolutionDeferredTypeRef = dynamic_cast<ast::ResolutionDeferredTypeRef *>(tr)) {
-//                visitedResolutionDeferredTypeRef(resolutionDeferredTypeRef);
-//            }
-//        }
-//        ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expr);
-//    }
 
-
-    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
-        if(typeRef->isResolved()) {
+    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
+        if(typeRef.isResolved()) {
             return;
         }
-        std::string resolvedName = typeRef->name().text();
+        std::string resolvedName = typeRef.name().text();
         type::Type* type = type::ScalarType::fromKeyword(resolvedName);
 
         //If it was a primitive type...
         if(type) {
-            typeRef->setType(type);
+            typeRef.setType(type);
             return;
         } else {
-            scope::Symbol* maybeType = currentScope()->recursiveFindSymbol(typeRef->name().text());
+            scope::Symbol* maybeType = currentScope().recursiveFindSymbol(typeRef.name().text());
 
             //Symbol doesn't exist in accessible scope?
             if(!maybeType) {
-                errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().text().c_str());
+                errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef.sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef.name().text().c_str());
                 return;
             }
 
@@ -303,12 +287,12 @@ public:
 
             //Symbol does exist but isn't a type.
             if(typeSymbol == nullptr) {
-                errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().text().c_str());
+                errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef.sourceSpan(), "Symbol '%s' is not a type.", typeRef.name().text().c_str());
                 return;
             }
 
             type = typeSymbol->type();
-            typeRef->setType(type);
+            typeRef.setType(type);
         }
     }
 };
@@ -319,24 +303,24 @@ class CastExprSemanticPass : public ast::AstVisitor {
 public:
     explicit CastExprSemanticPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
 
-    void visitingCastExpr(ast::CastExpr *expr) override {
+    void visitingCastExpr(ast::CastExpr &expr) override {
         //Note:  we are not excluding implicit casts here...
         //This is a form of "double-checking" the AddImplicitCastsVisitor that we
         //get for free as long as we don't exclude implicit casts.
 
-        type::Type *fromType = expr->valueExpr()->type();
-        type::Type *toType = expr->type();
+        type::Type *fromType = expr.valueExpr()->type();
+        type::Type *toType = expr.type();
 
         if(fromType->canImplicitCastTo(toType)) return;
 
-        if(expr->castKind() == ast::CastKind::Implicit) {
+        if(expr.castKind() == ast::CastKind::Implicit) {
             ASSERT_FAIL("Implicit cast created for types that can't be implicitly cast.");
         }
 
         if(!fromType->canExplicitCastTo(toType)) {
             errorStream_.error(
                 error::ErrorKind::InvalidExplicitCast,
-                expr->sourceSpan(),
+                expr.sourceSpan(),
                 "Cannot cast from '%s' to '%s'",
                 fromType->nameForDisplay().c_str(),
                 toType->nameForDisplay().c_str());
@@ -349,32 +333,32 @@ class ResolveDotExprMemberPass : public ast::AstVisitor {
 public:
     explicit ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
 
-    void visitedDotExpr(ast::DotExpr *expr) override {
-        if(!expr->lValue()->type()->isClass()) {
+    void visitedDotExpr(ast::DotExpr &expr) override {
+        if(!expr.lValue()->type()->isClass()) {
             errorStream_.error(
                 error::ErrorKind::LeftOfDotNotClass,
-                expr->dotSourceSpan(),
+                expr.dotSourceSpan(),
                 "Type of value on left side of '.' operator is not an instance of a class.");
             return;
         }
-        auto classType = static_cast<const type::ClassType*>(expr->lValue()->type()->actualType());
-        type::ClassField *field = classType->findField(expr->memberName().text());
+        auto classType = static_cast<const type::ClassType*>(expr.lValue()->type()->actualType());
+        type::ClassField *field = classType->findField(expr.memberName().text());
         if(!field) {
             errorStream_.error(
                 error::ErrorKind::ClassMemberNotFound,
-                expr->dotSourceSpan(),
+                expr.dotSourceSpan(),
                 "Class '%s' does not have a member named '%s'",
                 classType->nameForDisplay().c_str(),
-                expr->memberName().text().c_str());
+                expr.memberName().text().c_str());
             return;
         }
-        expr->setField(field);
+        expr.setField(field);
     }
 
-    void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
-        auto methodRef = dynamic_cast<ast::MethodRefExpr*>(expr->funcExpr());
-        if(methodRef && expr->instanceExpr()) {
-            type::Type *instanceType = expr->instanceExpr()->type()->actualType();
+    void visitedFuncCallExpr(ast::FuncCallExpr &expr) override {
+        auto methodRef = dynamic_cast<ast::MethodRefExpr*>(expr.funcExpr());
+        if(methodRef && expr.instanceExpr()) {
+            type::Type *instanceType = expr.instanceExpr()->type()->actualType();
             type::ClassMethod *method = nullptr;
 
             if(auto classType = dynamic_cast<type::ClassType*>(instanceType)) {
@@ -399,33 +383,33 @@ class BinaryExprSemanticsPass : public ErrorContextAstVisitor {
 public:
     explicit BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
-    void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
-        if(binaryExpr->isComparison()) {
+    void visitedBinaryExpr(ast::BinaryExpr &binaryExpr) override {
+        if(binaryExpr.isComparison()) {
             return;
         }
-        if(binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
-            if(!binaryExpr->lValue()->canWrite()) {
+        if(binaryExpr.operation() == ast::BinaryOperationKind::Assign) {
+            if(!binaryExpr.lValue()->canWrite()) {
                 errorStream_.error(
                     error::ErrorKind::CannotAssignToLValue,
-                    binaryExpr->operatorSpan(), "Cannot assign a value to the expression left of '='");
+                    binaryExpr.operatorSpan(), "Cannot assign a value to the expression left of '='");
             }
-        } else if(binaryExpr->binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
-            if(!binaryExpr->type()->canDoArithmetic()) {
+        } else if(binaryExpr.binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
+            if(!binaryExpr.type()->canDoArithmetic()) {
                 errorStream_.error(
                     error::ErrorKind::OperatorCannotBeUsedWithType,
-                    binaryExpr->operatorSpan(),
+                    binaryExpr.operatorSpan(),
                     "Operator '%s' cannot be used with type '%s'.",
-                    ast::to_string(binaryExpr->operation()).c_str(),
-                    binaryExpr->type()->nameForDisplay().c_str());
+                    ast::to_string(binaryExpr.operation()).c_str(),
+                    binaryExpr.type()->nameForDisplay().c_str());
             }
         }
     }
 };
 
 class MarkDotExprWritesPass : public ast::AstVisitor {
-    void visitedBinaryExpr(ast::BinaryExpr *binaryExpr) override {
-        auto dotExpr = dynamic_cast<ast::DotExpr *>(binaryExpr->lValue());
-        if (dotExpr && binaryExpr->operation() == ast::BinaryOperationKind::Assign) {
+    void visitedBinaryExpr(ast::BinaryExpr &binaryExpr) override {
+        auto dotExpr = dynamic_cast<ast::DotExpr *>(binaryExpr.lValue());
+        if (dotExpr && binaryExpr.operation() == ast::BinaryOperationKind::Assign) {
             dotExpr->setIsWrite(true);
         }
     }
@@ -435,25 +419,25 @@ class FuncCallSemanticsPass : public ErrorContextAstVisitor {
 public:
     explicit FuncCallSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
-    void visitedFuncCallExpr(ast::FuncCallExpr *funcCallExpr) override {
-        if(!funcCallExpr->funcExpr()->type()->isFunction()) {
+    void visitedFuncCallExpr(ast::FuncCallExpr &funcCallExpr) override {
+        if(!funcCallExpr.funcExpr()->type()->isFunction()) {
             errorStream_.error(
                 error::ErrorKind::OperatorCannotBeUsedWithType,
-                funcCallExpr->sourceSpan(),
+                funcCallExpr.sourceSpan(),
                 "Result of expression left of '(' is not a function.");
             return;
         }
 
-        auto *funcType = dynamic_cast<type::FunctionType*>(funcCallExpr->funcExpr()->type());
+        auto *funcType = dynamic_cast<type::FunctionType*>(funcCallExpr.funcExpr()->type());
         ASSERT(funcType);
 
         //When we do function overloading, this is going to get a whole lot more complicated.
         auto parameterTypes = funcType->parameterTypes();
-        auto arguments = funcCallExpr->arguments();
+        auto arguments = funcCallExpr.arguments();
         if(parameterTypes.size() != arguments.size()) {
             errorStream_.error(
                 error::ErrorKind::IncorrectNumberOfArguments,
-                funcCallExpr->sourceSpan(),
+                funcCallExpr.sourceSpan(),
                 "Incorrect number of arguments.  Expected %d but found %d",
                 parameterTypes.size(),
                 arguments.size());
@@ -475,7 +459,7 @@ public:
                         parameterType->nameForDisplay().c_str());
                 } else {
                     auto implicitCast = ast::CastExpr::createImplicit(argument, parameterType);
-                    funcCallExpr->replaceArgument(i, implicitCast);
+                    funcCallExpr.replaceArgument(i, implicitCast);
                 }
             }
         }
@@ -490,8 +474,8 @@ public:
     explicit TemplateWorldRecorderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world)
         : ScopeFollowingAstVisitor(errorStream), world_(world) { }
 
-    virtual void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
-        world_.addTemplate(templ);
+    virtual void visitingTemplateExprStmt(ast::TemplateExprStmt &templ) override {
+        world_.addTemplate(&templ);
     }
 };
 
@@ -510,21 +494,21 @@ public:
     }
 
 
-    void visitingModule(ast::Module *module) override {
-        module_ = module;
+    void visitingModule(ast::Module &module) override {
+        module_ = &module;
     }
 
-    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
         ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
         visitingExpansion_ = true;
-        if(expansion->expandedTemplate() != nullptr) {
+        if(expansion.expandedTemplate() != nullptr) {
             return;
         }
-        scope::Symbol *foundSymbol = expansion->templateParameterScope()->parent()->recursiveFindSymbol(expansion->templatedId().text());
+        scope::Symbol *foundSymbol = expansion.templateParameterScope()->parent()->recursiveFindSymbol(expansion.templatedId().text());
         if(!foundSymbol) {
             errorStream_.error(
                 error::ErrorKind::TemplateDoesNotExist,
-                expansion->templatedId().span(),
+                expansion.templatedId().span(),
                 "Temolate does not exist within the current scope");
             return;
         }
@@ -532,27 +516,27 @@ public:
         auto templateSymbol = upcast<scope::TemplateSymbol>(foundSymbol);
         ast::TemplateExprStmt *templ = world_.getTemplate(templateSymbol->astNodeId());
         ASSERT(templ && "Couldn't find template by astNodeId");
-        expansion->setTempl(templ);
+        expansion.setTempl(templ);
 
         if(world_.isExpanding(templ)) {
              errorStream_.error(
                  error::ErrorKind::CircularTemplateReference,
-                 expansion->sourceSpan(),
+                 expansion.sourceSpan(),
                  "Cannot expand template '%s' -- circular template expansion detected",
-                 expansion->templatedId().text().c_str());
+                 expansion.templatedId().text().c_str());
         }
         world_.addExpandingTemplate(templ);
 
         //For each template argument
         //Create create a Symbol of name of the corresponding parameter referring to the TypeRef.  (AliasSymbol?)
         gc_vector<ast::TemplateParameter*> tParams = templ->parameters();
-        gc_vector<ast::TypeRef*> tArgs = expansion->typeArguments();
+        gc_vector<ast::TypeRef*> tArgs = expansion.typeArguments();
 
         if(tParams.size() != tArgs.size()) {
             const char *wasWere = tArgs.size() == 1 ? "was" : "were";
             errorStream_.error(
                 error::ErrorKind::IncorrectNumberOfTemplateArguments,
-                expansion->sourceSpan(),
+                expansion.sourceSpan(),
                 "Incorrect number of template arguments - expected %d but %d %s specified",
                 tParams.size(),
                 tArgs.size(),
@@ -564,19 +548,19 @@ public:
         gc_vector<ast::TemplateArgument*> templateArgs;
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
-            expansion->templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name().text(), tArgs[i]->type()));
+            expansion.templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name().text(), tArgs[i]->type()));
             templateArgs.push_back(new ast::TemplateArgument(tParams[i]->name().text(), tArgs[i]));
         }
 
-        expansion->setExpandedTemplate(templ->body()->deepCopyExpandTemplate(templateArgs));
+        expansion.setExpandedTemplate(templ->body()->deepCopyExpandTemplate(templateArgs));
 
         auto visitors = getPreTemplateExpansionPassses(world_, errorStream_);
-        runPasses(visitors, expansion->expandedTemplate(), errorStream_, expansion->templateParameterScope());
+        runPasses(visitors, *expansion.expandedTemplate(), errorStream_, expansion.templateParameterScope());
     }
 
-    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+    void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
         visitingExpansion_ = false;
-        world_.removeExpandingTemplate(expansion->templ());
+        world_.removeExpandingTemplate(expansion.templ());
         ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
 
     }
@@ -593,32 +577,33 @@ class PopulateGenericTypesWithCompleteTypesPass : public ErrorContextAstVisitor 
     public:
         PopulateGenericTypesSubPass(error::ErrorStream &errorStream, const gc_vector<type::Type *> &templateArgs)
             : ScopeFollowingAstVisitor(errorStream), templateArguments_(templateArgs) { }
-        void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
-            auto genericType = upcast<type::ClassType>(cd->definedType())->genericType();
+
+        void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
+            auto genericType = upcast<type::ClassType>(cd.definedType())->genericType();
             ASSERT(genericType);
             if(genericType->findExpandedClassType(templateArguments_)) {
                 return;
             }
-            genericType->addExpandedClass(templateArguments_, upcast<type::ClassType>(cd->definedType()));
+            genericType->addExpandedClass(templateArguments_, upcast<type::ClassType>(cd.definedType()));
         }
     };
 
 public:
     explicit PopulateGenericTypesWithCompleteTypesPass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
-    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
         ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
 
         gc_vector<type::Type*> typeArguments;
-        gc_vector<scope::TypeSymbol*> argumentSymbols = expansion->templateParameterScope()->types();
+        gc_vector<scope::TypeSymbol*> argumentSymbols = expansion.templateParameterScope()->types();
         typeArguments.reserve(argumentSymbols.size());
         for(auto argSymbol : argumentSymbols) {
             typeArguments.push_back(argSymbol->type());
         }
 
         PopulateGenericTypesSubPass pass{errorStream_, typeArguments};
-        pass.pushScope(expansion->templateParameterScope());
-        expansion->expandedTemplate()->accept(&pass);
+        pass.pushScope(*expansion.templateParameterScope());
+        expansion.expandedTemplate()->accept(&pass);
     }
 };
 
@@ -631,14 +616,14 @@ class ConvertGenericTypeRefsToCompletePass : public ErrorContextAstVisitor {
 public:
     ConvertGenericTypeRefsToCompletePass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
-    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
-        if(typeRef->type()->isGeneric()) {
-            gc_vector<type::Type*> templateArgs = typeRef->resolutionDeferredType()->typeArguments();
-            auto genericType = upcast<type::GenericType>(typeRef->type()->actualType());
+    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
+        if(typeRef.type()->isGeneric()) {
+            gc_vector<type::Type*> templateArgs = typeRef.resolutionDeferredType()->typeArguments();
+            auto genericType = upcast<type::GenericType>(typeRef.type()->actualType());
             if(genericType->templateParameterCount() != (int)templateArgs.size()) {
                 errorStream_.error(
                     error::ErrorKind::IncorrectNumberOfGenericArguments,
-                    typeRef->sourceSpan(),
+                    typeRef.sourceSpan(),
                     "Incorrect number of generic arguments for type '%s' - expected %d but found %d",
                     genericType->nameForDisplay().c_str(),
                     genericType->templateParameterCount(),
@@ -650,36 +635,36 @@ public:
             if(!expandedType) {
                 errorStream_.error(
                     error::ErrorKind::GenericTypeWasNotExpandedWithSpecifiedArguments,
-                    typeRef->sourceSpan(),
+                    typeRef.sourceSpan(),
                     "Generic type '%s' was not expanded with the specified type arguments",
                     genericType->nameForDisplay().c_str());
                 return;
             }
 
-            typeRef->setType(expandedType);
+            typeRef.setType(expandedType);
 
-        } else if(typeRef->hasTemplateArguments()) {
+        } else if(typeRef.hasTemplateArguments()) {
             errorStream_.error(
                 error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
-                typeRef->sourceSpan(),
+                typeRef.sourceSpan(),
                 "Type '%s' is not generic but is referenced with generic arguments",
-                typeRef->type()->nameForDisplay().c_str());
+                typeRef.type()->nameForDisplay().c_str());
         }
     }
 };
 
 bool runPasses(
     const gc_vector<ast::AstVisitor*> &visitors,
-    ast::AstNode *node,
+    ast::AstNode &node,
     error::ErrorStream &es,
     scope::SymbolTable *startingSymbolTable) {
 
     for(ast::AstVisitor *pass : visitors) {
         if(startingSymbolTable)
         if(auto sfav = dynamic_cast<ScopeFollowingAstVisitor*>(pass)) {
-            sfav->pushScope(startingSymbolTable);
+            sfav->pushScope(*startingSymbolTable);
         }
-        node->accept(pass);
+        node.accept(pass);
         //If an error occurs during any pass, stop executing passes immediately because
         //some passes depend on the success of previous passes.
         if(es.errorCount() > 0) {
@@ -707,7 +692,7 @@ gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &worl
 }
 
 //TODO:  make this a method on AnodeWorld! Will need to move AnodeWorld out of ::ast first, however...
-void runAllPasses(ast::AnodeWorld &world, ast::Module *module, error::ErrorStream &es) {
+void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStream &es) {
 
     //Having so many visitors is probably not great for performance because most of these visit the
     //entire tree but does very little in each individual pass. When/if performance becomes an issue it should

@@ -36,42 +36,42 @@ public:
         return llvmValue_;
     }
 
-    void visitingCompleteClassDefinition(ast::CompleteClassDefinition *) override {
+    void visitingCompleteClassDefinition(ast::CompleteClassDefinition &) override {
         //this is handled in another visitor
         setValue(nullptr);
     }
 
-    void visitingFuncDefStmt(ast::FuncDefStmt *) override {
+    void visitingFuncDefStmt(ast::FuncDefStmt &) override {
         //this is handled in another visitor
         setValue(nullptr);
     }
 
-    void visitingTemplateExprStmt(ast::TemplateExprStmt *) override {
+    void visitingTemplateExprStmt(ast::TemplateExprStmt &) override {
         //this is never visited directly
         setValue(nullptr);
     }
 
-    void visitMethodRefExpr(ast::MethodRefExpr *methodRefExpr) override {
-        setValue(cc().getMappedValue(methodRefExpr->symbol()));
+    void visitMethodRefExpr(ast::MethodRefExpr &methodRefExpr) override {
+        setValue(cc().getMappedValue(methodRefExpr.symbol()));
     }
 
-    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt *expansion) override {
-        setValue(emitExpr(expansion->expandedTemplate(), cc()));
+    void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
+        setValue(emitExpr(expansion.expandedTemplate(), cc()));
     }
 
-    void visitedFuncCallExpr(ast::FuncCallExpr *expr) override {
+    void visitedFuncCallExpr(ast::FuncCallExpr &expr) override {
 
         std::vector<llvm::Value *> args;
 
-        if (expr->instanceExpr()) {
-            args.push_back(emitExpr(expr->instanceExpr(), cc()));
+        if (expr.instanceExpr()) {
+            args.push_back(emitExpr(expr.instanceExpr(), cc()));
         }
 
-        for (auto arg : expr->arguments()) {
+        for (auto arg : expr.arguments()) {
             args.push_back(emitExpr(arg, cc()));
         }
 
-        llvm::Value *value = emitExpr(expr->funcExpr(), cc());
+        llvm::Value *value = emitExpr(expr.funcExpr(), cc());
 
         auto *llvmFunc = llvm::cast<llvm::Function>(value);
 
@@ -80,21 +80,21 @@ public:
         setValue(result);
     }
 
-    void visitedCastExpr(ast::CastExpr *expr) override {
-        llvm::Value *value = emitExpr(expr->valueExpr(), cc());
+    void visitedCastExpr(ast::CastExpr &expr) override {
+        llvm::Value *value = emitExpr(expr.valueExpr(), cc());
 
-        ASSERT(expr->type()->isPrimitive());
-        ASSERT(expr->valueExpr()->type()->isPrimitive());
+        ASSERT(expr.type()->isPrimitive());
+        ASSERT(expr.valueExpr()->type()->isPrimitive());
 
         llvm::Value *castedValue = nullptr;
-        llvm::Type *destLlvmType = cc().typeMap().toLlvmType(expr->type());
-        switch (expr->valueExpr()->type()->primitiveType()) {
+        llvm::Type *destLlvmType = cc().typeMap().toLlvmType(expr.type());
+        switch (expr.valueExpr()->type()->primitiveType()) {
             //From int32
             case type::PrimitiveType::Int32:
-                switch (expr->type()->primitiveType()) {
+                switch (expr.type()->primitiveType()) {
                     //To bool
                     case type::PrimitiveType::Bool:
-                        castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr->valueExpr()->type()));
+                        castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr.valueExpr()->type()));
                         break;
                         //To int
                     case type::PrimitiveType::Int32:
@@ -110,10 +110,10 @@ public:
                 break;
                 //From float
             case type::PrimitiveType::Float:
-                switch (expr->type()->primitiveType()) {
+                switch (expr.type()->primitiveType()) {
                     //To to int32 or bool
                     case type::PrimitiveType::Bool:
-                        castedValue = cc().irBuilder().CreateFCmpUNE(value, cc().getDefaultValueForType(expr->valueExpr()->type()));
+                        castedValue = cc().irBuilder().CreateFCmpUNE(value, cc().getDefaultValueForType(expr.valueExpr()->type()));
                         break;
                     case type::PrimitiveType::Int32:
                         castedValue = cc().irBuilder().CreateFPToSI(value, destLlvmType);
@@ -136,32 +136,32 @@ public:
         setValue(castedValue);
     }
 
-    void visitingNewExpr(ast::NewExpr *expr) override {
-        auto structType = cc().typeMap().toLlvmType(expr->type())->getPointerElementType();
+    void visitingNewExpr(ast::NewExpr &expr) override {
+        auto structType = cc().typeMap().toLlvmType(expr.type())->getPointerElementType();
         uint64_t size = cc().llvmModule().getDataLayout().getTypeAllocSize(structType);
 
         std::vector<llvm::Value *> arguments;
         arguments.push_back(getLiteralUIntLLvmValue((unsigned int) size));
         llvm::Value *pointer = cc().irBuilder().CreateCall(cc().mallocFunc(), arguments);
-        llvm::Value *castedValue = cc().irBuilder().CreatePointerCast(pointer, cc().typeMap().toLlvmType(expr->type()));
+        llvm::Value *castedValue = cc().irBuilder().CreatePointerCast(pointer, cc().typeMap().toLlvmType(expr.type()));
 
         setValue(castedValue);
     }
 
-    void visitedVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-        switch (expr->symbol()->storageKind()) {
+    void visitedVariableDeclExpr(ast::VariableDeclExpr &expr) override {
+        switch (expr.symbol()->storageKind()) {
             case scope::StorageKind::Global: {
-                llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr->symbol()->fullyQualifiedName());
+                llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr.symbol()->fullyQualifiedName());
                 ASSERT(globalVariable);
                 globalVariable->setAlignment(ALIGNMENT);
-                llvm::Constant *val = cc().getDefaultValueForType(expr->type());
+                llvm::Constant *val = cc().getDefaultValueForType(expr.type());
                 globalVariable->setInitializer(val);
                 break;
             }
             case scope::StorageKind::Local: {
-                llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr->type());
-                llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr->name().text());
-                cc().mapSymbolToValue(expr->symbol(), localVariable);
+                llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.type());
+                llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().text());
+                cc().mapSymbolToValue(expr.symbol(), localVariable);
                 break;
             }
             default:
@@ -170,30 +170,30 @@ public:
         visitVariableRefExpr(expr);
     }
 
-    void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
+    void visitVariableRefExpr(ast::VariableRefExpr &expr) override {
         llvm::Value *pointer;
 
-        if (expr->symbol()->storageKind() == scope::StorageKind::Instance) {
+        if (expr.symbol()->storageKind() == scope::StorageKind::Instance) {
             //Variable is an instance field
             scope::VariableSymbol *thisSymbol = cc().currentFuncDefStmt()->symbol()->thisSymbol();
             auto classType = dynamic_cast<type::ClassType *>(thisSymbol->type());
             ASSERT(classType);
             llvm::Value *pointerToPointerToStruct = cc().getMappedValue(thisSymbol);
             llvm::Value *pointerToStruct = cc().irBuilder().CreateLoad(pointerToPointerToStruct);
-            pointer = createStructGep(classType, pointerToStruct, expr->name().text());
+            pointer = createStructGep(classType, pointerToStruct, expr.name().text());
         } else {
             //Variable is an argument or local variable.
-            pointer = cc().getMappedValue(expr->symbol());
+            pointer = cc().getMappedValue(expr.symbol());
         }
 
         ASSERT(pointer);
 
-        if (expr->variableAccess() == ast::VariableAccess::Write) {
+        if (expr.variableAccess() == ast::VariableAccess::Write) {
             setValue(pointer);
             return;
         }
 
-        if (!expr->type()->isFunction()) {
+        if (!expr.type()->isFunction()) {
             llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(pointer);
             loadInst->setAlignment(ALIGNMENT);
             setValue(loadInst);
@@ -215,15 +215,15 @@ private:
 
 protected:
 
-    void visitedDotExpr(ast::DotExpr *expr) override {
-        llvm::Value *instance = emitExpr(expr->lValue(), cc());
+    void visitedDotExpr(ast::DotExpr &expr) override {
+        llvm::Value *instance = emitExpr(expr.lValue(), cc());
 
-        auto classType = dynamic_cast<type::ClassType *>(expr->lValue()->type()->actualType());
+        auto classType = dynamic_cast<type::ClassType *>(expr.lValue()->type()->actualType());
         ASSERT(classType != nullptr && "lvalues of dot operator must be a ClassType (did the semantic check fail?)");
 
-        llvm::Value *ptrOrValue = createStructGep(classType, instance, expr->memberName().text());
+        llvm::Value *ptrOrValue = createStructGep(classType, instance, expr.memberName().text());
 
-        if (expr->isWrite() || expr->type()->isFunction()) {
+        if (expr.isWrite() || expr.type()->isFunction()) {
             setValue(ptrOrValue);
             return;
         }
@@ -232,20 +232,20 @@ protected:
         setValue(ptrOrValue);
     }
 
-    void visitLiteralInt32Expr(ast::LiteralInt32Expr *expr) override {
-        setValue(getLiteralIntLlvmValue(expr->value()));
+    void visitLiteralInt32Expr(ast::LiteralInt32Expr &expr) override {
+        setValue(getLiteralIntLlvmValue(expr.value()));
     }
 
-    void visitLiteralFloatExpr(ast::LiteralFloatExpr *expr) override {
-        setValue(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr->value())));
+    void visitLiteralFloatExpr(ast::LiteralFloatExpr &expr) override {
+        setValue(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr.value())));
     }
 
-    void visitLiteralBoolExpr(ast::LiteralBoolExpr *expr) override {
-        setValue(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr->value(), true)));
+    void visitLiteralBoolExpr(ast::LiteralBoolExpr &expr) override {
+        setValue(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr.value(), true)));
     }
 
-    void visitingBinaryExpr(ast::BinaryExpr *expr) override {
-        switch (expr->binaryExprKind()) {
+    void visitingBinaryExpr(ast::BinaryExpr &expr) override {
+        switch (expr.binaryExprKind()) {
             case ast::BinaryExprKind::Logical:
                 emitBinaryLogical(expr);
                 break;
@@ -258,24 +258,24 @@ protected:
     }
 
 private:
-    void emitBinaryArithmetic(ast::BinaryExpr *expr) {
-        ASSERT(expr->lValue()->type()->isSameType(expr->rValue()->type()) && "data types must match");
+    void emitBinaryArithmetic(ast::BinaryExpr &expr) {
+        ASSERT(expr.lValue()->type()->isSameType(expr.rValue()->type()) && "data types must match");
 
-        llvm::Value *rValue = emitExpr(expr->rValue(), cc());
+        llvm::Value *rValue = emitExpr(expr.rValue(), cc());
 
-        llvm::Value *lValue = emitExpr(expr->lValue(), cc());
+        llvm::Value *lValue = emitExpr(expr.lValue(), cc());
 
-        if (expr->operation() == ast::BinaryOperationKind::Assign) {
+        if (expr.operation() == ast::BinaryOperationKind::Assign) {
             cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
             //Note:  I think this will call rValue a second time if rValue is a call site.
             setValue(rValue);
             return;
         }
         llvm::Value *resultValue = nullptr;
-        ASSERT(expr->type()->isPrimitive() && "Only primitive types currently supported here");
-        switch (expr->operandsType()->primitiveType()) {
+        ASSERT(expr.type()->isPrimitive() && "Only primitive types currently supported here");
+        switch (expr.operandsType()->primitiveType()) {
             case type::PrimitiveType::Bool:
-                switch (expr->operation()) {
+                switch (expr.operation()) {
                     case ast::BinaryOperationKind::Eq:
                         resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
                         break;
@@ -287,7 +287,7 @@ private:
                 }
                 break;
             case type::PrimitiveType::Int32:
-                switch (expr->operation()) {
+                switch (expr.operation()) {
                     case ast::BinaryOperationKind::Eq:
                         resultValue = cc().irBuilder().CreateICmpEQ(lValue, rValue);
                         break;
@@ -323,7 +323,7 @@ private:
                 }
                 break;
             case type::PrimitiveType::Float:
-                switch (expr->operation()) {
+                switch (expr.operation()) {
                     case ast::BinaryOperationKind::Eq:
                         resultValue = cc().irBuilder().CreateFCmpOEQ(lValue, rValue);
                         break;
@@ -365,7 +365,7 @@ private:
         setValue(resultValue);
     }
 
-    void emitBinaryLogical(ast::BinaryExpr *expr) {
+    void emitBinaryLogical(ast::BinaryExpr &expr) {
         //Prepare the basic blocks
         llvm::BasicBlock *lValueBlock = cc().irBuilder().GetInsertBlock();
         llvm::Function *currentFunc = lValueBlock->getParent();
@@ -373,10 +373,10 @@ private:
         llvm::BasicBlock *endBlock = llvm::BasicBlock::Create(cc().llvmContext(), "endBlock");
 
         //Emit the lValue, which is always the first operand of a logical operation to be evaluated
-        llvm::Value *lValue = emitExpr(expr->lValue(), cc());
+        llvm::Value *lValue = emitExpr(expr.lValue(), cc());
 
         bool lValueConst;
-        switch (expr->operation()) {
+        switch (expr.operation()) {
             //For the && operator, only evaluate the lValue if the rValue is true
             case ast::BinaryOperationKind::LogicalAnd:
                 cc().irBuilder().CreateCondBr(lValue, rValueBlock, endBlock);
@@ -391,7 +391,7 @@ private:
         }
         currentFunc->getBasicBlockList().push_back(rValueBlock);
         cc().irBuilder().SetInsertPoint(rValueBlock);
-        llvm::Value *rValue = emitExpr(expr->rValue(), cc());
+        llvm::Value *rValue = emitExpr(expr.rValue(), cc());
         cc().irBuilder().CreateBr(endBlock);
 
         currentFunc->getBasicBlockList().push_back(endBlock);
@@ -407,10 +407,10 @@ private:
     }
 
 protected:
-    void visitingIfExpr(ast::IfExprStmt *ifExpr) override {
+    void visitingIfExpr(ast::IfExprStmt &ifExpr) override {
         //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
         //Emit the condition
-        llvm::Value *condValue = emitExpr(ifExpr->condition(), cc());
+        llvm::Value *condValue = emitExpr(ifExpr.condition(), cc());
 
         //Prepare the BasicBlocks
         llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
@@ -424,7 +424,7 @@ protected:
         //Emit the thenBlock
         currentFunc->getBasicBlockList().push_back(thenBlock);
         cc().irBuilder().SetInsertPoint(thenBlock);
-        llvm::Value *thenValue = emitExpr(ifExpr->thenExpr(), cc());
+        llvm::Value *thenValue = emitExpr(ifExpr.thenExpr(), cc());
         thenBlock = cc().irBuilder().GetInsertBlock();
 
         //Jump to the endBlock, skipping the elseBlock
@@ -435,8 +435,8 @@ protected:
         cc().irBuilder().SetInsertPoint(elseBlock);
 
         llvm::Value *elseValue = nullptr;
-        if (ifExpr->elseExpr()) {
-            elseValue = emitExpr(ifExpr->elseExpr(), cc());
+        if (ifExpr.elseExpr()) {
+            elseValue = emitExpr(ifExpr.elseExpr(), cc());
         }
         cc().irBuilder().CreateBr(endBlock);
         elseBlock = cc().irBuilder().GetInsertBlock();
@@ -444,11 +444,11 @@ protected:
         //Emit the endBlock
         currentFunc->getBasicBlockList().push_back(endBlock);
         cc().irBuilder().SetInsertPoint(endBlock);
-        if (ifExpr->type()->primitiveType() != type::PrimitiveType::Void) {
-            llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(ifExpr->type()),
-                                                            ifExpr->elseExpr() ? 2 : 1, "iftmp");
+        if (ifExpr.type()->primitiveType() != type::PrimitiveType::Void) {
+            llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(ifExpr.type()),
+                                                            ifExpr.elseExpr() ? 2 : 1, "iftmp");
             phi->addIncoming(thenValue, thenBlock);
-            if (ifExpr->elseExpr()) {
+            if (ifExpr.elseExpr()) {
                 phi->addIncoming(elseValue, elseBlock);
             }
             setValue(phi);
@@ -457,7 +457,7 @@ protected:
         }
     }
 
-    void visitingWhileExpr(ast::WhileExpr *whileExpr) override {
+    void visitingWhileExpr(ast::WhileExpr &whileExpr) override {
 
         //Prepare the BasicBlocks
         llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
@@ -470,7 +470,7 @@ protected:
         cc().irBuilder().SetInsertPoint(conditionBlock);
 
         //Emit the condition
-        llvm::Value *condValue = emitExpr(whileExpr->condition(), cc());
+        llvm::Value *condValue = emitExpr(whileExpr.condition(), cc());
 
         //If the condition is true branch to the body block, otherwise branch to the end block
         cc().irBuilder().CreateCondBr(condValue, bodyBlock, endBlock);
@@ -478,7 +478,7 @@ protected:
         //Emit the body block
         currentFunc->getBasicBlockList().push_back(bodyBlock);
         cc().irBuilder().SetInsertPoint(bodyBlock);
-        emitExpr(whileExpr->body(), cc());
+        emitExpr(whileExpr.body(), cc());
 
         //Loop back to the condition
         cc().irBuilder().CreateBr(conditionBlock);
@@ -503,17 +503,17 @@ private:
 
     }
 
-    void visitingCompoundExpr(ast::CompoundExpr *compoundExpr) override {
-        visitExpressions(compoundExpr->expressions());
+    void visitingCompoundExpr(ast::CompoundExpr &compoundExpr) override {
+        visitExpressions(compoundExpr.expressions());
     }
 
-    void visitingExpressionList(ast::ExpressionList *expressionList) override {
-        visitExpressions(expressionList->expressions());
+    void visitingExpressionList(ast::ExpressionList &expressionList) override {
+        visitExpressions(expressionList.expressions());
     }
 
-    void visitingAssertExprStmt(ast::AssertExprStmt *assert) override {
+    void visitingAssertExprStmt(ast::AssertExprStmt &assert) override {
         //Emit the condition
-        llvm::Value *condValue = emitExpr(assert->condition(), cc());
+        llvm::Value *condValue = emitExpr(assert.condition(), cc());
 
         //Prepare the BasicBlocks
         llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
@@ -538,7 +538,7 @@ private:
 
         //Call the assert_failed function
         std::vector<llvm::Value *> arguments;
-        source::SourceSpan span = assert->condition()->sourceSpan();
+        source::SourceSpan span = assert.condition()->sourceSpan();
         arguments.push_back(cc().getDeduplicatedStringConstant(span.name()));
         arguments.push_back(getLiteralUIntLLvmValue((unsigned int) span.start().line()));
         cc().irBuilder().CreateCall(cc().assertFailFunc(), arguments);
