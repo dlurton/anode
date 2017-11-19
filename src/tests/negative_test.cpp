@@ -82,19 +82,18 @@ int main(int argc, char **argv) {
             }
 
             std::string expectedErrorCodeEnumName = string::trim_copy(parts[0]);
-            std::size_t expectedCharIndex = std::atol(parts[2].c_str());
-            std::size_t expectedLineNum = std::atol(parts[1].c_str());
+            long expectedCharIndex, expectedLineNum;
+            try {
+                expectedCharIndex = std::stol(parts[2].c_str());
+                expectedLineNum = std::stol(parts[1].c_str());
+            } catch(std::invalid_argument &) {
+                fail(filename, lineNum, "Invalid line number or columnm");
+            } catch(std::out_of_range &){
+                fail(filename, lineNum, "Line number or column is out of range");
+            }
 
             if (!error::ErrorKind::_is_valid(expectedErrorCodeEnumName.c_str())) {
                 fail(filename, lineNum, "Invalid ErrorKind:  " + expectedErrorCodeEnumName);
-                continue;
-            }
-            if (expectedLineNum == 0) {
-                fail(filename, lineNum, "Invalid line number: " + parts[1]);
-                continue;
-            }
-            if (expectedCharIndex == 0) {
-                fail(filename, lineNum, "Invalid char index: " + parts[2]);
                 continue;
             }
 
@@ -107,14 +106,20 @@ int main(int argc, char **argv) {
                 auto module = parseModule(stream, string::format("<test case ending at %s:%d>", filename.c_str(), startingLine), errorStream);
                 if (errorStream.errorCount() == 0) {
                     ast::AnodeWorld world;
-                    front::passes::runAllPasses(world, module, errorStream);
+                    try {
+                        front::passes::runAllPasses(world, module, errorStream);
+                    } catch(anode::exception::DebugAssertionFailedException &de) {
+                        std::string msg = std::string("Debug assertion failed:\n\t") + de.what();
+                        fail(filename, lineNum, formatErrorDetails(msg, source, errorOutput.str()));
+                        continue;
+                    }
                 }
             }
             catch (ParseAbortedException ex) {}
 
             error::ErrorDetail error = errorStream.firstError();
             if (errorStream.errorCount() == 0) {
-                fail(filename, lineNum, formatErrorDetails("Expected an error but there were none", source, errorOutput.str()));
+                fail(filename, lineNum, formatErrorDetails("Expected an error but there wasn't an error", source, errorOutput.str()));
                 continue;
             }
 

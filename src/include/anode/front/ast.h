@@ -15,8 +15,6 @@
 #include <iostream>
 #include <iterator>
 
-
-
 namespace anode { namespace front { namespace ast {
 
 enum class BinaryOperationKind : unsigned char {
@@ -165,11 +163,12 @@ class Identifier {
     std::string text_;
 
 public:
-    Identifier(source::SourceSpan span, std::string text)
+    Identifier(source::SourceSpan span, const std::string &text)
         : span_(span), text_(text) { }
 
     const std::string &text() const { return text_; }
     const source::SourceSpan &span() const { return span_; }
+
 };
 
 /** Base class for all nodes */
@@ -213,7 +212,7 @@ public:
     }
 
     virtual type::Type *type() const = 0;
-    virtual std::string name() const = 0;
+    virtual const Identifier &name() const = 0;
     virtual TypeRef *deepCopyForTemplate() const = 0;
 };
 
@@ -221,13 +220,14 @@ public:
 /** A reference to a data type that is known at parse time (used for primitive data types). */
 class KnownTypeRef : public TypeRef {
     type::Type *referencedType_;
-    public:
+    const Identifier name_;
+public:
     KnownTypeRef(source::SourceSpan sourceSpan, type::Type *dataType)
-        : TypeRef(sourceSpan), referencedType_{dataType}
+        : TypeRef(sourceSpan), referencedType_{dataType}, name_{Identifier(source::SourceSpan::Any, referencedType_->name())}
     { }
 
     type::Type *type() const override { return referencedType_; };
-    std::string name() const override { return referencedType_->name(); };
+    const Identifier &name() const override { return name_; };
 
     TypeRef *deepCopyForTemplate() const override {
         return new KnownTypeRef(sourceSpan(), referencedType_);
@@ -253,7 +253,7 @@ inline std::string join(TIterator begin, TIterator end, std::string delimiter, s
 
 /** A reference to a data type that doesn't exist at parse time. i.e.: classes.  Resolved during an AST pass. */
 class ResolutionDeferredTypeRef : public TypeRef {
-    const std::string name_;
+    const Identifier name_;
     gc_vector<ResolutionDeferredTypeRef*> templateArgs_;
     type::ResolutionDeferredType *referencedType_ = nullptr;
 
@@ -266,10 +266,10 @@ class ResolutionDeferredTypeRef : public TypeRef {
         return types;
     }
 public:
-    ResolutionDeferredTypeRef(const source::SourceSpan &sourceSpan, std::string name, const gc_vector<ResolutionDeferredTypeRef*> &args)
+    ResolutionDeferredTypeRef(const source::SourceSpan &sourceSpan, const Identifier &name, const gc_vector<ResolutionDeferredTypeRef*> &args)
         : TypeRef(sourceSpan), name_{name}, templateArgs_{args}, referencedType_(new type::ResolutionDeferredType(getTypesFromTypeRefs(templateArgs_))) { }
 
-    std::string name() const override { return name_; }
+    const Identifier &name() const override { return name_; }
 
     type::Type *type() const override {
         ASSERT(referencedType_ && "Data type hasn't been resolved yet");
@@ -463,11 +463,11 @@ public:
 };
 
 class TemplateParameter : public Stmt {
-    const std::string name_;
+    const Identifier name_;
 public:
-    TemplateParameter(const source::SourceSpan &sourceSpan, const std::string &name) : Stmt(sourceSpan), name_{name} { }
+    TemplateParameter(const source::SourceSpan &sourceSpan, const Identifier &name) : Stmt(sourceSpan), name_{name} { }
 
-    std::string name() const { return name_; }
+    const Identifier &name() const { return name_; }
 
     void accept(AstVisitor *visitor) override {
         visitor->visitTemplateParameter(this);
@@ -479,13 +479,13 @@ public:
 };
 
 class TemplateExprStmt : public ExprStmt {
-    std::string name_;
+    const Identifier name_;
     gc_vector<ast::TemplateParameter*> parameters_;
     ast::ExpressionList *body_;
 public:
     TemplateExprStmt(
         const source::SourceSpan &sourceSpan,
-        std::string name,
+        const Identifier &name,
         const gc_vector<ast::TemplateParameter*> &parameters,
         ast::ExpressionList *body)
         : ExprStmt(sourceSpan),
@@ -498,7 +498,7 @@ public:
     type::Type *type() const override { return &type::ScalarType::Void; }
     bool canWrite() const override { return false; };
 
-    std::string name() { return name_; }
+    const Identifier &name() { return name_; }
     ExpressionList *body() { return body_; }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
@@ -807,12 +807,12 @@ class VariableRefExpr : public ExprStmt {
     scope::Symbol *symbol_ = nullptr;
     VariableAccess access_ = VariableAccess::Read;
 protected:
-    std::string name_;
+    const Identifier name_;
 
 public:
-    VariableRefExpr(source::SourceSpan sourceSpan, const std::string &name, VariableAccess access = VariableAccess::Read)
+    VariableRefExpr(source::SourceSpan sourceSpan, const Identifier &name, VariableAccess access = VariableAccess::Read)
         : ExprStmt(sourceSpan), access_{access}, name_{ name } {
-        ASSERT(name.size() > 0);
+        ASSERT(name.text().size() > 0);
     }
 
     virtual type::Type *type() const override {
@@ -820,8 +820,8 @@ public:
         return symbol_->type();
     }
 
-    std::string name() const { return name_; }
-    std::string toString() const { return name_ + ":" + this->type()->nameForDisplay(); }
+    const Identifier &name() const { return name_; }
+    std::string toString() const { return name_.text() + ":" + this->type()->nameForDisplay(); }
 
     scope::Symbol *symbol() {
         return symbol_;
@@ -852,7 +852,7 @@ public:
 class VariableDeclExpr : public VariableRefExpr {
     TypeRef* typeRef_;
 public:
-    VariableDeclExpr(source::SourceSpan sourceSpan, const std::string &name, TypeRef* typeRef, VariableAccess access = VariableAccess::Read)
+    VariableDeclExpr(source::SourceSpan sourceSpan, const Identifier &name, TypeRef* typeRef, VariableAccess access = VariableAccess::Read)
         : VariableRefExpr(sourceSpan, name, access),
           typeRef_(typeRef)
     {
@@ -1066,15 +1066,15 @@ public:
 
 class ParameterDef : public AstNode {
     source::SourceSpan span_;
-    const std::string name_;
+    const Identifier name_;
     TypeRef* typeRef_;
     scope::VariableSymbol *symbol_ = nullptr;
 public:
-    ParameterDef(source::SourceSpan span, const std::string &name, TypeRef *typeRef)
+    ParameterDef(source::SourceSpan span, const Identifier &name, TypeRef *typeRef)
         : span_{span}, name_{name}, typeRef_{typeRef} { }
 
     source::SourceSpan span() { return span_; }
-    std::string name() { return name_; }
+    const Identifier &name() { return name_; }
     type::Type *type() { return typeRef_->type(); }
     TypeRef *typeRef() { return typeRef_; }
 
@@ -1099,7 +1099,7 @@ public:
 type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef*> &parameters);
 
 class FuncDefStmt : public ExprStmt {
-    const std::string name_;
+    const Identifier name_;
     scope::FunctionSymbol *symbol_= nullptr;
     scope::SymbolTable parameterScope_;
     TypeRef *returnTypeRef_;
@@ -1110,7 +1110,7 @@ class FuncDefStmt : public ExprStmt {
 public:
     FuncDefStmt(
         source::SourceSpan sourceSpan,
-        const std::string &name,
+        const Identifier &name,
         TypeRef* returnTypeRef,
         gc_vector<ParameterDef*> parameters,
         ExprStmt* body
@@ -1122,13 +1122,13 @@ public:
         body_{body},
         functionType_{createFunctionType(returnTypeRef->type(), parameters)}
     {
-        parameterScope_.name() = name_ + "-parameters";
+        parameterScope_.name() = name_.text() + "-parameters";
     }
 
     type::Type *type() const override { return &type::ScalarType::Void; }
     bool canWrite() const override { return false; }
 
-    std::string name() const { return name_; }
+    const Identifier &name() const { return name_; }
     type::Type *returnType() const { return functionType_->returnType(); }
     type::FunctionType *functionType() { return functionType_; }
     scope::SymbolTable *parameterScope() { return &parameterScope_; };
@@ -1178,11 +1178,11 @@ public:
 };
 
 class MethodRefExpr : public ExprStmt {
-    std::string name_;
+    const Identifier name_;
     scope::FunctionSymbol *symbol_ = nullptr;
 public:
-    explicit MethodRefExpr(source::SourceSpan sourceSpan, const std::string &name) : ExprStmt(sourceSpan), name_{ name } {
-        ASSERT(name.size() > 0);
+    explicit MethodRefExpr(const Identifier &name) : ExprStmt(name.span()), name_{ name } {
+        ASSERT(name.text().size() > 0);
     }
 
     virtual type::Type *type() const override {
@@ -1190,8 +1190,8 @@ public:
         return symbol_->type();
     }
 
-    virtual std::string name() const { return name_; }
-    std::string toString() const { return name_ + ":" + this->type()->nameForDisplay(); }
+    virtual const Identifier &name() const { return name_; }
+    std::string toString() const { return name_.text() + ":" + this->type()->nameForDisplay(); }
 
     scope::FunctionSymbol *symbol() { return symbol_; }
     void setSymbol(scope::FunctionSymbol *symbol) {
@@ -1205,7 +1205,7 @@ public:
     }
 
     ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new MethodRefExpr(sourceSpan_, name_);
+        return new MethodRefExpr(name_);
     }
 };
 
@@ -1283,12 +1283,12 @@ public:
 };
 
 class ClassDefinitionBase : public ExprStmt {
-    std::string name_;
+    Identifier name_;
     CompoundExpr *body_;
 protected:
     ClassDefinitionBase(
         source::SourceSpan span,
-        const std::string &name,
+        const Identifier &name,
         ast::CompoundExpr *body
     ) : ExprStmt{span},
         name_{name},
@@ -1305,7 +1305,7 @@ public:
     bool canWrite() const override { return false; }
 
     CompoundExpr *body() const { return body_; }
-    std::string name() const { return name_; }
+    Identifier name() const { return name_; }
 };
 
 inline gc_vector<type::Type*> toVectorOfType(const gc_vector<TemplateArgument*> &arguments) {
@@ -1324,20 +1324,20 @@ class CompleteClassDefinition : public ClassDefinitionBase {
 public:
     CompleteClassDefinition(
         source::SourceSpan span,
-        const std::string &name,
+        const Identifier &name,
         ast::CompoundExpr *body
     ) : ClassDefinitionBase{span, name, body},
-        definedType_{new type::ClassType(AstNode::nodeId(), name, toVectorOfType(templateArguments_))}
+        definedType_{new type::ClassType(AstNode::nodeId(), name.text(), toVectorOfType(templateArguments_))}
     { }
 
     CompleteClassDefinition(
         source::SourceSpan span,
-        const std::string &name,
+        const Identifier &name,
         const gc_vector<TemplateArgument*> templateArgs,
         ast::CompoundExpr *body
     ) : ClassDefinitionBase{span, name, body},
         templateArguments_{templateArgs},
-        definedType_{new type::ClassType(AstNode::nodeId(), name, toVectorOfType(templateArguments_))}
+        definedType_{new type::ClassType(AstNode::nodeId(), name.text(), toVectorOfType(templateArguments_))}
     { }
 
     /** The type of the class being defined. */
@@ -1389,7 +1389,7 @@ class GenericClassDefinition : public ClassDefinitionBase {
     inline static std::vector<std::string> getTemplateParameterNames(const gc_vector<TemplateParameter*> &parameters) {
         std::vector<std::string> names;
         for(auto parameter : parameters) {
-            names.push_back(parameter->name());
+            names.push_back(parameter->name().text());
         }
         return names;
     }
@@ -1397,12 +1397,12 @@ class GenericClassDefinition : public ClassDefinitionBase {
 public:
     GenericClassDefinition(
         source::SourceSpan span,
-        const std::string &name,
+        const Identifier &name,
         const gc_vector<TemplateParameter*> &templateParameters,
         ast::CompoundExpr *body
     ) : ClassDefinitionBase{span, name, body},
         templateParameters_{templateParameters},
-        definedType_{new type::GenericType(nodeId(), name, getTemplateParameterNames(templateParameters))}
+        definedType_{new type::GenericType(nodeId(), name.text(), getTemplateParameterNames(templateParameters))}
     { }
 
     /** The type of the class being defined. */
@@ -1435,14 +1435,14 @@ public:
 class DotExpr : public ExprStmt {
     source::SourceSpan dotSourceSpan_;
     ExprStmt *lValue_;
-    std::string memberName_;
+    const Identifier memberName_;
     type::ClassField *field_ = nullptr;
     bool isWrite_ = false;
 public:
     DotExpr(const source::SourceSpan &sourceSpan,
             const source::SourceSpan &dotSourceSpan,
             ExprStmt *lValue,
-            const std::string &memberName)
+            const Identifier &memberName)
         : ExprStmt(sourceSpan), dotSourceSpan_{dotSourceSpan}, lValue_{lValue}, memberName_{memberName} { }
 
     source::SourceSpan dotSourceSpan() { return dotSourceSpan_; };
@@ -1456,7 +1456,7 @@ public:
     }
 
     ExprStmt *lValue() { return lValue_; }
-    std::string memberName() { return memberName_; }
+    const Identifier &memberName() { return memberName_; }
 
     type::ClassField *field() { return field_; }
     void setField(type::ClassField *field) { field_ = field; }
@@ -1515,7 +1515,7 @@ public:
 
 
     void addTemplate(TemplateExprStmt *templ) {
-        templates_[templ->name()] = templ;
+        templates_[templ->name().text()] = templ;
     }
 
     TemplateExprStmt *findTemplate(const std::string &name) {

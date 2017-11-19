@@ -160,7 +160,7 @@ public:
             }
             case scope::StorageKind::Local: {
                 llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr->type());
-                llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr->name());
+                llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr->name().text());
                 cc().mapSymbolToValue(expr->symbol(), localVariable);
                 break;
             }
@@ -180,7 +180,7 @@ public:
             ASSERT(classType);
             llvm::Value *pointerToPointerToStruct = cc().getMappedValue(thisSymbol);
             llvm::Value *pointerToStruct = cc().irBuilder().CreateLoad(pointerToPointerToStruct);
-            pointer = createStructGep(classType, pointerToStruct, expr->name());
+            pointer = createStructGep(classType, pointerToStruct, expr->name().text());
         } else {
             //Variable is an argument or local variable.
             pointer = cc().getMappedValue(expr->symbol());
@@ -221,7 +221,7 @@ protected:
         auto classType = dynamic_cast<type::ClassType *>(expr->lValue()->type()->actualType());
         ASSERT(classType != nullptr && "lvalues of dot operator must be a ClassType (did the semantic check fail?)");
 
-        llvm::Value *ptrOrValue = createStructGep(classType, instance, expr->memberName());
+        llvm::Value *ptrOrValue = createStructGep(classType, instance, expr->memberName().text());
 
         if (expr->isWrite() || expr->type()->isFunction()) {
             setValue(ptrOrValue);

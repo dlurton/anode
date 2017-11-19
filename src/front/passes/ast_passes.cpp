@@ -31,9 +31,23 @@ class ScopeFollowingAstVisitor : public ErrorContextAstVisitor {
     gc_deque<scope::SymbolTable*> symbolTableStack_;
 
 protected:
+
+    /** This is the topmost scope in the scope stack. */
     scope::SymbolTable *topScope() {
         ASSERT(symbolTableStack_.size());
         return symbolTableStack_.back();
+    }
+
+    /** This is the current scope from which all variables should be looked up.
+     * This member function varies from {@ref topScope()} in that if the current scope a set of template expansions,
+     * then it returns the top scope's parent scope.*/
+    scope::SymbolTable *currentScope() {
+        scope::SymbolTable *ts = topScope();
+        if (ts->storageKind() == scope::StorageKind::TemplateParameter) {
+            return ts->parent();
+        }
+
+        return ts;
     }
 
     size_t scopeDepth() { return symbolTableStack_.size(); }
@@ -111,24 +125,23 @@ public:
     explicit PopulateSymbolTablesPass(error::ErrorStream &errorStream)
         : ScopeFollowingAstVisitor(errorStream) {  }
 
-    scope::SymbolTable *currentScope() {
-        scope::SymbolTable *ts = topScope();
-        if (ts->storageKind() == scope::StorageKind::TemplateParameter) {
-            return ts->parent();
-        }
-
-        return ts;
-    }
-
 //    void visitingGenericClassDefinition(ast::GenericClassDefinition *cd) override {
 //
 //    }
 
+    void symbolPreviouslyDefinedError(const ast::Identifier &identifier) {
+        errorStream_.error(
+            error::ErrorKind::SymbolAlreadyDefinedInScope,
+            identifier.span(),
+            "Symbol '%s' was previously defined in the current scope",
+            identifier.text().c_str());
+    }
     void visitingCompleteClassDefinition(ast::CompleteClassDefinition *cd) override {
+
         //Classes that are defined within expanded templates do not get their own symbols
         //Only the generic version of them do. During symbol resolution, the symbol of the GenericType is
         //resolved and the resolved GenericType is used to determine the Type of the expanded class.
-        if(!cd->hasTemplateArguments()) {
+        if (!cd->hasTemplateArguments()) {
             type::Type *definedType = cd->definedType();
 
             if (auto definedClassType = dynamic_cast<type::ClassType *>(definedType)) {
@@ -138,78 +151,72 @@ public:
                 }
             }
 
-            auto *classSymbol = new scope::TypeSymbol(definedType);
-            currentScope()->addSymbol(classSymbol);
+            if(currentScope()->findSymbol(cd->name().text())) {
+                symbolPreviouslyDefinedError(cd->name());
+            } else {
+                auto *classSymbol = new scope::TypeSymbol(definedType);
+                currentScope()->addSymbol(classSymbol);
+            }
         }
-
         ScopeFollowingAstVisitor::visitingCompleteClassDefinition(cd);
     }
 
     void visitingFuncDefStmt(ast::FuncDefStmt *funcDeclStmt) override {
-        scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name(), funcDeclStmt->functionType());
+        if(currentScope()->findSymbol(funcDeclStmt->name().text())) {
+            symbolPreviouslyDefinedError(funcDeclStmt->name());
+        } else {
+            scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt->name().text(), funcDeclStmt->functionType());
 
-        currentScope()->addSymbol(funcSymbol);
-        funcDeclStmt->setSymbol(funcSymbol);
+            currentScope()->addSymbol(funcSymbol);
+            funcDeclStmt->setSymbol(funcSymbol);
 
-        for(auto p : funcDeclStmt->parameters()) {
-            scope::VariableSymbol *symbol = new scope::VariableSymbol(p->name(), p->type());
-            if(funcDeclStmt->parameterScope()->findSymbol(p->name())) {
-                errorStream_.error(
-                    error::ErrorKind::SymbolAlreadyDefinedInScope,
-                    p->span(),
-                    "Duplicate parameter name '%s'",
-                    p->name().c_str());
-            } else {
-                funcDeclStmt->parameterScope()->addSymbol(symbol);
-                p->setSymbol(symbol);
+            for (auto p : funcDeclStmt->parameters()) {
+                scope::VariableSymbol *symbol = new scope::VariableSymbol(p->name().text(), p->type());
+                if (funcDeclStmt->parameterScope()->findSymbol(p->name().text())) {
+                    errorStream_.error(
+                        error::ErrorKind::SymbolAlreadyDefinedInScope,
+                        p->span(),
+                        "Duplicate parameter name '%s'",
+                        p->name().text().c_str());
+                } else {
+                    funcDeclStmt->parameterScope()->addSymbol(symbol);
+                    p->setSymbol(symbol);
+                }
             }
         }
-
         ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
     }
 
     void visitingVariableDeclExpr(ast::VariableDeclExpr *expr) override {
-        if(currentScope()->findSymbol(expr->name())) {
-            errorStream_.error(
-                error::ErrorKind::SymbolAlreadyDefinedInScope,
-                expr->sourceSpan(),
-                "Symbol '%s' is already defined in this scope.",
-                expr->name().c_str());
-
+        if(currentScope()->findSymbol(expr->name().text())) {
+            symbolPreviouslyDefinedError(expr->name());
         } else {
-            auto symbol = new scope::VariableSymbol(expr->name(), expr->typeRef()->type());
+            auto symbol = new scope::VariableSymbol(expr->name().text(), expr->typeRef()->type());
             currentScope()->addSymbol(symbol);
             expr->setSymbol(symbol);
         }
     }
 
-    virtual void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
-        if(currentScope()->findSymbol(templ->name())) {
-            errorStream_.error(
-                error::ErrorKind::SymbolAlreadyDefinedInScope,
-                templ->sourceSpan(),
-                "Symbol '%s' is already defined in this scope.",
-                templ->name().c_str());
+    void visitingTemplateExprStmt(ast::TemplateExprStmt *templ) override {
+        if (currentScope()->findSymbol(templ->name().text())) {
+            symbolPreviouslyDefinedError(templ->name());
         } else {
-            auto symbol = new scope::TemplateSymbol(templ->name(), templ->nodeId());
+            auto symbol = new scope::TemplateSymbol(templ->name().text(), templ->nodeId());
             currentScope()->addSymbol(symbol);
         }
 
         //Grab top-level classes within the scope of the template.
-        for(auto exprStmt : templ->body()->expressions()) {
-            if(auto cd = dynamic_cast<ast::GenericClassDefinition*>(exprStmt)) {
-                if(currentScope()->findSymbol(cd->name())) {
-                    errorStream_.error(
-                        error::ErrorKind::SymbolAlreadyDefinedInScope,
-                        templ->sourceSpan(),
-                        "Symbol '%s' is already defined in this scope.",
-                        templ->name().c_str());
+        for (auto exprStmt : templ->body()->expressions()) {
+            if (auto cd = dynamic_cast<ast::GenericClassDefinition *>(exprStmt)) {
+                if (currentScope()->findSymbol(cd->name().text())) {
+                    symbolPreviouslyDefinedError(cd->name());
                 } else {
-                    auto symbol = new scope::TypeSymbol(cd->name(), cd->definedType());
+                    auto symbol = new scope::TypeSymbol(cd->name().text(), cd->definedType());
                     currentScope()->addSymbol(symbol);
                 }
             }
         }
+
     }
 };
 
@@ -234,17 +241,17 @@ public:
     void visitVariableRefExpr(ast::VariableRefExpr *expr) override {
         if(expr->symbol()) return;
 
-        scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name());
+        scope::Symbol *found = topScope()->recursiveFindSymbol(expr->name().text());
         if(!found) {
             errorStream_.error(error::ErrorKind::VariableNotDefined, expr->sourceSpan(),  "Symbol '%s' was not defined in this scope.",
-                expr->name().c_str());
+                expr->name().text().c_str());
         } else {
 
             if(!found->type()->isClass() && !found->type()->isFunction()) {
                 if (found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
                     errorStream_.error(
                         error::ErrorKind::VariableUsedBeforeDefinition, expr->sourceSpan(), "Variable '%s' used before its definition.",
-                        expr->name().c_str());
+                        expr->name().text().c_str());
                     return;
                 }
             }
@@ -259,12 +266,24 @@ public:
     explicit ResolveTypesPass(error::ErrorStream &errorStream)
         : ScopeFollowingAstVisitor(errorStream) {
     }
+//
+//    void visitingTemplateExpansionStmt(ast::TemplateExpansionExprStmt *expr) {
+//        //Note:  TemplateExpansionExprStmt.accept() doesn't visit it's type arguments because
+//        //This needs to happen outside of the
+//        for(auto tr : expr->typeArguments()) {
+//            if (auto resolutionDeferredTypeRef = dynamic_cast<ast::ResolutionDeferredTypeRef *>(tr)) {
+//                visitedResolutionDeferredTypeRef(resolutionDeferredTypeRef);
+//            }
+//        }
+//        ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expr);
+//    }
+
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef *typeRef) override {
         if(typeRef->isResolved()) {
             return;
         }
-        std::string resolvedName = typeRef->name();
+        std::string resolvedName = typeRef->name().text();
         type::Type* type = type::ScalarType::fromKeyword(resolvedName);
 
         //If it was a primitive type...
@@ -272,11 +291,11 @@ public:
             typeRef->setType(type);
             return;
         } else {
-            scope::Symbol* maybeType = topScope()->recursiveFindSymbol(typeRef->name());
+            scope::Symbol* maybeType = currentScope()->recursiveFindSymbol(typeRef->name().text());
 
             //Symbol doesn't exist in accessible scope?
             if(!maybeType) {
-                errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().c_str());
+                errorStream_.error(error::ErrorKind::TypeNotDefined, typeRef->sourceSpan(), "Type '%s' was not defined in an accessible scope.", typeRef->name().text().c_str());
                 return;
             }
 
@@ -284,7 +303,7 @@ public:
 
             //Symbol does exist but isn't a type.
             if(typeSymbol == nullptr) {
-                errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().c_str());
+                errorStream_.error(error::ErrorKind::SymbolIsNotAType, typeRef->sourceSpan(), "Symbol '%s' is not a type.", typeRef->name().text().c_str());
                 return;
             }
 
@@ -339,14 +358,14 @@ public:
             return;
         }
         auto classType = static_cast<const type::ClassType*>(expr->lValue()->type()->actualType());
-        type::ClassField *field = classType->findField(expr->memberName());
+        type::ClassField *field = classType->findField(expr->memberName().text());
         if(!field) {
             errorStream_.error(
                 error::ErrorKind::ClassMemberNotFound,
                 expr->dotSourceSpan(),
                 "Class '%s' does not have a member named '%s'",
                 classType->nameForDisplay().c_str(),
-                expr->memberName().c_str());
+                expr->memberName().text().c_str());
             return;
         }
         expr->setField(field);
@@ -359,7 +378,7 @@ public:
             type::ClassMethod *method = nullptr;
 
             if(auto classType = dynamic_cast<type::ClassType*>(instanceType)) {
-                method = classType->findMethod(methodRef->name());
+                method = classType->findMethod(methodRef->name().text());
             }
 
             if(method) {
@@ -370,7 +389,7 @@ public:
                     methodRef->sourceSpan(),
                     "Type '%s' does not have a method named '%s'.",
                     instanceType->nameForDisplay().c_str(),
-                    methodRef->name().c_str());
+                    methodRef->name().text().c_str());
             }
         }
     }
@@ -476,7 +495,7 @@ public:
     }
 };
 
-/** Enacts explicit template expansions. */
+/** Expands explicit template expansions. */
 class TemplateExpanderPass : public ErrorContextAstVisitor {
     ast::AnodeWorld &world_;
     ast::Module *module_ = nullptr;
@@ -545,8 +564,8 @@ public:
         gc_vector<ast::TemplateArgument*> templateArgs;
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
-            expansion->templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name(), tArgs[i]->type()));
-            templateArgs.push_back(new ast::TemplateArgument(tParams[i]->name(), tArgs[i]));
+            expansion->templateParameterScope()->addSymbol(new scope::TypeSymbol(tParams[i]->name().text(), tArgs[i]->type()));
+            templateArgs.push_back(new ast::TemplateArgument(tParams[i]->name().text(), tArgs[i]));
         }
 
         expansion->setExpandedTemplate(templ->body()->deepCopyExpandTemplate(templateArgs));

@@ -6,8 +6,8 @@
 namespace anode { namespace source {
     /** Represents a location within a source file. */
     class SourceLocation : no_new {
-        std::size_t line_;
-        std::size_t position_;
+        unsigned int line_;
+        unsigned int position_;
     public:
         SourceLocation()
             : line_(-1), position_(-1) { }
@@ -15,8 +15,8 @@ namespace anode { namespace source {
         SourceLocation(std::size_t line, std::size_t position)
             : line_(line), position_(position) { }
 
-        std::size_t line() const  { return line_; }
-        std::size_t position() const { return position_; }
+        unsigned int line() const  { return line_; }
+        unsigned int position() const { return position_; }
 
         std::string toString() {
             return string::format("%d:%d", line_, position_);

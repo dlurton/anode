@@ -118,6 +118,7 @@ public:
             ASSERT_FAIL("Something is probably wrong if you're attempting to resolve this instance of ResolutionDeferredType more than once!");
         }
 #endif
+        ASSERT(type != this && "Are you trying to cause an infinite loop?  Because that's how you cause an infinite loop.")
         actualType_ = type;
     }
 
@@ -317,7 +318,7 @@ class ClassType : public Type {
     gc_vector<Type*> typeArguments_;
 
 public:
-    ClassType(UniqueId astNodeId, const std::string &name, gc_vector<Type*> typeArguments)
+        ClassType(UniqueId astNodeId, const std::string &name, gc_vector<Type*> typeArguments)
         : astNodeId_{astNodeId},
           name_{name},
           typeArguments_{typeArguments}

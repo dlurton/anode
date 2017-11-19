@@ -68,9 +68,33 @@ assert(n)
 ?InvalidImplicitCastInAssertCondition, 5, 8
 
 #############################################################################
+# duplicate variable
 foo:int
 foo:bool
-?SymbolAlreadyDefinedInScope, 4, 1
+?SymbolAlreadyDefinedInScope, 5, 1
+
+#############################################################################
+#duplicate function name
+func foo:int() 1
+func foo:int() 1
+?SymbolAlreadyDefinedInScope, 5, 6
+
+#############################################################################
+#duplicate function parameter name
+func foo:int(bar:int, bar:int) 1
+?SymbolAlreadyDefinedInScope, 4, 23
+
+#############################################################################
+#duplicate class name
+class foo { }
+class foo { }
+?SymbolAlreadyDefinedInScope, 5, 7
+
+#############################################################################
+#duplicate template name
+template foo() { }
+template foo() { }
+?SymbolAlreadyDefinedInScope, 5, 10
 
 #############################################################################
 abcdef = 1

@@ -68,7 +68,7 @@ public:
     }
 
     void visitingDotExpr(DotExpr *expr) override {
-        writer_.writeln("DotExpr: " + expr->memberName());
+        writer_.writeln("DotExpr: " + expr->memberName().text());
         writer_.incIndent();
         //return true;
     }
@@ -90,8 +90,8 @@ public:
     }
 
     void visitingVariableDeclExpr(VariableDeclExpr *expr) override {
-        writer_.writeln("VariableDeclExpr: (%s:%s)", expr->name().c_str(),
-                        expr->typeRef()->name().c_str());
+        writer_.writeln("VariableDeclExpr: (%s:%s)", expr->name().text().c_str(),
+                        expr->typeRef()->name().text().c_str());
         writer_.incIndent();
     }
 
@@ -100,7 +100,7 @@ public:
 
     }
     void visitVariableRefExpr(VariableRefExpr *expr) override {
-        writer_.writeln("VariableRefExpr: " + expr->name());
+        writer_.writeln("VariableRefExpr: " + expr->name().text());
     }
 
     void visitingIfExpr(IfExprStmt *) override {
@@ -139,7 +139,7 @@ public:
     }
 
     void visitingNewExpr(NewExpr *expr) override {
-        writer_.writeln("NewExpr(%s):", expr->typeRef()->name().c_str());
+        writer_.writeln("NewExpr(%s):", expr->typeRef()->name().text().c_str());
 
         writer_.incIndent();
     }
@@ -159,13 +159,13 @@ public:
 
     void visitingParameterDef(ParameterDef *pd) override {
         writer_.write("ParameterDef: ");
-        writer_.write(pd->name());
+        writer_.write(pd->name().text());
         writer_.write(':');
-        writer_.writeln(pd->typeRef()->name());
+        writer_.writeln(pd->typeRef()->name().text());
     }
 
     void visitingFuncDefStmt(FuncDefStmt *func) override {
-        writer_.writeln("FuncDefStmt: " + func->name());
+        writer_.writeln("FuncDefStmt: " + func->name().text());
 //                auto parameters = func->parameters();
 //                for(auto p : parameters) {
 //                    if(p != parameters.front()) {
@@ -190,7 +190,7 @@ public:
     }
 
     void visitingCompleteClassDefinition(CompleteClassDefinition *ClassDefinition) override {
-        writer_.writeln("ClassDefinition: " + ClassDefinition->name());
+        writer_.writeln("ClassDefinition: " + ClassDefinition->name().text());
         writer_.incIndent();
     }
 
@@ -199,7 +199,7 @@ public:
     }
 
     void visitingGenericClassDefinition(GenericClassDefinition *ClassDefinition) override {
-        writer_.writeln("ClassDefinition: " + ClassDefinition->name());
+        writer_.writeln("ClassDefinition: " + ClassDefinition->name().text());
         writer_.incIndent();
     }
 
@@ -217,7 +217,7 @@ public:
     }
 
     virtual void visitingTemplateExprStmt(TemplateExprStmt *templ) override {
-        writer_.writeln("Template: " + templ->name());
+        writer_.writeln("Template: " + templ->name().text());
         writer_.incIndent();
     }
 
