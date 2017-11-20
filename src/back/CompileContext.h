@@ -44,9 +44,9 @@ public:
 
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
 
-    void mapSymbolToValue(front::scope::Symbol *symbol, llvm::Value *value) {
-        ASSERT(value);
-        symbolValueMap_[symbol->symbolId()] = value;
+    void mapSymbolToValue(front::scope::Symbol &symbol, llvm::Value *value) {
+        ASSERT(&value);
+        symbolValueMap_[symbol.symbolId()] = value;
     }
 
     llvm::Value *getMappedValue(front::scope::Symbol *symbol) {
@@ -101,11 +101,11 @@ public:
 
     TypeMap &typeMap() { return typeMap_; }
 
-    llvm::Constant *getDefaultValueForType(front::type::Type *type) {
-        if(type->isClass()) {
+    llvm::Constant *getDefaultValueForType(front::type::Type &type) {
+        if(type.isClass()) {
             return llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(typeMap_.toLlvmType(type)));
         }
-        return getDefaultValueForType(type->primitiveType());
+        return getDefaultValueForType(type.primitiveType());
     }
 
     llvm::Constant *getDefaultValueForType(front::type::PrimitiveType primitiveType) {

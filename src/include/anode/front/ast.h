@@ -17,23 +17,6 @@
 
 namespace anode { namespace front { namespace ast {
 
-enum class BinaryOperationKind : unsigned char {
-    Assign,
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Eq,
-    NotEq,
-    LogicalAnd,
-    LogicalOr,
-    GreaterThan,
-    LessThan,
-    GreaterThanOrEqual,
-    LessThanOrEqual
-};
-std::string to_string(BinaryOperationKind kind);
-
 class AstNode;
 class Stmt;
 class ExprStmt;
@@ -183,7 +166,7 @@ public:
 
     UniqueId nodeId() { return nodeId_; }
 
-    virtual void accept(AstVisitor *visitor) = 0;
+    virtual void accept(AstVisitor &visitor) = 0;
 };
 
 /** A statement any kind of non-terminal that may appear within a CompoundStatement (i.e. between { and }), or
@@ -196,7 +179,7 @@ protected:
 public:
     //virtual StmtKind stmtKind() const = 0;
 
-    source::SourceSpan sourceSpan() const {
+    const source::SourceSpan &sourceSpan() const {
         return sourceSpan_;
     }
 };
@@ -211,30 +194,30 @@ public:
         return sourceSpan_;
     }
 
-    virtual type::Type *type() const = 0;
+    virtual type::Type &type() const = 0;
     virtual const Identifier &name() const = 0;
-    virtual TypeRef *deepCopyForTemplate() const = 0;
+    virtual TypeRef &deepCopyForTemplate() const = 0;
 };
 
 
 /** A reference to a data type that is known at parse time (used for primitive data types). */
 class KnownTypeRef : public TypeRef {
-    type::Type *referencedType_;
+    type::Type &referencedType_;
     const Identifier name_;
 public:
-    KnownTypeRef(source::SourceSpan sourceSpan, type::Type *dataType)
-        : TypeRef(sourceSpan), referencedType_{dataType}, name_{Identifier(source::SourceSpan::Any, referencedType_->name())}
+    KnownTypeRef(source::SourceSpan sourceSpan, type::Type &dataType)
+        : TypeRef(sourceSpan), referencedType_{dataType}, name_{Identifier(source::SourceSpan::Any, referencedType_.name())}
     { }
 
-    type::Type *type() const override { return referencedType_; };
+    type::Type &type() const override { return referencedType_; };
     const Identifier &name() const override { return name_; };
 
-    TypeRef *deepCopyForTemplate() const override {
-        return new KnownTypeRef(sourceSpan(), referencedType_);
+    TypeRef &deepCopyForTemplate() const override {
+        return *new KnownTypeRef(sourceSpan(), referencedType_);
     }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitKnownTypeRef(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitKnownTypeRef(*this);
     }
 };
 
@@ -255,13 +238,13 @@ inline std::string join(TIterator begin, TIterator end, std::string delimiter, s
 class ResolutionDeferredTypeRef : public TypeRef {
     const Identifier name_;
     gc_vector<ResolutionDeferredTypeRef*> templateArgs_;
-    type::ResolutionDeferredType *referencedType_ = nullptr;
+    type::ResolutionDeferredType *referencedType_ =  nullptr;
 
     inline static gc_vector<type::Type*> getTypesFromTypeRefs(const gc_vector<ResolutionDeferredTypeRef*> &typeRefs) {
         gc_vector<type::Type*> types;
         types.reserve(typeRefs.size());
         for(auto tr : typeRefs) {
-            types.push_back(tr->type());
+            types.emplace_back(&tr->type());
         }
         return types;
     }
@@ -271,14 +254,13 @@ public:
 
     const Identifier &name() const override { return name_; }
 
-    type::Type *type() const override {
-        ASSERT(referencedType_ && "Data type hasn't been resolved yet");
-        return referencedType_;
+    type::Type &type() const override {
+         return *referencedType_;
     }
 
     /** Convenience method so callers don't have to upcast return value of type() */
     type::ResolutionDeferredType *resolutionDeferredType() {
-        ASSERT(referencedType_ && "Data type hasn't been resolved yet");
+        ASSERT(referencedType_ && "ResolutionDeferredType type hasn't been resolved yet");
         return referencedType_;
     }
 
@@ -287,24 +269,24 @@ public:
     bool hasTemplateArguments() { return !templateArgs_.empty(); }
     gc_vector<ResolutionDeferredTypeRef*> templateArgs() { return templateArgs_; }
 
-    void setType(type::Type *referencedType) {
-        referencedType_->resolve(referencedType);
+    void setType(type::Type &referencedType) {
+        referencedType_->resolve(&referencedType);
     }
 
-    void accept(AstVisitor *visitor) override {
+    void accept(AstVisitor &visitor) override {
         for(auto ta : templateArgs_) {
             ta->accept(visitor);
         }
-        visitor->visitedResolutionDeferredTypeRef(*this);
+        visitor.visitedResolutionDeferredTypeRef(*this);
     }
 
-    TypeRef* deepCopyForTemplate() const override {
+    TypeRef& deepCopyForTemplate() const override {
         gc_vector<ResolutionDeferredTypeRef*> templateArgs;
         for(auto ta : templateArgs_) {
-            templateArgs.push_back(upcast<ResolutionDeferredTypeRef>(ta->deepCopyForTemplate()));
+            templateArgs.push_back(upcast<ResolutionDeferredTypeRef>(&ta->deepCopyForTemplate()));
         }
 
-        return new ResolutionDeferredTypeRef(sourceSpan(), name_, templateArgs);
+        return *new ResolutionDeferredTypeRef(sourceSpan(), name_, templateArgs);
     }
 };
 
@@ -318,17 +300,26 @@ gc_vector<TItem> deepCopyVector(const gc_vector<TItem> copyFrom) {
     return copy;
 }
 
+template<typename TItem>
+gc_ref_vector<TItem> deepCopyVector(const gc_ref_vector<TItem> copyFrom) {
+    gc_ref_vector<TItem> copy;
+    for(auto item : copyFrom) {
+        copy.emplace_back(item.get().deepCopyForTemplate());
+    }
+    return copy;
+}
+
 /** Represents an instance of a template argument. */
 class TemplateArgument {
     std::string parameterName_;
-    TypeRef *typeRef_;
+    TypeRef &typeRef_;
 public:
-    TemplateArgument(const std::string &parameterName, TypeRef* typeRef) : parameterName_{parameterName}, typeRef_{typeRef} { }
+    TemplateArgument(const std::string &parameterName, TypeRef &typeRef) : parameterName_{parameterName}, typeRef_{typeRef} { }
     std::string parameterName() { return parameterName_; }
-    TypeRef* typeRef() const { return typeRef_; }
+    TypeRef &typeRef() const { return typeRef_; }
 };
 
-typedef gc_vector<TemplateArgument*> TemplateArgVector;
+typedef gc_ref_vector<TemplateArgument> TemplateArgVector;
 
 /** Base class for all expressions. */
 class ExprStmt : public Stmt {
@@ -337,64 +328,59 @@ protected:
 public:
     ~ExprStmt() override = default;
 
-    virtual type::Type *type() const  = 0;
+    virtual type::Type &type() const  = 0;
     virtual bool canWrite() const = 0;
-    virtual ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const = 0;
+    virtual ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const = 0;
 };
 
 
 
 /** Like CompoundExpr but does not create a lexical scope. */
 class ExpressionList : public ExprStmt {
-    gc_vector<ExprStmt*> expressions_;
+    gc_ref_vector<ExprStmt> expressions_;
 public:
-    ExpressionList(source::SourceSpan sourceSpan, const gc_vector<ExprStmt*> &expressions)
+    ExpressionList(source::SourceSpan sourceSpan, const gc_ref_vector<ExprStmt> &expressions)
         : ExprStmt(sourceSpan),
           expressions_{expressions}
     {
-#ifdef ANODE_DEBUG
-        for(auto e : expressions_) {
-            ASSERT(e && "At least one expression was nullptr");
-        }
-#endif
     }
 
-    virtual type::Type *type() const override {
+    type::Type &type() const override {
         ASSERT(expressions_.size() > 0);
-        return expressions_.back()->type();
+        return expressions_.back().get().type();
     };
 
     bool canWrite() const override { return false; };
 
-    gc_vector<ExprStmt*> expressions() const {
+    const gc_ref_vector<ExprStmt> &expressions() const {
         return expressions_;
     }
 
-    void append(ExprStmt *exprStmt) {
-        expressions_.push_back(exprStmt);
+    void append(ExprStmt &exprStmt) {
+        expressions_.emplace_back(exprStmt);
     }
 
-    virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingExpressionList(*this);
+    virtual void accept(AstVisitor &visitor) override {
+        visitor.visitingExpressionList(*this);
 
-        if(visitor->shouldVisitChildren()) {
+        if(visitor.shouldVisitChildren()) {
             //Copy expressions_ because expressions can be added while visiting children
             //(adding items to vector invalidates iterator)
-            gc_vector<ExprStmt*> exprs = expressions_;
+            gc_ref_vector<ExprStmt> exprs = expressions_;
             for (auto stmt : exprs) {
-                stmt->accept(visitor);
+                stmt.get().accept(visitor);
             }
         }
-        visitor->visitedExpressionList(*this);
+        visitor.visitedExpressionList(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        gc_vector<ExprStmt*> clonedExprs;
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        gc_ref_vector<ExprStmt> clonedExprs;
         clonedExprs.reserve(expressions_.size());
         for(auto exprStmt : expressions_) {
-            clonedExprs.push_back(exprStmt->deepCopyExpandTemplate(templateArgs));
+            clonedExprs.emplace_back(exprStmt.get().deepCopyExpandTemplate(templateArgs));
         }
-        return new ExpressionList(sourceSpan_, clonedExprs);
+        return *new ExpressionList(sourceSpan_, clonedExprs);
     }
 
 };
@@ -403,61 +389,57 @@ public:
  * TODO: inherit from ExpressionList? */
 class CompoundExpr : public ExprStmt {
     scope::SymbolTable scope_;
-    gc_vector<ExprStmt*> expressions_;
+    gc_ref_vector<ExprStmt> expressions_;
 public:
     CompoundExpr(
         source::SourceSpan sourceSpan,
         scope::StorageKind storageKind,
-        const gc_vector<ExprStmt*> &expressions)
+        const gc_ref_vector<ExprStmt> &expressions)
         : ExprStmt(sourceSpan),
           scope_{storageKind},
           expressions_{expressions}
     {
-#ifdef ANODE_DEBUG
-        for(auto e : expressions_) {
-            ASSERT(e && "At least one expression was nullptr");
-        }
-#endif
+
     }
 
-    scope::SymbolTable *scope() { return &scope_; }
+    scope::SymbolTable &scope() { return scope_; }
 
-    virtual type::Type *type() const override {
+    type::Type &type() const override {
         ASSERT(expressions_.size() > 0);
-        return expressions_.back()->type();
+        return expressions_.back().get().type();
     };
 
     bool canWrite() const override { return false; };
 
-    gc_vector<ExprStmt*> expressions() const {
+    gc_ref_vector<ExprStmt> expressions() const {
         return expressions_;
     }
 
-    void append(ExprStmt *exprStmt) {
-        expressions_.push_back(exprStmt);
+    void append(ExprStmt &exprStmt) {
+        expressions_.emplace_back(exprStmt);
     }
 
-    virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingCompoundExpr(*this);
+    virtual void accept(AstVisitor &visitor) override {
+        visitor.visitingCompoundExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
+        if(visitor.shouldVisitChildren()) {
             //Copy expressions_ because expressions can be added while visiting children
             //(adding items to vector invalidates iterator)
-            gc_vector<ExprStmt*> exprs = expressions_;
+            gc_ref_vector<ExprStmt> exprs = expressions_;
             for (auto stmt : exprs) {
-                stmt->accept(visitor);
+                stmt.get().accept(visitor);
             }
         }
-        visitor->visitedCompoundExpr(*this);
+        visitor.visitedCompoundExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        gc_vector<ExprStmt*> clonedExprs;
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        gc_ref_vector<ExprStmt> clonedExprs;
         clonedExprs.reserve(expressions_.size());
         for(auto exprStmt : expressions_) {
-            clonedExprs.push_back(exprStmt->deepCopyExpandTemplate(templateArgs));
+            clonedExprs.emplace_back(exprStmt.get().deepCopyExpandTemplate(templateArgs));
         }
-        return new CompoundExpr(sourceSpan_, scope_.storageKind(), clonedExprs);
+        return *new CompoundExpr(sourceSpan_, scope_.storageKind(), clonedExprs);
     }
 
 };
@@ -469,57 +451,58 @@ public:
 
     const Identifier &name() const { return name_; }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitTemplateParameter(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitTemplateParameter(*this);
     }
 
-    TemplateParameter *deepCopyForTemplate() const {
-        return new TemplateParameter(sourceSpan_, name());
+    TemplateParameter &deepCopyForTemplate() const {
+        return *new TemplateParameter(sourceSpan_, name());
     }
 };
 
 class TemplateExprStmt : public ExprStmt {
     const Identifier name_;
-    gc_vector<ast::TemplateParameter*> parameters_;
-    ast::ExpressionList *body_;
+    gc_ref_vector<ast::TemplateParameter> parameters_;
+    ast::ExpressionList &body_;
 public:
     TemplateExprStmt(
         const source::SourceSpan &sourceSpan,
         const Identifier &name,
-        const gc_vector<ast::TemplateParameter*> &parameters,
-        ast::ExpressionList *body)
+        const gc_ref_vector<ast::TemplateParameter> &parameters,
+        ast::ExpressionList &body)
         : ExprStmt(sourceSpan),
           name_{name},
           parameters_{parameters},
           body_{body} {}
 
-    gc_vector<ast::TemplateParameter*> &parameters() { return parameters_; }
+    gc_ref_vector<ast::TemplateParameter> &parameters() { return parameters_; }
 
-    type::Type *type() const override { return &type::ScalarType::Void; }
+    type::Type &type() const override { return type::ScalarType::Void; }
     bool canWrite() const override { return false; };
 
     const Identifier &name() { return name_; }
-    ExpressionList *body() { return body_; }
+    ExpressionList &body() { return body_; }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        gc_vector<ast::TemplateParameter*> copiedParameters;
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        gc_ref_vector<ast::TemplateParameter> copiedParameters;
         copiedParameters.reserve(parameters_.size());
         for(auto f : parameters_) {
-            copiedParameters.push_back(f->deepCopyForTemplate());
+            copiedParameters.emplace_back(f.get().deepCopyForTemplate());
         }
-
-        return new TemplateExprStmt(sourceSpan_, name_, copiedParameters, upcast<ExpressionList>(body_->deepCopyExpandTemplate(templateArgs)));
+        auto &copiedBody = body_.deepCopyExpandTemplate(templateArgs);
+        return *new TemplateExprStmt(sourceSpan_, name_, copiedParameters,
+                                     upcast<ExpressionList>(copiedBody));
     }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingTemplateExprStmt(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingTemplateExprStmt(*this);
 
         for(auto p : parameters_) {
-            p->accept(visitor);
+            p.get().accept(visitor);
         }
 
         //Note that we do *not* visit body_ here.
-        visitor->visitedTemplateExprStmt(*this);
+        visitor.visitedTemplateExprStmt(*this);
     }
 };
 
@@ -527,49 +510,52 @@ class TemplateExpansionExprStmt : public ExprStmt {
     Identifier templateName_;
     TemplateExprStmt *template_ = nullptr;
     //TODO:  convert below to vector of TemplateArgument*
-    gc_vector<ast::TypeRef*> typeArguments_;
+    gc_ref_vector<ast::TypeRef> typeArguments_;
     ast::ExprStmt *expandedTemplate_ = nullptr;
     scope::SymbolTable templateParameterScope_;
 public:
     TemplateExpansionExprStmt(
         source::SourceSpan sourceSpan,
         const Identifier &templateName,
-        gc_vector<ast::TypeRef*> typeArguments)
+        const gc_ref_vector<ast::TypeRef> &typeArguments)
         : ExprStmt(sourceSpan),
           templateName_{templateName},
           typeArguments_{typeArguments},
           templateParameterScope_{scope::StorageKind::TemplateParameter}
     { }
 
-    type::Type *type() const override { return &type::ScalarType::Void; }
+    type::Type &type() const override { return type::ScalarType::Void; }
     virtual bool canWrite() const override { return false; };
 
-    TemplateExprStmt *templ() const { return template_; }
-    void setTempl(TemplateExprStmt *templ) { template_ = templ; }
+    TemplateExprStmt &templ() const { return *template_; }
+    void setTempl(TemplateExprStmt &templ) {
+        ASSERT(&templ);
+        template_ = &templ;
+    }
 
-    const Identifier &templatedId() const { return templateName_; }
-    gc_vector<ast::TypeRef*> typeArguments() const { return typeArguments_; }
+    const Identifier &templateName() const { return templateName_; }
+    gc_ref_vector<ast::TypeRef> typeArguments() const { return typeArguments_; }
 
-    scope::SymbolTable *templateParameterScope() { return &templateParameterScope_; }
+    scope::SymbolTable &templateParameterScope() { return templateParameterScope_; }
 
     void setExpandedTemplate(ExprStmt *expandedTemplate) { expandedTemplate_ = expandedTemplate; }
     ast::ExprStmt *expandedTemplate() { return expandedTemplate_; }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingTemplateExpansionExprStmt(*this);
-        if(visitor->shouldVisitChildren()) {
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingTemplateExpansionExprStmt(*this);
+        if(visitor.shouldVisitChildren()) {
             for(auto arg : typeArguments_) {
-                arg->accept(visitor);
+                arg.get().accept(visitor);
             }
             if(expandedTemplate_) {
                 expandedTemplate_->accept(visitor);
             }
         }
-        visitor->visitedTemplateExpansionExprStmt(*this);
+        visitor.visitedTemplateExpansionExprStmt(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new TemplateExpansionExprStmt(sourceSpan_, templateName_, deepCopyVector(typeArguments_));
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new TemplateExpansionExprStmt(sourceSpan_, templateName_, deepCopyVector(typeArguments_));
     }
 };
 
@@ -579,17 +565,17 @@ class LiteralBoolExpr : public ExprStmt {
     bool const value_;
 public:
     LiteralBoolExpr(source::SourceSpan sourceSpan, const bool value) : ExprStmt(sourceSpan), value_(value) {}
-    type::Type *type() const override { return &type::ScalarType::Bool; }
+    type::Type &type() const override { return type::ScalarType::Bool; }
     bool value() const { return value_; }
 
     virtual bool canWrite() const override { return false; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitLiteralBoolExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitLiteralBoolExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new LiteralBoolExpr(sourceSpan_, value_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new LiteralBoolExpr(sourceSpan_, value_);
     }
 };
 
@@ -598,17 +584,17 @@ class LiteralInt32Expr : public ExprStmt {
     int const value_;
 public:
     LiteralInt32Expr(source::SourceSpan sourceSpan, const int value) : ExprStmt(sourceSpan), value_(value) {}
-    type::Type *type() const override { return &type::ScalarType::Int32; }
+    type::Type &type() const override { return type::ScalarType::Int32; }
     int value() const { return value_; }
 
     virtual bool canWrite() const override { return false; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitLiteralInt32Expr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitLiteralInt32Expr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new LiteralInt32Expr(sourceSpan_, value_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new LiteralInt32Expr(sourceSpan_, value_);
     }
 };
 
@@ -618,17 +604,17 @@ class LiteralFloatExpr : public ExprStmt {
 public:
     LiteralFloatExpr(source::SourceSpan sourceSpan, const float value) : ExprStmt(sourceSpan), value_(value) {}
 
-    type::Type *type() const override {  return &type::ScalarType::Float; }
+    type::Type &type() const override {  return type::ScalarType::Float; }
     float value() const { return value_; }
 
     bool canWrite() const override { return false; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitLiteralFloatExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitLiteralFloatExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new LiteralFloatExpr(sourceSpan_, value_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new LiteralFloatExpr(sourceSpan_, value_);
     }
 
 };
@@ -647,34 +633,37 @@ class UnaryExpr : public ExprStmt {
 
 public:
     /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
-    UnaryExpr(source::SourceSpan sourceSpan, ExprStmt *valueExpr, UnaryOperationKind operation, source::SourceSpan operatorSpan)
-        : ExprStmt{sourceSpan}, operatorSpan_{operatorSpan}, valueExpr_{valueExpr}, operation_{operation} {
+    UnaryExpr(source::SourceSpan sourceSpan, ExprStmt &valueExpr, UnaryOperationKind operation, source::SourceSpan operatorSpan)
+        : ExprStmt{sourceSpan}, operatorSpan_{operatorSpan}, valueExpr_{&valueExpr}, operation_{operation} {
 
-        ASSERT(valueExpr_);
+        ASSERT(&valueExpr_);
     }
 
     source::SourceSpan operatorSpan() { return operatorSpan_; }
 
-    type::Type *type() const override { return &type::ScalarType::Bool; }
+    type::Type &type() const override { return type::ScalarType::Bool; }
 
-    ExprStmt *valueExpr() const { return valueExpr_; }
-    void setLValue(ExprStmt *newLValue) { valueExpr_ = newLValue; }
+    ExprStmt &valueExpr() const { return *valueExpr_; }
+    void setLValue(ExprStmt *newLValue) {
+        ASSERT(newLValue);
+        valueExpr_ = newLValue;
+    }
 
     virtual bool canWrite() const override { return false; };
 
     UnaryOperationKind operation() const { return operation_; }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingUnaryExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingUnaryExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
+        if(visitor.shouldVisitChildren()) {
             valueExpr_->accept(visitor);
         }
-        visitor->visitedUnaryExpr(*this);
+        visitor.visitedUnaryExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new UnaryExpr(sourceSpan_, valueExpr_->deepCopyExpandTemplate(templateArgs), operation_, operatorSpan_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new UnaryExpr(sourceSpan_, valueExpr_->deepCopyExpandTemplate(templateArgs), operation_, operatorSpan_);
     }
 };
 
@@ -691,37 +680,56 @@ enum class BinaryExprKind : unsigned char {
         Logical
 };
 
+
+enum class BinaryOperationKind : unsigned char {
+    Assign,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Eq,
+    NotEq,
+    LogicalAnd,
+    LogicalOr,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual
+};
+std::string to_string(BinaryOperationKind kind);
+
 /** Represents a binary expression, i.e. 1 + 2 or foo + bar */
 class BinaryExpr : public ExprStmt {
     ExprStmt *lValue_;
+    ExprStmt *rValue_;
     const BinaryOperationKind operation_;
     const source::SourceSpan operatorSpan_;
-    ExprStmt *rValue_;
 
 public:
     /** Constructs a new Binary expression.  Note: assumes ownership of lValue and rValue */
     BinaryExpr(source::SourceSpan sourceSpan,
-               ExprStmt *lValue,
-               BinaryOperationKind operation,
-               source::SourceSpan operatorSpan,
-               ExprStmt* rValue)
-        : ExprStmt{sourceSpan},
-          lValue_{lValue},
-          operation_{operation},
-          operatorSpan_{operatorSpan},
-          rValue_{rValue} {
+    ExprStmt &lValue,
+    BinaryOperationKind operation,
+    source::SourceSpan operatorSpan,
+    ExprStmt& rValue)
+    : ExprStmt{sourceSpan},
+      lValue_{&lValue},
+      rValue_{&rValue},
+      operation_{operation},
+      operatorSpan_{operatorSpan}
+    {
 
-        ASSERT(lValue_);
-        ASSERT(rValue_);
+        ASSERT(&lValue_);
+        ASSERT(&rValue_);
     }
 
     source::SourceSpan operatorSpan() { return operatorSpan_; }
 
     /** This is the type of the result, which may be different than the type of the operands depending on the operation type,
      * because some operation types (e.g. equality, logical and, or, etc) always yield boolean values.  */
-    type::Type *type() const override {
+    type::Type &type() const override {
         if(isComparison()) {
-            return &type::ScalarType::Bool;
+            return type::ScalarType::Bool;
         }
         return operandsType();
     }
@@ -741,16 +749,16 @@ public:
     }
 
     /** This is the type of the operands. */
-    type::Type *operandsType() const {
-        ASSERT(rValue_->type()->isSameType(lValue_->type()->actualType()));
+    type::Type &operandsType() const {
+        ASSERT(rValue_->type().isSameType(lValue_->type().actualType()));
         return rValue_->type();
     }
 
-    ExprStmt *lValue() const { return lValue_; }
-    void setLValue(ExprStmt *newLValue) { lValue_ = newLValue; }
+    ExprStmt &lValue() const { return *lValue_; }
+    void setLValue(ExprStmt &newLValue) { lValue_ = &newLValue; }
 
-    ExprStmt *rValue() const { return rValue_; }
-    void setRValue(ExprStmt *newRValue) { rValue_ = newRValue; }
+    ExprStmt &rValue() const { return *rValue_; }
+    void setRValue(ExprStmt &newRValue) { rValue_ = &newRValue; }
 
     virtual bool canWrite() const override { return false; };
 
@@ -778,18 +786,18 @@ public:
         }
     }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingBinaryExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingBinaryExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
+        if(visitor.shouldVisitChildren()) {
             lValue_->accept(visitor);
             rValue_->accept(visitor);
         }
-        visitor->visitedBinaryExpr(*this);
+        visitor.visitedBinaryExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new BinaryExpr(sourceSpan_,
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new BinaryExpr(sourceSpan_,
                               lValue_->deepCopyExpandTemplate(templateArgs),
                               operation_,
                               operatorSpan_,
@@ -815,19 +823,19 @@ public:
         ASSERT(name.text().size() > 0);
     }
 
-    virtual type::Type *type() const override {
+    type::Type &type() const override {
         ASSERT(symbol_);
-        return symbol_->type();
+        return *symbol_->type();
     }
 
     const Identifier &name() const { return name_; }
-    std::string toString() const { return name_.text() + ":" + this->type()->nameForDisplay(); }
+    std::string toString() const { return name_.text() + ":" + this->type().nameForDisplay(); }
 
     scope::Symbol *symbol() {
         return symbol_;
     }
-    void setSymbol(scope::Symbol *symbol) {
-        symbol_ = symbol;
+    void setSymbol(scope::Symbol &symbol) {
+        symbol_ = &symbol;
     }
 
     bool canWrite() const override { return true; };
@@ -835,13 +843,13 @@ public:
     VariableAccess variableAccess() const { return access_; }
     void setVariableAccess(VariableAccess access) { access_ = access; }
 
-    virtual void accept(AstVisitor *visitor) override {
-        visitor->visitVariableRefExpr(*this);
+    virtual void accept(AstVisitor &visitor) override {
+        visitor.visitVariableRefExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        VariableRefExpr *varRef = new VariableRefExpr(sourceSpan_, name_, access_);
-        varRef->access_ = access_;
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        VariableRefExpr &varRef = *new VariableRefExpr(sourceSpan_, name_, access_);
+        varRef.access_ = access_;
         return varRef;
     }
 
@@ -850,31 +858,31 @@ public:
 
 /** Defines a variable and references it. */
 class VariableDeclExpr : public VariableRefExpr {
-    TypeRef* typeRef_;
+    TypeRef& typeRef_;
 public:
-    VariableDeclExpr(source::SourceSpan sourceSpan, const Identifier &name, TypeRef* typeRef, VariableAccess access = VariableAccess::Read)
+    VariableDeclExpr(source::SourceSpan sourceSpan, const Identifier &name, TypeRef& typeRef, VariableAccess access = VariableAccess::Read)
         : VariableRefExpr(sourceSpan, name, access),
           typeRef_(typeRef)
     {
     }
 
-    TypeRef *typeRef() { return typeRef_; }
-    virtual type::Type *type() const override { return typeRef_->type(); }
+    TypeRef &typeRef() { return typeRef_; }
+    virtual type::Type &type() const override { return typeRef_.type(); }
 
     virtual bool canWrite() const override { return true; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingVariableDeclExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingVariableDeclExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
-            typeRef_->accept(visitor);
+        if(visitor.shouldVisitChildren()) {
+            typeRef_.accept(visitor);
         }
 
-        visitor->visitedVariableDeclExpr(*this);
+        visitor.visitedVariableDeclExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new VariableDeclExpr(sourceSpan_, name_, typeRef_->deepCopyForTemplate(), variableAccess());
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new VariableDeclExpr(sourceSpan_, name_, typeRef_.deepCopyForTemplate(), variableAccess());
     }
 };
 
@@ -885,76 +893,78 @@ enum class CastKind : unsigned char {
 
 /** Represents a cast expression... i.e. foo:int= cast<int>(someDouble); */
 class CastExpr : public ExprStmt {
-    TypeRef  *toType_;
-    ExprStmt *valueExpr_;
+    TypeRef &toType_;
+    ExprStmt &valueExpr_;
     const CastKind castKind_;
 
 public:
     /** Use this constructor when the type::Type of the cast *is* known in advance. */
-    CastExpr(source::SourceSpan sourceSpan, type::Type *toType, ExprStmt* valueExpr, CastKind castKind)
-        : ExprStmt(sourceSpan), toType_(new KnownTypeRef(sourceSpan, toType)), valueExpr_(valueExpr), castKind_(castKind)
+    CastExpr(source::SourceSpan sourceSpan, type::Type &toType, ExprStmt& valueExpr, CastKind castKind)
+        : ExprStmt(sourceSpan), toType_(*new KnownTypeRef(sourceSpan, toType)), valueExpr_(valueExpr), castKind_(castKind)
     {
-        ASSERT(toType);
-        ASSERT(valueExpr);
+        ASSERT(&toType);
+        ASSERT(&valueExpr);
     }
 
     /** Use this constructor when the type::Type of the cast is *not* known in advance. */
-    CastExpr(source::SourceSpan sourceSpan, TypeRef *toType, ExprStmt *valueExpr, CastKind castKind)
+    CastExpr(source::SourceSpan sourceSpan, TypeRef &toType, ExprStmt &valueExpr, CastKind castKind)
         : ExprStmt(sourceSpan), toType_(toType), valueExpr_(valueExpr), castKind_(castKind) { }
 
-    static CastExpr *createImplicit(ExprStmt *valueExpr, type::Type *toType);
+    static inline CastExpr &createImplicit(ExprStmt &valueExpr, type::Type &toType) {
+        return *new CastExpr(valueExpr.sourceSpan(), *new KnownTypeRef(valueExpr.sourceSpan(), toType), valueExpr, CastKind::Implicit);
+    }
 
-    type::Type *type() const  override{ return toType_->type(); }
+    type::Type &type() const  override{ return toType_.type(); }
     CastKind castKind() const { return castKind_; }
 
     virtual bool canWrite() const override { return false; };
 
-    ExprStmt *valueExpr() const { return valueExpr_; }
+    ExprStmt &valueExpr() const { return valueExpr_; }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingCastExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingCastExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
-            toType_->accept(visitor);
-            valueExpr_->accept(visitor);
+        if(visitor.shouldVisitChildren()) {
+            toType_.accept(visitor);
+            valueExpr_.accept(visitor);
         }
 
-        visitor->visitedCastExpr(*this);
+        visitor.visitedCastExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new CastExpr(sourceSpan_, toType_->deepCopyForTemplate(), valueExpr_->deepCopyExpandTemplate(templateArgs), castKind_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new CastExpr(sourceSpan_, toType_.deepCopyForTemplate(), valueExpr_.deepCopyExpandTemplate(templateArgs), castKind_);
     }
 };
 
 /** Represents a new expression... i.e. foo:int= new<int>(someDouble); */
 class NewExpr : public ExprStmt {
-    TypeRef  *typeRef_;
+    TypeRef &typeRef_;
 public:
 
-    NewExpr(source::SourceSpan sourceSpan, TypeRef *typeRef)
+    NewExpr(source::SourceSpan sourceSpan, TypeRef &typeRef)
         : ExprStmt(sourceSpan), typeRef_(typeRef)
     {
-        ASSERT(typeRef);
+        ASSERT(&typeRef);
     }
 
-    type::Type *type() const  override { return typeRef_->type(); }
-    TypeRef *typeRef() const { return typeRef_; }
+    type::Type &type() const  override { return typeRef_.type(); }
+    TypeRef &typeRef() const { return typeRef_; }
 
     virtual bool canWrite() const override { return false; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingNewExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingNewExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
-            typeRef_->accept(visitor);
+        if(visitor.shouldVisitChildren()) {
+            typeRef_.accept(visitor);
         }
 
-        visitor->visitedNewExpr(*this);
+        visitor.visitedNewExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new NewExpr(sourceSpan_, typeRef_->deepCopyForTemplate());
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new NewExpr(sourceSpan_, typeRef_.deepCopyForTemplate());
     }
 };
 
@@ -974,109 +984,115 @@ public:
           condition_{ condition },
           thenExpr_{ trueExpr },
           elseExpr_{ elseExpr } {
-        ASSERT(condition_);
-        ASSERT(thenExpr_);
+        ASSERT(&condition_);
+        ASSERT(&thenExpr_);
     }
 
-    type::Type *type() const override {
-        if(elseExpr_ == nullptr || !thenExpr_->type()->isSameType(elseExpr_->type())) {
-            return &type::ScalarType::Void;
+    type::Type &type() const override {
+        if(elseExpr_ == nullptr || !thenExpr_->type().isSameType(elseExpr_->type())) {
+            return type::ScalarType::Void;
         }
 
         return thenExpr_->type();
     }
 
-    ExprStmt *condition() const { return condition_; }
-    void setCondition(ExprStmt *newCondition){ condition_ = newCondition; }
+    ExprStmt &condition() const { return *condition_; }
+    void setCondition(ExprStmt &newCondition){ condition_ = &newCondition; }
 
-    ExprStmt *thenExpr() const { return thenExpr_; }
-    void setThenExpr(ExprStmt * newThenExpr) { thenExpr_ = newThenExpr; }
+    ExprStmt &thenExpr() const { return *thenExpr_; }
+    void setThenExpr(ExprStmt &newThenExpr) { thenExpr_ = &newThenExpr; }
 
     ExprStmt *elseExpr() const { return elseExpr_; }
-    void setElseExpr(ExprStmt *newElseExpr) { elseExpr_ = newElseExpr; }
+    void setElseExpr(ExprStmt &newElseExpr) { elseExpr_ = &newElseExpr; }
 
     bool canWrite() const override { return false; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingIfExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingIfExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
+        if(visitor.shouldVisitChildren()) {
             condition_->accept(visitor);
             thenExpr_->accept(visitor);
             if(elseExpr_)
                 elseExpr_->accept(visitor);
         }
 
-        visitor->visitedIfExpr(*this);
+        visitor.visitedIfExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new IfExprStmt(
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new IfExprStmt(
             sourceSpan_,
-            condition_->deepCopyExpandTemplate(templateArgs),
-            thenExpr_->deepCopyExpandTemplate(templateArgs),
-            elseExpr_->deepCopyExpandTemplate(templateArgs));
+            &condition_->deepCopyExpandTemplate(templateArgs),
+            &thenExpr_->deepCopyExpandTemplate(templateArgs),
+            &elseExpr_->deepCopyExpandTemplate(templateArgs));
     }
 };
 
 class WhileExpr : public ExprStmt {
     ExprStmt* condition_;
-    ExprStmt* body_;
+    ExprStmt& body_;
 public:
 
     /** Note:  assumes ownership of condition, truePart and falsePart.  */
     WhileExpr(source::SourceSpan sourceSpan,
-              ExprStmt* condition,
-              ExprStmt* body)
+              ExprStmt& condition,
+              ExprStmt& body)
         : ExprStmt(sourceSpan),
-          condition_{ condition },
+          condition_{ &condition },
           body_{ body } {
-        ASSERT(condition_);
-        ASSERT(body_)
+        ASSERT(&condition_);
+        ASSERT(&body_)
     }
 
-    type::Type *type() const override {
+    type::Type &type() const override {
         //For now, while expressions will not return a value.
-        return &type::ScalarType::Void;
+        return type::ScalarType::Void;
     }
 
-    ExprStmt *condition() const { return condition_; }
+    ExprStmt &condition() const { return *condition_; }
 
-    void setCondition(ExprStmt *newCondition) { condition_ = newCondition; }
+    void setCondition(ExprStmt &newCondition) {
+        ASSERT(&newCondition);
+        condition_ = &newCondition;
+    }
 
-    ExprStmt *body() const { return body_; }
+    ExprStmt &body() const { return body_; }
 
     virtual bool canWrite() const override { return false; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingWhileExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingWhileExpr(*this);
 
-        if(visitor->shouldVisitChildren()) {
+        if(visitor.shouldVisitChildren()) {
             condition_->accept(visitor);
-            body_->accept(visitor);
+            body_.accept(visitor);
         }
 
-        visitor->visitedWhileExpr(*this);
+        visitor.visitedWhileExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new WhileExpr(sourceSpan_, condition_->deepCopyExpandTemplate(templateArgs), body_->deepCopyExpandTemplate(templateArgs));
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new WhileExpr(
+            sourceSpan_,
+            condition_->deepCopyExpandTemplate(templateArgs),
+            body_.deepCopyExpandTemplate(templateArgs));
     }
 };
 
 class ParameterDef : public AstNode {
     source::SourceSpan span_;
     const Identifier name_;
-    TypeRef* typeRef_;
+    TypeRef& typeRef_;
     scope::VariableSymbol *symbol_ = nullptr;
 public:
-    ParameterDef(source::SourceSpan span, const Identifier &name, TypeRef *typeRef)
+    ParameterDef(source::SourceSpan span, const Identifier &name, TypeRef &typeRef)
         : span_{span}, name_{name}, typeRef_{typeRef} { }
 
     source::SourceSpan span() { return span_; }
     const Identifier &name() { return name_; }
-    type::Type *type() { return typeRef_->type(); }
-    TypeRef *typeRef() { return typeRef_; }
+    type::Type &type() { return typeRef_.type(); }
+    TypeRef &typeRef() { return typeRef_; }
 
     scope::VariableSymbol *symbol() {
         ASSERT(symbol_);
@@ -1084,35 +1100,35 @@ public:
     }
     void setSymbol(scope::VariableSymbol *symbol) { symbol_ = symbol; }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingParameterDef(*this);
-        if(visitor->shouldVisitChildren()) {
-            typeRef_->accept(visitor);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingParameterDef(*this);
+        if(visitor.shouldVisitChildren()) {
+            typeRef_.accept(visitor);
         }
-        visitor->visitedParameterDef(*this);
+        visitor.visitedParameterDef(*this);
     }
 
-    ParameterDef *deepCopy() {
-        return new ParameterDef(span_, name_, typeRef_->deepCopyForTemplate());
+    ParameterDef &deepCopy() {
+        return *new ParameterDef(span_, name_, typeRef_.deepCopyForTemplate());
     }
 };
-type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef*> &parameters);
+type::FunctionType &createFunctionType(type::Type &returnType, const gc_ref_vector<ParameterDef> &parameters);
 
 class FuncDefStmt : public ExprStmt {
     const Identifier name_;
     scope::FunctionSymbol *symbol_= nullptr;
     scope::SymbolTable parameterScope_;
-    TypeRef *returnTypeRef_;
-    gc_vector<ParameterDef*> parameters_;
+    TypeRef &returnTypeRef_;
+    gc_ref_vector<ParameterDef> parameters_;
     ExprStmt* body_;
-    type::FunctionType *functionType_;
+    type::FunctionType &functionType_;
 
 public:
     FuncDefStmt(
         source::SourceSpan sourceSpan,
         const Identifier &name,
-        TypeRef* returnTypeRef,
-        gc_vector<ParameterDef*> parameters,
+        TypeRef& returnTypeRef,
+        gc_ref_vector<ParameterDef> parameters,
         ExprStmt* body
     ) : ExprStmt(sourceSpan),
         name_{name},
@@ -1120,20 +1136,23 @@ public:
         returnTypeRef_{returnTypeRef},
         parameters_{parameters},
         body_{body},
-        functionType_{createFunctionType(returnTypeRef->type(), parameters)}
+        functionType_{createFunctionType(returnTypeRef.type(), parameters)}
     {
         parameterScope_.name() = name_.text() + "-parameters";
     }
 
-    type::Type *type() const override { return &type::ScalarType::Void; }
+    type::Type &type() const override { return type::ScalarType::Void; }
     bool canWrite() const override { return false; }
 
     const Identifier &name() const { return name_; }
-    type::Type *returnType() const { return functionType_->returnType(); }
-    type::FunctionType *functionType() { return functionType_; }
-    scope::SymbolTable *parameterScope() { return &parameterScope_; };
-    ExprStmt *body() const { return body_; }
-    void setBody(ExprStmt *body) { body_ = body; }
+    type::Type &returnType() const { return *functionType_.returnType(); }
+    type::FunctionType &functionType() { return functionType_; }
+    scope::SymbolTable &parameterScope() { return parameterScope_; };
+    ExprStmt &body() const { return *body_; }
+    void setBody(ExprStmt &body) {
+        ASSERT(&body);
+        body_ = &body;
+    }
 
     scope::FunctionSymbol *symbol() const {
         ASSERT(symbol_ && "Function symbol not resolved yet")
@@ -1142,38 +1161,32 @@ public:
 
     void setSymbol(scope::FunctionSymbol *symbol) { symbol_ = symbol; }
 
-    gc_vector<ParameterDef*> parameters() {
-        gc_vector<ParameterDef*> retval;
-        retval.reserve(parameters_.size());
-        for(auto pd : parameters_) {
-            retval.push_back(pd);
-        }
-
-        return retval;
+    gc_ref_vector<ParameterDef> parameters() {
+       return parameters_;
     }
 
-    virtual void accept(AstVisitor *visitor) override {
-        visitor->visitingFuncDefStmt(*this);
-        if(visitor->shouldVisitChildren()) {
-            returnTypeRef_->accept(visitor);
-            for(auto p : parameters_) {
-                p->accept(visitor);
+    virtual void accept(AstVisitor &visitor) override {
+        visitor.visitingFuncDefStmt(*this);
+        if(visitor.shouldVisitChildren()) {
+            returnTypeRef_.accept(visitor);
+            for(const auto p : parameters_) {
+                p.get().accept(visitor);
             }
             body_->accept(visitor);
         }
-        visitor->visitedFuncDeclStmt(*this);
+        visitor.visitedFuncDeclStmt(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        gc_vector<ParameterDef*> clonedParameters;
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        gc_ref_vector<ParameterDef> clonedParameters;
         for(auto p : parameters_) {
-            clonedParameters.push_back(p->deepCopy());
+            clonedParameters.emplace_back(p.get().deepCopy());
         }
-        return new FuncDefStmt(sourceSpan_,
+        return *new FuncDefStmt(sourceSpan_,
                                name_,
-                               returnTypeRef_->deepCopyForTemplate(),
+                               returnTypeRef_.deepCopyForTemplate(),
                                clonedParameters,
-                               body_->deepCopyExpandTemplate(templateArgs));
+                               &body_->deepCopyExpandTemplate(templateArgs));
     }
 };
 
@@ -1185,13 +1198,13 @@ public:
         ASSERT(name.text().size() > 0);
     }
 
-    virtual type::Type *type() const override {
+    virtual type::Type &type() const override {
         ASSERT(symbol_);
-        return symbol_->type();
+        return *symbol_->type();
     }
 
     virtual const Identifier &name() const { return name_; }
-    std::string toString() const { return name_.text() + ":" + this->type()->nameForDisplay(); }
+    std::string toString() const { return name_.text() + ":" + this->type().nameForDisplay(); }
 
     scope::FunctionSymbol *symbol() { return symbol_; }
     void setSymbol(scope::FunctionSymbol *symbol) {
@@ -1200,96 +1213,90 @@ public:
 
     bool canWrite() const override { return true; };
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitMethodRefExpr(*this);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitMethodRefExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &) const override {
-        return new MethodRefExpr(name_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+        return *new MethodRefExpr(name_);
     }
 };
 
 class FuncCallExpr : public ExprStmt {
     ExprStmt *instanceExpr_;
     source::SourceSpan openParenSpan_;
-    ExprStmt *funcExpr_;
-    gc_vector<ExprStmt*> arguments_;
+    ExprStmt &funcExpr_;
+    gc_ref_vector<ExprStmt> arguments_;
 public:
     FuncCallExpr(
         const source::SourceSpan &span,
         ExprStmt *instanceExpr,
         const source::SourceSpan &openParenSpan,
-        ast::ExprStmt *funcExpr,
-        const gc_vector<ExprStmt*> &arguments
+        ast::ExprStmt &funcExpr,
+        const gc_ref_vector<ExprStmt> &arguments
     ) : ExprStmt(span),
         instanceExpr_{instanceExpr},
         openParenSpan_{openParenSpan},
         funcExpr_{funcExpr},
         arguments_{arguments} { }
 
-    ExprStmt *funcExpr() const { return funcExpr_; }
+    ExprStmt &funcExpr() const { return funcExpr_; }
     ExprStmt *instanceExpr() const { return instanceExpr_; }
 
     bool canWrite() const override { return false; };
 
-    type::Type *type() const override {
-        auto functionType = dynamic_cast<type::FunctionType*>(funcExpr_->type());
-        ASSERT(functionType && "Expression is not a function");
-        return functionType->returnType();
+    type::Type &type() const override {
+        auto &functionType = upcast<type::FunctionType>(funcExpr_.type());
+        return *functionType.returnType();
     }
 
-    gc_vector<ExprStmt*> arguments() const {
-        gc_vector<ExprStmt *> args;
-        args.reserve(arguments_.size());
-        for (auto argument : arguments_) {
-            args.push_back(argument);
-        }
-        return args;
+    const gc_ref_vector<ExprStmt> &arguments() const {
+        return arguments_;
     }
 
-    void replaceArgument(size_t index, ExprStmt *newExpr) {
+    void replaceArgument(size_t index, ExprStmt &newExpr) {
         ASSERT(index < arguments_.size());
         arguments_[index] = newExpr;
     }
 
     size_t argCount() { return arguments_.size(); }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingFuncCallExpr(*this);
-        if(visitor->shouldVisitChildren()) {
-            funcExpr_->accept(visitor);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingFuncCallExpr(*this);
+        if(visitor.shouldVisitChildren()) {
+            funcExpr_.accept(visitor);
             if(instanceExpr_) {
                 instanceExpr_->accept(visitor);
             }
             for (auto argument : arguments_) {
-                argument->accept(visitor);
+                argument.get().accept(visitor);
             }
         }
-        visitor->visitedFuncCallExpr(*this);
+        visitor.visitedFuncCallExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        gc_vector<ExprStmt*> clonedArguments;
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        gc_ref_vector<ExprStmt> clonedArguments;
         clonedArguments.reserve(arguments_.size());
         for(auto a : arguments_) {
-            clonedArguments.push_back(a->deepCopyExpandTemplate(templateArgs));
+            clonedArguments.emplace_back(a.get().deepCopyExpandTemplate(templateArgs));
         }
-        return new FuncCallExpr(sourceSpan_,
-                                instanceExpr_->deepCopyExpandTemplate(templateArgs),
+        return *new FuncCallExpr(sourceSpan_,
+                                 (instanceExpr_ ? &instanceExpr_->deepCopyExpandTemplate(templateArgs) : nullptr),
                                 openParenSpan_,
-                                funcExpr_->deepCopyExpandTemplate(templateArgs),
+                                funcExpr_.deepCopyExpandTemplate(templateArgs),
                                 clonedArguments);
     }
 };
 
 class ClassDefinitionBase : public ExprStmt {
     Identifier name_;
-    CompoundExpr *body_;
+    CompoundExpr &body_;
 protected:
     ClassDefinitionBase(
         source::SourceSpan span,
         const Identifier &name,
-        ast::CompoundExpr *body
+        ast::CompoundExpr &body
     ) : ExprStmt{span},
         name_{name},
         body_{body}
@@ -1297,99 +1304,98 @@ protected:
 public:
 
     /** The class definition, as an expression in the language, doesn't return a meaningful value. */
-    type::Type *type() const override { return &type::ScalarType::Void; }
+    type::Type &type() const override { return type::ScalarType::Void; }
 
     /** The type of the class being defined. */
-    virtual type::Type *definedType() const = 0;
+    virtual type::Type &definedType() const = 0;
 
     bool canWrite() const override { return false; }
 
-    CompoundExpr *body() const { return body_; }
+    CompoundExpr &body() const { return body_; }
     Identifier name() const { return name_; }
 };
 
-inline gc_vector<type::Type*> toVectorOfType(const gc_vector<TemplateArgument*> &arguments) {
+inline gc_vector<type::Type*> toVectorOfType(const gc_ref_vector<TemplateArgument> &arguments) {
     gc_vector<type::Type*> vectorOfTypes;
     vectorOfTypes.reserve(arguments.size());
     for(auto arg : arguments) {
-        vectorOfTypes.push_back(arg->typeRef()->type());
+        vectorOfTypes.emplace_back(&arg.get().typeRef().type());
     }
     return vectorOfTypes;
 }
 
 class CompleteClassDefinition : public ClassDefinitionBase {
-    gc_vector<TemplateArgument*> templateArguments_;
-    type::Type *definedType_;
+    gc_ref_vector<TemplateArgument> templateArguments_;
+    type::Type &definedType_;
 
 public:
     CompleteClassDefinition(
         source::SourceSpan span,
         const Identifier &name,
-        ast::CompoundExpr *body
+        ast::CompoundExpr &body
     ) : ClassDefinitionBase{span, name, body},
-        definedType_{new type::ClassType(AstNode::nodeId(), name.text(), toVectorOfType(templateArguments_))}
+        definedType_{*new type::ClassType(AstNode::nodeId(), name.text(), toVectorOfType(templateArguments_))}
     { }
 
     CompleteClassDefinition(
         source::SourceSpan span,
         const Identifier &name,
-        const gc_vector<TemplateArgument*> templateArgs,
-        ast::CompoundExpr *body
+        const gc_ref_vector<TemplateArgument> templateArgs,
+        ast::CompoundExpr &body
     ) : ClassDefinitionBase{span, name, body},
         templateArguments_{templateArgs},
-        definedType_{new type::ClassType(AstNode::nodeId(), name.text(), toVectorOfType(templateArguments_))}
+        definedType_{*new type::ClassType(AstNode::nodeId(), name.text(), toVectorOfType(templateArguments_))}
     { }
 
     /** The type of the class being defined. */
-    type::Type *definedType() const override { return definedType_; }
+    type::Type &definedType() const override { return definedType_; }
 
     bool hasTemplateArguments() { return !templateArguments_.empty(); }
 
     void populateClassType() {
-        auto ct = dynamic_cast<type::ClassType*>(definedType_);
+        auto &ct = upcast<type::ClassType>(definedType_);
         //TODO: the assert below would seem to indicate that we can split ClassDefinition into two types:
         //one for generic classes and one for complete classes.  From the class meant for generic types, we would have to return
         //new instances of the class meant for complete types from deepCopyExpandTemplate()
-        ASSERT(ct);
 
-        for (auto variable : this->body()->scope()->variables()) {
-            ct->addField(variable->name(), variable->type());
+        for (auto variable : this->body().scope().variables()) {
+            ct.addField(variable->name(), variable->type());
         }
 
-        for (auto method : this->body()->scope()->functions()) {
-            method->setThisSymbol(new scope::VariableSymbol("this", this->definedType()));
-            ct->addMethod(method->name(), method);
+        for (auto method : this->body().scope().functions()) {
+            method->setThisSymbol(new scope::VariableSymbol("this", &this->definedType()));
+            ct.addMethod(method->name(), method);
         }
     }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingCompleteClassDefinition(*this);
-        if (visitor->shouldVisitChildren()) {
-            body()->accept(visitor);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingCompleteClassDefinition(*this);
+        if (visitor.shouldVisitChildren()) {
+            body().accept(visitor);
         }
-        visitor->visitedCompleteClassDefinition(*this);
+        visitor.visitedCompleteClassDefinition(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
         //Only once inside an expanded template, a generic class not generic anymore.
-        auto *completeClassDef = new CompleteClassDefinition(
+        auto &completeClassDef = *new CompleteClassDefinition(
             sourceSpan_,
             name(),
             templateArguments_,
-            static_cast<CompoundExpr*>(body()->deepCopyExpandTemplate(templateArgs)));
+            upcast<CompoundExpr>(body().deepCopyExpandTemplate(templateArgs)));
 
         return completeClassDef;
     }
 };
 
 class GenericClassDefinition : public ClassDefinitionBase {
-    gc_vector<ast::TemplateParameter*> templateParameters_;
+    gc_ref_vector<ast::TemplateParameter> templateParameters_;
     type::GenericType *definedType_;
 
-    inline static std::vector<std::string> getTemplateParameterNames(const gc_vector<TemplateParameter*> &parameters) {
+    inline static std::vector<std::string> getTemplateParameterNames(const gc_ref_vector<TemplateParameter> &parameters) {
         std::vector<std::string> names;
-        for(auto parameter : parameters) {
-            names.push_back(parameter->name().text());
+        for(auto &&parameter : parameters) {
+            names.push_back(parameter.get().name().text());
         }
         return names;
     }
@@ -1398,34 +1404,34 @@ public:
     GenericClassDefinition(
         source::SourceSpan span,
         const Identifier &name,
-        const gc_vector<TemplateParameter*> &templateParameters,
-        ast::CompoundExpr *body
+        const gc_ref_vector<TemplateParameter> &templateParameters,
+        ast::CompoundExpr &body
     ) : ClassDefinitionBase{span, name, body},
         templateParameters_{templateParameters},
         definedType_{new type::GenericType(nodeId(), name.text(), getTemplateParameterNames(templateParameters))}
     { }
 
     /** The type of the class being defined. */
-    type::Type *definedType() const override { return definedType_; }
+    type::Type &definedType() const override { return *definedType_; }
 
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingGenericClassDefinition(*this);
-        if (visitor->shouldVisitChildren()) {
-            body()->accept(visitor);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingGenericClassDefinition(*this);
+        if (visitor.shouldVisitChildren()) {
+            body().accept(visitor);
         }
-        visitor->visitedGenericClassDefinition(*this);
+        visitor.visitedGenericClassDefinition(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
         //Only once inside an expanded template, a generic class is not generic anymore so construct CompleteClassDefinition
-        auto *completeClassDef = new CompleteClassDefinition(
+        auto &completeClassDef = *new CompleteClassDefinition(
             sourceSpan_,
             name(),
             templateArgs,
-            static_cast<CompoundExpr*>(body()->deepCopyExpandTemplate(templateArgs)));
+            upcast<CompoundExpr>(body().deepCopyExpandTemplate(templateArgs)));
 
-        upcast<type::ClassType>(completeClassDef->definedType())->setGenericType(definedType_);
+        upcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
 
         return completeClassDef;
     }
@@ -1434,14 +1440,14 @@ public:
 
 class DotExpr : public ExprStmt {
     source::SourceSpan dotSourceSpan_;
-    ExprStmt *lValue_;
+    ExprStmt &lValue_;
     const Identifier memberName_;
     type::ClassField *field_ = nullptr;
     bool isWrite_ = false;
 public:
     DotExpr(const source::SourceSpan &sourceSpan,
             const source::SourceSpan &dotSourceSpan,
-            ExprStmt *lValue,
+            ExprStmt &lValue,
             const Identifier &memberName)
         : ExprStmt(sourceSpan), dotSourceSpan_{dotSourceSpan}, lValue_{lValue}, memberName_{memberName} { }
 
@@ -1455,117 +1461,111 @@ public:
         isWrite_ = isWrite;
     }
 
-    ExprStmt *lValue() { return lValue_; }
+    ExprStmt &lValue() { return lValue_; }
     const Identifier &memberName() { return memberName_; }
 
     type::ClassField *field() { return field_; }
     void setField(type::ClassField *field) { field_ = field; }
 
-    type::Type *type() const override {
+    type::Type &type() const override {
         ASSERT(field_ && "Field must be resolved first");
-        return field_->type();
+        return *field_->type();
     }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingDotExpr(*this);
-        if (visitor->shouldVisitChildren()) {
-            lValue_->accept(visitor);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingDotExpr(*this);
+        if (visitor.shouldVisitChildren()) {
+            lValue_.accept(visitor);
         }
-        visitor->visitedDotExpr(*this);
+        visitor.visitedDotExpr(*this);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new DotExpr(sourceSpan_, dotSourceSpan_, lValue_->deepCopyExpandTemplate(templateArgs), memberName_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new DotExpr(sourceSpan_, dotSourceSpan_, lValue_.deepCopyExpandTemplate(templateArgs), memberName_);
     }
 };
 
 class AssertExprStmt : public ExprStmt {
     ast::ExprStmt *condition_;
 public:
-    AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt *condition)
-        : ExprStmt(sourceSpan), condition_{condition} { }
-
-    type::Type *type() const override { return &type::ScalarType::Void; }
-    bool canWrite() const override { return false; }
-    ast::ExprStmt *condition() { return condition_; }
-    void setCondition(ast::ExprStmt *condition) { condition_ = condition; }
-
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingAssertExprStmt(*this);
-        if(visitor->shouldVisitChildren()) {
-            condition_->accept(visitor);
-        }
-        visitor->visitedAssertExprStmt(*this);
+    AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt &condition)
+        : ExprStmt(sourceSpan), condition_{&condition} {
+        ASSERT(condition_);
     }
 
-    ExprStmt *deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return new AssertExprStmt(sourceSpan_, condition_->deepCopyExpandTemplate(templateArgs));
+    type::Type &type() const override { return type::ScalarType::Void; }
+    bool canWrite() const override { return false; }
+    ast::ExprStmt &condition() {
+        return *condition_;
+    }
+    void setCondition(ast::ExprStmt &condition) { condition_ = &condition; }
+
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingAssertExprStmt(*this);
+        if(visitor.shouldVisitChildren()) {
+            condition_->accept(visitor);
+        }
+        visitor.visitedAssertExprStmt(*this);
+    }
+
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new AssertExprStmt(sourceSpan_, condition_->deepCopyExpandTemplate(templateArgs));
     }
 };
 
 
 class Module : public AstNode {
     std::string name_;
-    CompoundExpr *body_;
-    gc_unordered_map<std::string, TemplateExprStmt*> templates_;
+    CompoundExpr &body_;
+    //gc_unordered_map<std::string, TemplateExprStmt*> templates_;
 public:
-    Module(const std::string &name, CompoundExpr* body)
+    Module(const std::string &name, CompoundExpr& body)
         : name_{name}, body_{body} {
-    }
-
-
-    void addTemplate(TemplateExprStmt *templ) {
-        templates_[templ->name().text()] = templ;
-    }
-
-    TemplateExprStmt *findTemplate(const std::string &name) {
-        return templates_[name];
     }
 
     std::string name() const { return name_; }
 
-    scope::SymbolTable *scope() { return body_->scope(); }
+    scope::SymbolTable &scope() { return body_.scope(); }
 
-    CompoundExpr *body() { return body_; }
+    CompoundExpr &body() { return body_; }
 
-    void accept(AstVisitor *visitor) override {
-        visitor->visitingModule(*this);
-        if(visitor->shouldVisitChildren()) {
-            body_->accept(visitor);
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingModule(*this);
+        if(visitor.shouldVisitChildren()) {
+            body_.accept(visitor);
         }
-        visitor->visitedModule(*this);
+        visitor.visitedModule(*this);
     }
 };
 
 class AnodeWorld : public gc, no_assign, no_copy {
     scope::SymbolTable globalScope_{scope::StorageKind::Global, ""};
     gc_unordered_map<UniqueId, TemplateExprStmt*> templateIndex_;
-
     gc_unordered_set<ast::TemplateExprStmt*> expandingTemplates_;
-
-
 public:
 
-    scope::SymbolTable *globalScope() { return &globalScope_; }
+    scope::SymbolTable &globalScope() { return globalScope_; }
 
     void addTemplate(TemplateExprStmt *templateExprStmt) {
         templateIndex_[templateExprStmt->nodeId()] = templateExprStmt;
     }
 
-    TemplateExprStmt *getTemplate(UniqueId nodeId) {
-        return templateIndex_[nodeId];
+    TemplateExprStmt &getTemplate(UniqueId nodeId) {
+        auto templ = templateIndex_[nodeId];
+        ASSERT(templ);
+        return *templ;
     }
 
-    void addExpandingTemplate(ast::TemplateExprStmt *templ) {
-        expandingTemplates_.insert(templ);
+    void addExpandingTemplate(ast::TemplateExprStmt &templ) {
+        expandingTemplates_.insert(&templ);
     }
 
-    bool isExpanding(ast::TemplateExprStmt *templ) {
-        return expandingTemplates_.count(templ) > 0;
+    bool isExpanding(ast::TemplateExprStmt &templ) {
+        return expandingTemplates_.count(&templ) > 0;
     }
 
-    void removeExpandingTemplate(ast::TemplateExprStmt *templ) {
-        expandingTemplates_.erase(templ);
+    void removeExpandingTemplate(ast::TemplateExprStmt &templ) {
+        expandingTemplates_.erase(&templ);
     }
 
 };

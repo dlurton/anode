@@ -57,9 +57,9 @@ public:
         return parent_;
     }
 
-    void setParent(SymbolTable *parent) {
-        ASSERT(parent != this && "Hello? Are you trying to cause an infinite loop?");
-        parent_ = parent;
+    void setParent(SymbolTable &parent) {
+        ASSERT(&parent != this && "Hello? Are you trying to cause an infinite loop?");
+        parent_ = &parent;
     }
 
     std::string name() {

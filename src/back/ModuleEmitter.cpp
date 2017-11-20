@@ -32,10 +32,10 @@ public:
         : cc_{cc}, targetMachine_{targetMachine} {}
 
 
-    void emitModuleLevelExprStmt(ExprStmt *expr)  {
+    void emitModuleLevelExprStmt(ExprStmt &expr)  {
         llvm::Value *llvmValue = emitExpr(expr, cc_);
 
-        if (!expr->type()->isPrimitive()) {
+        if (!expr.type().isPrimitive()) {
             //eventually, we'll call toString() or somesuch.
             return;
         }
@@ -54,7 +54,7 @@ public:
                 //ExecutionContext pointer
                 executionContextPtrValue_,
                 //PrimitiveType,
-                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr->type()->primitiveType(), true)),
+                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr.type().primitiveType(), true)),
                 //Pointer to value.
                 bitcasted
             };
@@ -68,17 +68,12 @@ public:
         cc_.llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
         declareResultFunction();
-
         startModuleInitFunc(module);
-
         declareExecutionContextGlobal();
-
         emitGlobals(module, cc_);
-
         emitFuncDefs(module, cc_);
 
-
-        for(auto exprStmt : module->body()->expressions()) {
+        for(auto exprStmt : module->body().expressions()) {
             emitModuleLevelExprStmt(exprStmt);
         }
 
@@ -94,9 +89,9 @@ public:
         }
 
         //Copy global variables to the global scope so they can be shared among modules..
-        for(auto symbolToExport : module->scope()->symbols()) {
+        for(auto symbolToExport : module->scope().symbols()) {
             //TODO:  naming collisions here?
-            cc_.world().globalScope()->addSymbol(symbolToExport->cloneForExport());
+            cc_.world().globalScope().addSymbol(symbolToExport->cloneForExport());
         }
     }
 

@@ -57,19 +57,14 @@ std::string to_string(BinaryOperationKind kind) {
     }
 }
 
-CastExpr *CastExpr::createImplicit(ExprStmt *valueExpr, type::Type *toType) {
-    return new CastExpr(valueExpr->sourceSpan(), new KnownTypeRef(valueExpr->sourceSpan(), toType), valueExpr, CastKind::Implicit);
-}
-
-
-type::FunctionType *createFunctionType(type::Type *returnType, const gc_vector<ParameterDef *> &parameters) {
-    gc_vector<type::Type *> parameterTypes;
+type::FunctionType &createFunctionType(type::Type &returnType, const gc_ref_vector<ParameterDef> &parameters) {
+    gc_ref_vector<type::Type> parameterTypes;
     parameterTypes.reserve(parameters.size());
     for (auto p : parameters) {
-        parameterTypes.push_back(p->type());
+        parameterTypes.emplace_back(p.get().type());
     }
 
-    return new type::FunctionType(returnType, parameterTypes);
+    return *new type::FunctionType(&returnType, parameterTypes);
 }
 
 }}}

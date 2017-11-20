@@ -87,6 +87,7 @@ public:
     }
 };
 
+
 } //end namespace exception
 
 template<typename TObject>
@@ -103,5 +104,17 @@ TObject *upcast(Object *node) {
 
     return upcasted;
 }
+
+
+template<typename TObject>
+TObject &upcast(Object &node) {
+    TObject *upcasted = dynamic_cast<TObject*>(&node);
+    if(!upcasted){
+        ASSERT_FAIL("Attempted to perform an invalid upcast");
+    }
+
+    return *upcasted;
+}
+
 
 }

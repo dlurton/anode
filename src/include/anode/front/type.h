@@ -35,13 +35,14 @@ class ScalarType;
 class GenericType;
 class ClassType;
 
-class Type : public Object {
+class Type : public Object, no_assign, no_copy {
 public:
     virtual UniqueId astNodeId() const { return (UniqueId)-1; }
     virtual std::string name() const = 0;
     virtual std::string nameForDisplay() const { return name(); }
 
     virtual bool isSameType(const type::Type *) const = 0;
+    virtual bool isSameType(const type::Type &other) const { return this->isSameType(&other); }
     virtual bool isPrimitive() const { return primitiveType() != PrimitiveType::NotAPrimitive; };
     virtual bool isGeneric() const { return false; }
     virtual bool isActualType() { return true; }
@@ -50,6 +51,10 @@ public:
     virtual bool isFunction() const { return false; }
     virtual PrimitiveType primitiveType() const { return PrimitiveType::NotAPrimitive; };
     virtual bool canDoArithmetic() const { return false; }
+
+    virtual bool canImplicitCastTo(const Type &other) const { return this->canImplicitCastTo(&other); }
+    virtual bool canExplicitCastTo(const Type &other) const { return this->canExplicitCastTo(&other); }
+
     virtual bool canImplicitCastTo(const Type *) const { return false; }
     virtual bool canExplicitCastTo(const Type *) const { return false; }
     virtual Type* actualType() const { return const_cast<Type*>(this); }
@@ -65,8 +70,8 @@ public:
 class UnresolvedType : public Type {
 public:
     UniqueId astNodeId() const override { return (UniqueId)-1; }
-    std::string name() const override { return "<unresolved>"; }
-    std::string nameForDisplay() const override { return "<unresolved>"; }
+    std::string name() const override { return "<unresolved type>"; }
+    std::string nameForDisplay() const override { return "<unresolved type>"; }
 
     bool isSameType(const type::Type *) const override { return false; }
     bool isPrimitive() const override { return primitiveType() != PrimitiveType::NotAPrimitive; };
@@ -118,7 +123,7 @@ public:
             ASSERT_FAIL("Something is probably wrong if you're attempting to resolve this instance of ResolutionDeferredType more than once!");
         }
 #endif
-        ASSERT(type != this && "Are you trying to cause an infinite loop?  Because that's how you cause an infinite loop.")
+        ASSERT(type != this && "reyou trying to cause an infinite loop?  Because that's how you cause an infinite loop.")
         actualType_ = type;
     }
 
@@ -249,9 +254,9 @@ public:
 
 class FunctionType : public Type {
     Type *returnType_;
-    gc_vector<type::Type*> parameterTypes_;
+    gc_ref_vector<type::Type> parameterTypes_;
 public:
-    FunctionType(Type *returnType, const gc_vector<type::Type*> parameterTypes) : returnType_{returnType}, parameterTypes_{parameterTypes}  { }
+    FunctionType(Type *returnType, const gc_ref_vector<type::Type> parameterTypes) : returnType_{returnType}, parameterTypes_{parameterTypes}  { }
 
     std::string name() const override { return "func:" + returnType_->name(); }
 
@@ -266,13 +271,9 @@ public:
     bool isFunction() const override { return true; }
 
     Type *returnType() const { return returnType_; }
-    gc_vector<type::Type*> parameterTypes() {
-        gc_vector<type::Type*> retval;
-        retval.reserve(parameterTypes_.size());
-        for(type::Type *ptype : parameterTypes_) {
-            retval.push_back(ptype);
-        }
-        return retval;
+
+    const gc_ref_vector<type::Type> &parameterTypes() {
+        return parameterTypes_;
     }
 };
 

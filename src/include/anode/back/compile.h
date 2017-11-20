@@ -44,9 +44,9 @@ namespace anode { namespace back {
             typeMap_[anodeType] = llvmType;
         }
 
-        llvm::Type *toLlvmType(front::type::Type *anodeType) {
-            ASSERT(anodeType);
-            front::type::Type *actualType = anodeType->actualType();
+        llvm::Type *toLlvmType(front::type::Type &anodeType) {
+            ASSERT(&anodeType);
+            front::type::Type *actualType = anodeType.actualType();
             llvm::Type *foundType = typeMap_[actualType];
             
             auto classType = dynamic_cast<front::type::ClassType*>(actualType);
@@ -61,7 +61,7 @@ namespace anode { namespace back {
                 mapTypes(classType, pointerType);
 
                 for (auto s : fields) {
-                    fieldTypes.push_back(toLlvmType(s->type()));
+                    fieldTypes.push_back(toLlvmType(*s->type()));
                 }
 
                 structType->setBody(fieldTypes);

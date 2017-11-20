@@ -18,7 +18,7 @@ namespace anode { namespace source {
         unsigned int line() const  { return line_; }
         unsigned int position() const { return position_; }
 
-        std::string toString() {
+        std::string toString() const {
             return string::format("%d:%d", line_, position_);
         }
     };
@@ -42,7 +42,7 @@ namespace anode { namespace source {
         SourceLocation start() const { return start_; }
         SourceLocation end() const { return end_; }
 
-        std::string toString() {
+        std::string toString() const {
             return string::format("%s:%s", name_.c_str(), start_.toString().c_str());
         }
 

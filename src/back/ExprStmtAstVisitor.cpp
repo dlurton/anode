@@ -56,7 +56,7 @@ public:
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
-        setValue(emitExpr(expansion.expandedTemplate(), cc()));
+        setValue(emitExpr(*expansion.expandedTemplate(), cc()));
     }
 
     void visitedFuncCallExpr(ast::FuncCallExpr &expr) override {
@@ -64,11 +64,11 @@ public:
         std::vector<llvm::Value *> args;
 
         if (expr.instanceExpr()) {
-            args.push_back(emitExpr(expr.instanceExpr(), cc()));
+            args.push_back(emitExpr(*expr.instanceExpr(), cc()));
         }
 
         for (auto arg : expr.arguments()) {
-            args.push_back(emitExpr(arg, cc()));
+            args.push_back(emitExpr(arg.get(), cc()));
         }
 
         llvm::Value *value = emitExpr(expr.funcExpr(), cc());
@@ -83,18 +83,18 @@ public:
     void visitedCastExpr(ast::CastExpr &expr) override {
         llvm::Value *value = emitExpr(expr.valueExpr(), cc());
 
-        ASSERT(expr.type()->isPrimitive());
-        ASSERT(expr.valueExpr()->type()->isPrimitive());
+        ASSERT(expr.type().isPrimitive());
+        ASSERT(expr.valueExpr().type().isPrimitive());
 
         llvm::Value *castedValue = nullptr;
         llvm::Type *destLlvmType = cc().typeMap().toLlvmType(expr.type());
-        switch (expr.valueExpr()->type()->primitiveType()) {
+        switch (expr.valueExpr().type().primitiveType()) {
             //From int32
             case type::PrimitiveType::Int32:
-                switch (expr.type()->primitiveType()) {
+                switch (expr.type().primitiveType()) {
                     //To bool
                     case type::PrimitiveType::Bool:
-                        castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr.valueExpr()->type()));
+                        castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr.valueExpr().type()));
                         break;
                         //To int
                     case type::PrimitiveType::Int32:
@@ -110,10 +110,10 @@ public:
                 break;
                 //From float
             case type::PrimitiveType::Float:
-                switch (expr.type()->primitiveType()) {
+                switch (expr.type().primitiveType()) {
                     //To to int32 or bool
                     case type::PrimitiveType::Bool:
-                        castedValue = cc().irBuilder().CreateFCmpUNE(value, cc().getDefaultValueForType(expr.valueExpr()->type()));
+                        castedValue = cc().irBuilder().CreateFCmpUNE(value, cc().getDefaultValueForType(expr.valueExpr().type()));
                         break;
                     case type::PrimitiveType::Int32:
                         castedValue = cc().irBuilder().CreateFPToSI(value, destLlvmType);
@@ -161,7 +161,7 @@ public:
             case scope::StorageKind::Local: {
                 llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.type());
                 llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().text());
-                cc().mapSymbolToValue(expr.symbol(), localVariable);
+                cc().mapSymbolToValue(*expr.symbol(), localVariable);
                 break;
             }
             default:
@@ -193,7 +193,7 @@ public:
             return;
         }
 
-        if (!expr.type()->isFunction()) {
+        if (!expr.type().isFunction()) {
             llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(pointer);
             loadInst->setAlignment(ALIGNMENT);
             setValue(loadInst);
@@ -218,12 +218,12 @@ protected:
     void visitedDotExpr(ast::DotExpr &expr) override {
         llvm::Value *instance = emitExpr(expr.lValue(), cc());
 
-        auto classType = dynamic_cast<type::ClassType *>(expr.lValue()->type()->actualType());
+        auto classType = dynamic_cast<type::ClassType *>(expr.lValue().type().actualType());
         ASSERT(classType != nullptr && "lvalues of dot operator must be a ClassType (did the semantic check fail?)");
 
         llvm::Value *ptrOrValue = createStructGep(classType, instance, expr.memberName().text());
 
-        if (expr.isWrite() || expr.type()->isFunction()) {
+        if (expr.isWrite() || expr.type().isFunction()) {
             setValue(ptrOrValue);
             return;
         }
@@ -259,7 +259,7 @@ protected:
 
 private:
     void emitBinaryArithmetic(ast::BinaryExpr &expr) {
-        ASSERT(expr.lValue()->type()->isSameType(expr.rValue()->type()) && "data types must match");
+        ASSERT(expr.lValue().type().isSameType(expr.rValue().type()) && "data types must match");
 
         llvm::Value *rValue = emitExpr(expr.rValue(), cc());
 
@@ -272,8 +272,8 @@ private:
             return;
         }
         llvm::Value *resultValue = nullptr;
-        ASSERT(expr.type()->isPrimitive() && "Only primitive types currently supported here");
-        switch (expr.operandsType()->primitiveType()) {
+        ASSERT(expr.type().isPrimitive() && "Only primitive types currently supported here");
+        switch (expr.operandsType().primitiveType()) {
             case type::PrimitiveType::Bool:
                 switch (expr.operation()) {
                     case ast::BinaryOperationKind::Eq:
@@ -396,7 +396,7 @@ private:
 
         currentFunc->getBasicBlockList().push_back(endBlock);
         cc().irBuilder().SetInsertPoint(endBlock);
-        llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(&type::ScalarType::Bool), 2, "logical_tmp");
+        llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(type::ScalarType::Bool), 2, "logical_tmp");
 
         llvm::ConstantInt *shortCircuitLlvmValue
             = llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) lValueConst, false));
@@ -436,7 +436,7 @@ protected:
 
         llvm::Value *elseValue = nullptr;
         if (ifExpr.elseExpr()) {
-            elseValue = emitExpr(ifExpr.elseExpr(), cc());
+            elseValue = emitExpr(*ifExpr.elseExpr(), cc());
         }
         cc().irBuilder().CreateBr(endBlock);
         elseBlock = cc().irBuilder().GetInsertBlock();
@@ -444,7 +444,7 @@ protected:
         //Emit the endBlock
         currentFunc->getBasicBlockList().push_back(endBlock);
         cc().irBuilder().SetInsertPoint(endBlock);
-        if (ifExpr.type()->primitiveType() != type::PrimitiveType::Void) {
+        if (ifExpr.type().primitiveType() != type::PrimitiveType::Void) {
             llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(ifExpr.type()),
                                                             ifExpr.elseExpr() ? 2 : 1, "iftmp");
             phi->addIncoming(thenValue, thenBlock);
@@ -491,10 +491,10 @@ protected:
 
 private:
 
-    void visitExpressions(const gc_vector<ast::ExprStmt*> &expressions) {
+    void visitExpressions(const gc_ref_vector<ast::ExprStmt> &expressions) {
         llvm::Value *lastValue = nullptr;
-        for (ast::ExprStmt *expr : expressions) {
-            llvm::Value *temp = emitExpr(expr, cc());
+        for (auto expr : expressions) {
+            llvm::Value *temp = emitExpr(expr.get(), cc());
             if (temp) {
                 lastValue = temp;
             }
@@ -538,7 +538,7 @@ private:
 
         //Call the assert_failed function
         std::vector<llvm::Value *> arguments;
-        source::SourceSpan span = assert.condition()->sourceSpan();
+        source::SourceSpan span = assert.condition().sourceSpan();
         arguments.push_back(cc().getDeduplicatedStringConstant(span.name()));
         arguments.push_back(getLiteralUIntLLvmValue((unsigned int) span.start().line()));
         cc().irBuilder().CreateCall(cc().assertFailFunc(), arguments);
@@ -553,9 +553,9 @@ private:
     }
 };
 
-llvm::Value *emitExpr(ast::ExprStmt *exprStmt, CompileContext &cc) {
+llvm::Value *emitExpr(ast::ExprStmt &exprStmt, CompileContext &cc) {
     ExprStmtAstVisitor visitor{cc};
-    exprStmt->accept(&visitor);
+    exprStmt.accept(visitor);
 
     return visitor.llvmValue();
 }

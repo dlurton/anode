@@ -13,13 +13,13 @@ private:
     void declareFunction(front::scope::FunctionSymbol &functionSymbol) {
 
         //Map all Anode argument types to LLVM types.
-        gc_vector<type::Type*> anodeParamTypes = functionSymbol.functionType()->parameterTypes();
+        const gc_ref_vector<type::Type> &anodeParamTypes = functionSymbol.functionType()->parameterTypes();
         std::vector<llvm::Type*> llvmParamTypes;
 
         //Create "this" argument, if needed.
         if(functionSymbol.storageKind() == scope::StorageKind::Instance) {
             llvmParamTypes.reserve(anodeParamTypes.size() + 1);
-            llvm::Type *thisType = cc().typeMap().toLlvmType(functionSymbol.thisSymbol()->type());
+            llvm::Type *thisType = cc().typeMap().toLlvmType(*functionSymbol.thisSymbol()->type());
             llvmParamTypes.push_back(thisType);
         } else {
             llvmParamTypes.reserve(anodeParamTypes.size());
@@ -27,11 +27,11 @@ private:
 
         //Create other arguments.
         for(auto anodeType : anodeParamTypes) {
-            llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType);
+            llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType.get());
             llvmParamTypes.push_back(llvmType);
         }
 
-        llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(functionSymbol.functionType()->returnType());
+        llvm::Type *returnLlvmType = cc().typeMap().toLlvmType(*functionSymbol.functionType()->returnType());
 
         //Create the LLVM FunctionType
         llvm::FunctionType *functionType = llvm::FunctionType::get(returnLlvmType, llvmParamTypes, /*isVarArg*/ false);
@@ -41,7 +41,7 @@ private:
 
         llvmFunc->setCallingConv(llvm::CallingConv::C);
 
-        cc().mapSymbolToValue(&functionSymbol, llvmFunc);
+        cc().mapSymbolToValue(functionSymbol, llvmFunc);
     }
 
 public:
@@ -51,7 +51,7 @@ public:
 
         //All external functions must be added to the current llvm module.
         //TODO:  emit only those functions which are actually referenced.
-        gc_vector<scope::FunctionSymbol*> functions = cc().world().globalScope()->functions();
+        gc_vector<scope::FunctionSymbol*> functions = cc().world().globalScope().functions();
         for(scope::FunctionSymbol *functionSymbol : functions) {
             //Skip functions that are not defined externally - we do that in visitingFuncDefStmt, below...
             if(functionSymbol->isExternal())
@@ -68,13 +68,13 @@ class DefineFuncsAstVisitor : public CompileAstVisitor {
 
     void emitCopyParameterToLocal(llvm::Argument &argument, scope::Symbol *argumentSymbol) {
         argument.setName(argumentSymbol->name());
-        llvm::Type *localParamType = cc().typeMap().toLlvmType(argumentSymbol->type());
+        llvm::Type *localParamType = cc().typeMap().toLlvmType(*argumentSymbol->type());
 
         llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);
         localParamValue->setName("local_" + argumentSymbol->name());
         cc().irBuilder().CreateStore(&argument, localParamValue);
 
-        cc().mapSymbolToValue(argumentSymbol, localParamValue);
+        cc().mapSymbolToValue(*argumentSymbol, localParamValue);
     }
 
 public:
@@ -111,9 +111,9 @@ public:
         auto funcParameters = funcDef.parameters();
         int argCount = 0;
         for(; llvmParamItr != llvmFunc->arg_end(); ++llvmParamItr) {
-            ast::ParameterDef *parameterDef = funcParameters[argCount++];
+            ast::ParameterDef &parameterDef = funcParameters[argCount++].get();
             llvm::Argument &argument = (*llvmParamItr);
-            emitCopyParameterToLocal(argument, parameterDef->symbol());
+            emitCopyParameterToLocal(argument, parameterDef.symbol());
         }
 
         cc().pushFuncDefStmt(&funcDef);
@@ -121,7 +121,7 @@ public:
         cc().popFuncDefStmt();
 
         //If return type is not void...
-        if(!funcDef.returnType()->isVoid()) {
+        if(!funcDef.returnType().isVoid()) {
             cc().irBuilder().CreateRet(returnValue);
         } else {
             cc().irBuilder().CreateRetVoid();
@@ -135,10 +135,10 @@ public:
 
 void emitFuncDefs(front::ast::Module *module, CompileContext &cc) {
     DeclareFuncsAstVisitor declaringVisitor{cc};
-    module->accept(&declaringVisitor);
+    module->accept(declaringVisitor);
 
     DefineFuncsAstVisitor definingVisitor{cc};
-    module->accept(&definingVisitor);
+    module->accept(definingVisitor);
 }
 
 }}

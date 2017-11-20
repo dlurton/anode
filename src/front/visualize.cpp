@@ -16,7 +16,7 @@ public:
 
     void visitingCompoundExpr(CompoundExpr &expr) override {
         writer_.write("CompoundExpr: ");
-        writeScopeVariables(*expr.scope());
+        writeScopeVariables(expr.scope());
         writer_.writeln();
         writer_.incIndent();
     }
@@ -59,7 +59,7 @@ public:
     }
 
     void visitingUnaryExpr(UnaryExpr &expr) override {
-        writer_.writeln("UnaryExpr: " + to_string(expr.operation()) + ", " + expr.type()->nameForDisplay());
+        writer_.writeln("UnaryExpr: " + to_string(expr.operation()) + ", " + expr.type().nameForDisplay());
         writer_.incIndent();
     }
 
@@ -91,7 +91,7 @@ public:
 
     void visitingVariableDeclExpr(VariableDeclExpr &expr) override {
         writer_.writeln("VariableDeclExpr: (%s:%s)", expr.name().text().c_str(),
-                        expr.typeRef()->name().text().c_str());
+                        expr.typeRef().name().text().c_str());
         writer_.incIndent();
     }
 
@@ -139,7 +139,7 @@ public:
     }
 
     void visitingNewExpr(NewExpr &expr) override {
-        writer_.writeln("NewExpr(%s):", expr.typeRef()->name().text().c_str());
+        writer_.writeln("NewExpr(%s):", expr.typeRef().name().text().c_str());
 
         writer_.incIndent();
     }
@@ -161,7 +161,7 @@ public:
         writer_.write("ParameterDef: ");
         writer_.write(pd.name().text());
         writer_.write(':');
-        writer_.writeln(pd.typeRef()->name().text());
+        writer_.writeln(pd.typeRef().name().text());
     }
 
     void visitingFuncDefStmt(FuncDefStmt &func) override {
@@ -226,7 +226,7 @@ public:
     }
 
     virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt &expansion) override {
-        writer_.writeln("TemplateExpansionExprStmt: " + expansion.templatedId().text());
+        writer_.writeln("TemplateExpansionExprStmt: " + expansion.templateName().text());
         writer_.incIndent();
     }
 
@@ -247,7 +247,7 @@ public:
 void prettyPrint(AstNode &module) {
     std::cerr<< "AST:\n";
     PrettyPrinterVisitor visitor{ std::cerr };
-    module.accept(&visitor);
+    module.accept(visitor);
     std::cerr << "\n";
 }
 
