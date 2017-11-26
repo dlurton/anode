@@ -55,7 +55,7 @@ fi
 # --enable-parallel-mark
 # --enable-munmap
 # --enable-redirect-malloc
-./configure --prefix=$INSTALL_DIR --enable-cplusplus --enable-threads=no $SHOULD_DEBUG
+./configure --prefix=$INSTALL_DIR --enable-cplusplus --enable-threads=no --enable-redirect-malloc $SHOULD_DEBUG
 
 say "Running make clean"
 # this seems silly, but doing a make clean here will prevent a problem related to installing to a non-standard path prefix

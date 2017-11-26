@@ -1,13 +1,13 @@
 
-#include "common/string_format.h"
+#include "anode.h"
 
 #pragma once
 
 namespace anode { namespace source {
     /** Represents a location within a source file. */
     class SourceLocation : no_new {
-        std::size_t line_;
-        std::size_t position_;
+        unsigned int line_;
+        unsigned int position_;
     public:
         SourceLocation()
             : line_(-1), position_(-1) { }
@@ -15,11 +15,11 @@ namespace anode { namespace source {
         SourceLocation(std::size_t line, std::size_t position)
             : line_(line), position_(position) { }
 
-        std::size_t line() const  { return line_; }
-        std::size_t position() const { return line_; }
+        unsigned int line() const  { return line_; }
+        unsigned int position() const { return position_; }
 
-        std::string toString() {
-            return string::format("(%d, %d)", line_, position_);
+        std::string toString() const {
+            return string::format("%d:%d", line_, position_);
         }
     };
     bool operator== (SourceLocation a, SourceLocation b);
@@ -42,8 +42,8 @@ namespace anode { namespace source {
         SourceLocation start() const { return start_; }
         SourceLocation end() const { return end_; }
 
-        std::string toString() {
-            return string::format("%s %s", name_.c_str(), start_.toString().c_str());
+        std::string toString() const {
+            return string::format("%s:%s", name_.c_str(), start_.toString().c_str());
         }
 
         static SourceSpan Any;

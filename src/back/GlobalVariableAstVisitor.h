@@ -8,16 +8,16 @@ namespace anode { namespace back {
 
 class GlobalVariableAstVisitor : public CompileAstVisitor {
 
-    void defineGlobal(scope::VariableSymbol *symbol) {
-        llvm::Type *llvmType = cc().typeMap().toLlvmType(symbol->type());
-        cc().llvmModule().getOrInsertGlobal(symbol->fullyQualifiedName(), llvmType);
-        llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol->fullyQualifiedName());
+    void defineGlobal(front::scope::VariableSymbol &symbol) {
+        llvm::Type *llvmType = cc().typeMap().toLlvmType(*symbol.type());
+        cc().llvmModule().getOrInsertGlobal(symbol.fullyQualifiedName(), llvmType);
+        llvm::GlobalVariable *globalVar = cc().llvmModule().getNamedGlobal(symbol.fullyQualifiedName());
         cc().mapSymbolToValue(symbol, globalVar);
         globalVar->setAlignment(ALIGNMENT);
 
-        if(symbol->type()->isClass()) {
+        if(symbol.type()->isClass()) {
 
-            if (symbol->isExternal()) {
+            if (symbol.isExternal()) {
                 //ExternalWeakLinkage defines a symbol in the current module that can be
                 //overridden by a regular ExternalLinkage, it would seem from the LLVM language reference.
                 //https://llvm.org/docs/LangRef.html#linkage-types
@@ -41,31 +41,33 @@ class GlobalVariableAstVisitor : public CompileAstVisitor {
 public:
     explicit GlobalVariableAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
-    void visitingVariableDeclExpr(ast::VariableDeclExpr *varDef) override {
-        if(varDef->symbol()->storageKind() == scope::StorageKind::Global) {
-            auto variableSymbol = dynamic_cast<scope::VariableSymbol*>(varDef->symbol());
+    void visitingVariableDeclExpr(front::ast::VariableDeclExpr &varDef) override {
+        if(varDef.symbol()->storageKind() == front::scope::StorageKind::Global) {
+            auto variableSymbol = dynamic_cast<front::scope::VariableSymbol*>(varDef.symbol());
             ASSERT(variableSymbol)
-            defineGlobal(variableSymbol);
+            defineGlobal(*variableSymbol);
         }
     }
 
-    void visitingModule(ast::Module *module) override {
+    void visitingModule(front::ast::Module &) override {
+
         //Define all the external global variables now...
         //The reason for doing this here in addition to visitVariableDeclExpr is because symbols defined in other modules (isExternal)
         //do not have VariableDeclExprs in the AST but they do exist as symbols in the global scope.
-        gc_vector<scope::VariableSymbol *> globals = module->scope()->variables();
-        for (scope::VariableSymbol *symbol : globals) {
+        //TODO:  emit only those GlobalVariables which are actually referenced...
+        gc_vector<front::scope::VariableSymbol *> globals = cc().world().globalScope().variables();
+        for (front::scope::VariableSymbol *symbol : globals) {
             if(symbol->isExternal()) {
-                defineGlobal(symbol);
+                defineGlobal(*symbol);
             }
         }
     }
 };
 
 
-inline void emitGlobals(ast::Module *module, CompileContext &cc) {
+inline void emitGlobals(front::ast::Module *module, CompileContext &cc) {
     GlobalVariableAstVisitor visitor{cc};
-    module->accept(&visitor);
+    module->accept(visitor);
 }
 
 

@@ -6,10 +6,10 @@
 
 namespace anode {
     namespace back {
-        const int ALIGNMENT = 4;
+        const int ALIGNMENT = 8;
 
-        llvm::Value *emitExpr(anode::ast::ExprStmt *exprStmt, CompileContext &);
-        void emitFuncDefs(anode::ast::Module *module, CompileContext &cc);
+        llvm::Value *emitExpr(anode::front::ast::ExprStmt &exprStmt, CompileContext &);
+        void emitFuncDefs(anode::front::ast::Module *module, CompileContext &cc);
 
     }
 }

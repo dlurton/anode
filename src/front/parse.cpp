@@ -7,9 +7,12 @@
 namespace anode { namespace front {
 
     ast::Module *parseModule(std::istream &inputStream, const std::string &name) {
-
-        parser::SourceReader reader{name, inputStream};
         error::ErrorStream errorStream{std::cerr};
+        return parseModule(inputStream, name, errorStream);
+    }
+
+    ast::Module *parseModule(std::istream &inputStream, const std::string &name, error::ErrorStream &errorStream) {
+        parser::SourceReader reader{name, inputStream};
         parser::AnodeLexer lexer{reader, errorStream};
         parser::AnodeParser parser{lexer, errorStream};
         ast::Module *module = parser.parseModule();

@@ -1,0 +1,131 @@
+{
+
+    # template expansion/generic class with simple scalar type arguments.
+
+    template TNode(TItem) {
+
+        #Top level definition picks up "ambient" template parameters.
+        class Node {
+            next:Node<TItem>
+            item:TItem
+        }
+    }
+
+    expand TNode(int)
+    expand TNode(float)
+
+    n1:Node<int> = new Node<int>()
+    n1.next = new Node<int>()
+    n1.item = 10
+    n1.next.item = 11
+    assert(n1.item == 10)
+    assert(n1.next.item == 11)
+
+    n2:Node<float> = new Node<float>()
+    n2.next = new Node<float>()
+    n2.item = 20.0
+    n2.next.item = 21.0
+    assert(n2.item == 20.0)
+    assert(n2.next.item == 21.0)
+
+    # template expansion/generic class with class type argument.
+
+    class Item {
+        value:int
+    }
+
+    expand TNode(Item)
+
+    n3:Node<int> = new Node<int>()
+    n3.next = new Node<int>()
+    n3.item = 20
+    n3.next.item = 21
+    assert(n3.item == 20)
+    assert(n3.next.item == 21)
+
+} {
+
+    #Template expansions with various primitives.
+
+    template TTest(TTypeA, TTypeB, TTypeC) {
+        class Test {
+            a:TTypeA b:TTypeB c:TTypeC
+        }
+    }
+    expand TTest(int, float, bool)
+    expand TTest(float, bool, int)
+    expand TTest(bool, int, float)
+
+    t1:Test<int, float, bool> = new Test<int, float, bool>()
+    t1.a = 789
+    t1.b = 790.0
+    t1.c = true
+    assert(789 == t1.a)
+    assert(790.0 == t1.b)
+    assert(true == t1.c)
+    t1.c = false
+    assert(false == t1.c)
+
+    t2:Test<float, bool, int> = new Test<float, bool, int>()
+    t2.a = 790.0
+    t2.b = true
+    t2.c = 789
+    assert(790.0 == t2.a)
+    assert(true == t2.b)
+    assert(789 == t2.c)
+    t2.b = false
+    assert(false == t2.b)
+
+    t3:Test<bool, int, float> = new Test<bool, int, float>()
+    t3.a = true
+    t3.b = 789
+    t3.c = 789.0
+    assert(true == t3.a)
+    assert(789 == t3.b)
+    assert(789.0 == t3.c)
+    t3.a = false
+    assert(false == t3.a)
+} {
+
+    #template expansion which has a generic type as one of its arguments.
+
+    template TBar(T) {
+        class Bar {
+          a:T
+        }
+    }
+    template TFoo(T) {
+        class Foo {
+            b:T
+        }
+    }
+
+    expand TBar(int)
+    expand TFoo(Bar<int>)
+
+    f:Foo<Bar<int>> = new Foo<Bar<int>>()
+    f.b = new Bar<int>()
+    f.b.a = 1024
+
+    assert(f.b.a == 1024)
+} {
+
+    #add fields and functions to a class via template expansion
+
+    template TCommon() {
+        widgetId:int
+        func setWidgetId:void(id:int) widgetId = id
+        func getWidgetId:int() widgetId
+    }
+
+    class CommonClass {
+        expand TCommon()
+        # access field defined within template
+        func getWidgetIdTimes10:int() widgetId * 10
+    }
+
+    c:CommonClass = new CommonClass()
+    c.setWidgetId(1024)
+    assert(1024 == c.getWidgetId())
+    assert(10240 == c.getWidgetIdTimes10())
+}

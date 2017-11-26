@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <common/exception.h>
+#include <cstring>
 
 namespace anode { namespace runtime {
 
@@ -21,7 +22,9 @@ extern "C" {
     }
 
     uint64_t anode_malloc(unsigned int size) {
-        return (uint64_t)GC_malloc(size);
+        void *mem = GC_MALLOC(size);
+        std::memset(mem, 0, size);
+        return (uint64_t) mem;
     }
 }
 

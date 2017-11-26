@@ -1,11 +1,12 @@
 
+#include "front/unique_id.h"
 
 #include <uuid/uuid.h>
 #include <string>
 #include <front/scope.h>
+#include <atomic>
 
-
-namespace anode { namespace scope {
+namespace anode { namespace front { namespace scope {
 
 std::string createRandomUniqueName() {
     uuid_t uuid;
@@ -25,7 +26,23 @@ std::string createRandomUniqueName() {
     return str;
 }
 
-anode::scope::Symbol *anode::scope::SymbolTable::findSymbol(const std::string &name) const {
+//the cloning constructor
+SymbolBase::SymbolBase(const SymbolBase &other)
+    :   symbolId_{GetNextUniqueId()},  //Clones however must be allocated a different SymbolId.
+        isExternal_{other.isExternal_},
+        storageKind_{other.storageKind_},
+        fullyQualifiedName_{other.fullyQualifiedName_}
+{
+
+}
+
+SymbolBase::SymbolBase()
+    : symbolId_{GetNextUniqueId()}
+{
+
+}
+
+Symbol *SymbolTable::findSymbol(const std::string &name) const {
     auto found = symbols_.find(name);
     if (found == symbols_.end()) {
         return nullptr;
@@ -47,6 +64,16 @@ Symbol *SymbolTable::recursiveFindSymbol(const std::string &name) const {
 }
 
 void SymbolTable::addSymbol(Symbol *symbol) {
+    ASSERT(storageKind_ != StorageKind::NotSet);
+    ASSERT(!symbol->name().empty());
+#ifdef ANODE_DEBUG
+    if(findSymbol(symbol->name())) {
+        throw exception::DebugAssertionFailedException(string::format("Symbol '%s' already exists in this SymbolTable", symbol->name().c_str()));
+    }
+#endif
+
+    ASSERT(!findSymbol(symbol->name()));
+
     if(!symbol->isFullyQualified()) {
         symbol->fullyQualify(this);
     }
@@ -69,9 +96,9 @@ gc_vector<VariableSymbol *> SymbolTable::variables() {
 gc_vector<TypeSymbol *> SymbolTable::types() {
     gc_vector<TypeSymbol*> classes;
     for (auto symbol : orderedSymbols_) {
-        auto variable = dynamic_cast<scope::TypeSymbol*>(symbol);
-        if(variable)
-            classes.push_back(variable);
+        auto type = dynamic_cast<scope::TypeSymbol*>(symbol);
+        if(type)
+            classes.push_back(type);
     }
 
     return classes;
@@ -90,13 +117,7 @@ gc_vector<FunctionSymbol *> SymbolTable::functions() const {
 }
 
 gc_vector<Symbol *> SymbolTable::symbols() const {
-    gc_vector<Symbol*> symbols;
-    symbols.reserve(orderedSymbols_.size());
-    for (auto symbol : orderedSymbols_) {
-        symbols.push_back(symbol);
-    }
-
-    return symbols;
+    return orderedSymbols_;
 }
 
-}}
+}}}

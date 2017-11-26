@@ -5,33 +5,44 @@
 #include "runtime/builtins.h"
 
 #include "AnodeJit.h"
-
-
 namespace anode { namespace execute {
+
+using namespace anode::front;
+
 /** This function is called by the JITd code to deliver the result of an expression entered at the REPL. */
 extern "C" void receiveReplResult(uint64_t ecPtr, type::PrimitiveType primitiveType, void *valuePtr);
 
 
+AnodeJit *Jit;
+
+void InitializeJit() {
+    if(!Jit) {
+        Jit = new AnodeJit();
+        Jit->setEnableOptimization(false);
+        Jit->putExport(back::RECEIVE_RESULT_FUNC_NAME, reinterpret_cast<runtime::symbolptr_t>(receiveReplResult));
+
+        auto builtins = anode::runtime::getBuiltins();
+        for (auto &pair : builtins) {
+            Jit->putExport(pair.first, pair.second);
+        }
+    }
+};
+
+
 /** This class contains contain pointers to garbage collected objects so it *must* inherit from gc or gc_cleanup
- * so that it's memory is scanned for  pointers to live objects, otherwise these may get collected prematurely. */
-class ExecutionContextImpl : public ExecutionContext, public gc_cleanup, no_copy, no_assign {
+ * so that it's memory is scanned for  pointers to live objects, otherwise these may get collected prematurely.
+ * Most likely, there can only ever be one instance of this at a time--but that would depend on if AnodeJit is
+ * thread-safe and that depends mostly on LLVM. */
+class ExecutionContextImpl : public ExecutionContext, no_copy, no_assign {
     llvm::LLVMContext context_;
-    std::unique_ptr<AnodeJit> jit_ = std::make_unique<AnodeJit>();
     bool dumpIROnModuleLoad_ = false;
     bool setPrettyPrintAst_ = false;
-    gc_unordered_map<std::string, scope::Symbol*> exportedSymbols_;
+    ast::AnodeWorld world_;
     ResultCallbackFunctor resultFunctor_ = nullptr;
     back::TypeMap typeMap_;
 public:
     ExecutionContextImpl() : typeMap_{context_} {
-        jit_->setEnableOptimization(false);
-        jit_->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, reinterpret_cast<runtime::symbolptr_t>(this));
-        jit_->putExport(back::RECEIVE_RESULT_FUNC_NAME, reinterpret_cast<runtime::symbolptr_t>(receiveReplResult));
-
-        auto builtins = anode::runtime::getBuiltins();
-        for(auto &pair : builtins) {
-            jit_->putExport(pair.first, pair.second);
-        }
+        Jit->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, reinterpret_cast<runtime::symbolptr_t>(this));
     }
 
     void dispatchResult(type::PrimitiveType primitiveType, void *valuePtr) {
@@ -40,7 +51,7 @@ public:
     }
 
     uint64_t getSymbolAddress(const std::string &name) override {
-        llvm::JITSymbol symbol = jit_->findSymbol(name);
+        llvm::JITSymbol symbol = Jit->findSymbol(name);
 
         if (!symbol)
             return 0;
@@ -61,50 +72,38 @@ public:
         resultFunctor_ = functor;
     }
 
-    void prepareModule(ast::Module *module) override {
-
-        for(auto &symbolToImport : exportedSymbols_) {
-            symbolToImport.second->setIsExternal(true);
-            module->scope()->addSymbol(symbolToImport.second);
-        }
-
+    bool prepareModule(ast::Module *module) override {
         error::ErrorStream errorStream {std::cerr};
-        anode::front::passes::runAllPasses(module, errorStream);
+        anode::front::passes::runAllPasses(world_, *module, errorStream);
 
         if(errorStream.errorCount() > 0) {
-            throw ExecutionException(
-                string::format("There were %d compilation errors.  See stderr for details.", errorStream.errorCount()));
+            return true;
         }
 
         if(setPrettyPrintAst_) {
-            visualize::prettyPrint(module);
+            visualize::prettyPrint(*module);
             std::cout.flush();
         }
 
-        for(auto symbolToExport : module->scope()->symbols()) {
-            auto found = exportedSymbols_.find(symbolToExport->fullyQualifiedName());
-            if(found == exportedSymbols_.end()) {
-                exportedSymbols_.emplace(symbolToExport->name(), symbolToExport);
-            }
-        }
+        return false;
     }
 
 protected:
     virtual uint64_t loadModule(ast::Module *module) override {
         ASSERT(module);
 
-        std::unique_ptr<llvm::Module> llvmModule = back::emitModule(module, typeMap_, context_, jit_->getTargetMachine());
+        std::unique_ptr<llvm::Module> llvmModule = back::emitModule(world_, module, typeMap_, context_, Jit->getTargetMachine());
 
         if(dumpIROnModuleLoad_) {
-            std::cerr << "LLVM IR:\n";
 #ifdef ANODE_DEBUG
+            std::cerr << "LLVM IR:\n";
             llvmModule->dump();
 #endif
         }
 
-        jit_->addModule(move(llvmModule));
+        Jit->addModule(move(llvmModule));
 
-        if(auto moduleInitSymbol = jit_->findSymbol(module->name() + back::MODULE_INIT_SUFFIX))
+        if(auto moduleInitSymbol = Jit->findSymbol(module->name() + back::MODULE_INIT_SUFFIX))
             return llvm::cantFail(moduleInitSymbol.getAddress());
 
         return 0;
@@ -121,6 +120,8 @@ std::unique_ptr<ExecutionContext> createExecutionContext() {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
+
+    InitializeJit();
 
     return std::make_unique<ExecutionContextImpl>();
 }

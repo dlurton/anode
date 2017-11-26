@@ -13,23 +13,30 @@ namespace anode { namespace back {
  * IR generation phase.  A new CompileContext must be created for each module being compiled.
  */
 class CompileContext : no_copy, no_assign {
+    front::ast::AnodeWorld &world_;
     llvm::LLVMContext &llvmContext_;
     llvm::Module &llvmModule_;
     llvm::IRBuilder<> &irBuilder_;
     TypeMap &typeMap_;
-    gc_unordered_map<scope::Symbol *, llvm::Value *> symbolValueMap_;
+    gc_unordered_map<front::UniqueId, llvm::Value *> symbolValueMap_;
     llvm::Function *assertFailFunc_ = nullptr;
     llvm::Function *assertPassFunc_ = nullptr;
     llvm::Function *mallocFunc_ = nullptr;
     std::unordered_map<std::string, llvm::Value*> stringConstants_;
 
-    std::stack<ast::FuncDefStmt*> funcDefStack_;
-
+    std::stack<front::ast::FuncDefStmt*> funcDefStack_;
 public:
 
-    CompileContext(llvm::LLVMContext &llvmContext, llvm::Module &llvmModule, llvm::IRBuilder<> &irBuilder_, TypeMap &typeMap)
-        : llvmContext_(llvmContext), llvmModule_(llvmModule), irBuilder_(irBuilder_), typeMap_{typeMap} {
+    CompileContext(
+        front::ast::AnodeWorld &world,
+        llvm::LLVMContext &llvmContext,
+        llvm::Module &llvmModule,
+        llvm::IRBuilder<> &irBuilder_,
+        TypeMap &typeMap)
+    : world_{world}, llvmContext_(llvmContext), llvmModule_(llvmModule), irBuilder_(irBuilder_), typeMap_{typeMap} {
     }
+
+    front::ast::AnodeWorld &world() { return world_; }
 
     llvm::LLVMContext &llvmContext() { return llvmContext_; }
 
@@ -37,9 +44,15 @@ public:
 
     llvm::IRBuilder<> &irBuilder() { return irBuilder_; }
 
-    void mapSymbolToValue(scope::Symbol *symbol, llvm::Value *value) {
-        ASSERT(value);
-        symbolValueMap_[symbol] = value;
+    void mapSymbolToValue(front::scope::Symbol &symbol, llvm::Value *value) {
+        ASSERT(&value);
+        symbolValueMap_[symbol.symbolId()] = value;
+    }
+
+    llvm::Value *getMappedValue(front::scope::Symbol *symbol) {
+        llvm::Value *found = symbolValueMap_[symbol->symbolId()];
+        ASSERT(found && "Symbol must be mapped to an LLVM value.");
+        return found;
     }
 
     llvm::Function *assertFailFunc() {
@@ -86,32 +99,26 @@ public:
         return mallocFunc_;
     }
 
-    llvm::Value *getMappedValue(scope::Symbol *symbol) {
-        llvm::Value *found = symbolValueMap_[symbol];
-        ASSERT(found && "Symbol must be mapped to an LLVM value.");
-        return found;
-    }
-
     TypeMap &typeMap() { return typeMap_; }
 
-    llvm::Constant *getDefaultValueForType(type::Type *type) {
-        if(type->isClass()) {
+    llvm::Constant *getDefaultValueForType(front::type::Type &type) {
+        if(type.isClass()) {
             return llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(typeMap_.toLlvmType(type)));
         }
-        return getDefaultValueForType(type->primitiveType());
+        return getDefaultValueForType(type.primitiveType());
     }
 
-    llvm::Constant *getDefaultValueForType(type::PrimitiveType primitiveType) {
-        ASSERT(primitiveType != type::PrimitiveType::Void);
+    llvm::Constant *getDefaultValueForType(front::type::PrimitiveType primitiveType) {
+        ASSERT(primitiveType != front::type::PrimitiveType::Void);
         switch (primitiveType) {
-            case type::PrimitiveType::Bool:
+            case front::type::PrimitiveType::Bool:
                 return llvm::ConstantInt::get(llvmContext_, llvm::APInt(1, 0, false));
-            case type::PrimitiveType::Int32:
+            case front::type::PrimitiveType::Int32:
                 return llvm::ConstantInt::get(llvmContext_, llvm::APInt(32, 0, true));
-            case type::PrimitiveType::Float:
+            case front::type::PrimitiveType::Float:
                 //APFloat has different constructors depending on if you want a float or a double...
                 return llvm::ConstantFP::get(llvmContext_, llvm::APFloat((float) 0.0));
-            case type::PrimitiveType::Double:
+            case front::type::PrimitiveType::Double:
                 return llvm::ConstantFP::get(llvmContext_, llvm::APFloat(0.0));
             default:
                 ASSERT_FAIL("Unhandled PrimitiveType");
@@ -126,12 +133,12 @@ public:
         return found;
     }
 
-    ast::FuncDefStmt* currentFuncDefStmt() {
+    front::ast::FuncDefStmt* currentFuncDefStmt() {
         ASSERT(!funcDefStack_.empty())
         return funcDefStack_.top();
     }
 
-    void pushFuncDefStmt(ast::FuncDefStmt *funcDefStmt) {
+    void pushFuncDefStmt(front::ast::FuncDefStmt *funcDefStmt) {
         funcDefStack_.push(funcDefStmt);
     }
 

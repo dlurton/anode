@@ -4,6 +4,8 @@
 set(FRONT_SRC_FILES
         ${ANODE_INCLUDE_DIR}/common
         ${ANODE_INCLUDE_DIR}/front
+        ${ANODE_INCLUDE_DIR}/front/type.h
+        ${ANODE_INCLUDE_DIR}/front/ErrorStream.h
         ast.cpp
         visualize.cpp
         type.cpp
@@ -17,7 +19,7 @@ set(FRONT_SRC_FILES
         parser/char.h
         parser/AnodeParser.cpp
         SourceReader.h
-        parse.cpp scope.cpp)
+        parse.cpp scope.cpp unique_id.cpp ../include/anode/front/unique_id.h ../include/anode/common/enum.h)
 
 find_library(LIB_UUID uuid)
 

@@ -1,4 +1,5 @@
 
+#include <front/parse.h>
 #include "AnodeLexer.h"
 
 namespace anode { namespace front { namespace parser {
@@ -18,7 +19,7 @@ void InitStaticTokenLookup() {
         return;
     }
 
-    //For tokens that start with the same character, the longer one must be registered first!
+    //For tokens that start with the same character(s), the longer one must be registered first!
     registerStaticToken("++", TokenKind::OP_INC);
     registerStaticToken("--", TokenKind::OP_DEC);
     registerStaticToken("==", TokenKind::OP_EQ);
@@ -38,6 +39,9 @@ void InitStaticTokenLookup() {
     registerStaticToken("new", TokenKind::KW_NEW);
     registerStaticToken("class", TokenKind::KW_CLASS);
     registerStaticToken("assert", TokenKind::KW_ASSERT);
+    registerStaticToken("alias", TokenKind::KW_ALIAS);
+    registerStaticToken("expand", TokenKind::KW_EXPAND);
+    registerStaticToken("template", TokenKind::KW_TEMPLATE);
     registerStaticToken(";", TokenKind::END_OF_STATEMENT);
     registerStaticToken("!", TokenKind::OP_NOT);
     registerStaticToken("+", TokenKind::OP_ADD);
@@ -121,7 +125,6 @@ Token *AnodeLexer::extractToken() {
         }
     }
 
-
     //Extract an identifier
     if(isLetter(c) || c == '_') {
         return extractIdentifier();
@@ -144,12 +147,18 @@ Token *AnodeLexer::extractToken() {
 }
 
 bool AnodeLexer::discardMultilineComment() {
+
+    SourceLocation startLocation = reader_.getCurrentSourceLocation();
     if(!reader_.match("(#")) return false;
 
     int nestDepth = 1;
     while(nestDepth > 0) {
         if(reader_.eof()) {
-            errorUnexpectedEofInMultilineComment();
+            errorStream_.error(
+                error::ErrorKind::UnexpectedEofInMultilineComment,
+                SourceSpan(reader_.inputName(), startLocation, reader_.getCurrentSourceLocation()),
+                "Unexpected end-of-input within multi-line comment");
+            throw ParseAbortedException();
         }
 
         if(reader_.match("(#")) {

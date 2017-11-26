@@ -2,8 +2,8 @@
 #include "front/parse.h"
 #include "front/ast_passes.h"
 #include "front/visualize.h"
-#include "front/error.h"
-#include "common/string_format.h"
+#include "front/ErrorStream.h"
+#include "common/string.h"
 #include "common/stacktrace.h"
 #include "execute/execute.h"
 #include "runtime/builtins.h"
@@ -32,7 +32,10 @@
 //    }
 //}
 
+using namespace anode::front;
+
 namespace CmdLine {
+
 
 enum class Action : unsigned char {
     JustExit,
@@ -199,12 +202,9 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
     ASSERT(executionContext);
     ASSERT(anodeModule);
 
-    try {
-        executionContext->prepareModule(anodeModule);
-    } catch (execute::ExecutionException &e) {
+    if(executionContext->prepareModule(anodeModule)) {
         return true; //Don't try to compile a module that doesn't even pass semantics checks.
     }
-
 
     executionContext->executeModule(anodeModule);
     return false;
@@ -213,7 +213,7 @@ bool runModule(std::shared_ptr<execute::ExecutionContext> executionContext, ast:
 void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, std::string lineOfCode, std::string moduleName,
                  bool shouldExecute) {
 
-    anode::ast::Module *module;
+    ast::Module *module;
     try {
         module = anode::front::parseModule(lineOfCode, moduleName);
     } catch (anode::front::ParseAbortedException &e) {
@@ -270,14 +270,13 @@ bool dumpAst(const std::string &startScriptFilename) {
     }
 
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
-    try {
-        executionContext->prepareModule(module);
-    } catch (std::runtime_error &e) {
-        std::cerr << e.what() << "\n";
+
+    if(executionContext->prepareModule(module)) {
+        std::cerr << "Semantic module preparation failed.\n";
         return true;
     }
 
-    anode::visualize::prettyPrint(module);
+    anode::front::visualize::prettyPrint(*module);
     return false;
 }
 } // namespace anode
@@ -288,7 +287,7 @@ public:
     ~SomeGarbage() {
         destructionCount++;
     }
-    int randomWahteverIdoncare;
+    int randomWahteverIdoncare = 0;
 
     void foo() { randomWahteverIdoncare++; }
 };
@@ -300,7 +299,6 @@ void generateSomeGarbage() {
         garbage->foo();
     }
 }
-
 
 void sigsegv_handler(int) {
     std::cerr << "SIGSEGV!\n";
@@ -318,13 +316,13 @@ void initializeGC() {
     GC_INIT();
 
     generateSomeGarbage();
-    while (GC_collect_a_little());
+    GC_gcollect();
 
     //I'm just gonna leave this here for a while until we're confident that libgc is in fact working reliably.
     std::cout << "destructionCount: " << destructionCount << std::endl;
     if (destructionCount == 0) {
         std::cout << "**************************************************************************\n";
-        std::cout << "WARNING: the libgc appears doesn't appear to be collecting anything.\n";
+        std::cout << "WARNING: libgc doesn't appear to be collecting anything.\n";
         std::cout << "**************************************************************************\n";
     }
 }

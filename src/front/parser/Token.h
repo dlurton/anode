@@ -52,7 +52,9 @@ enum class TokenKind : unsigned short {
     KW_CLASS,
     KW_ASSERT,
     KW_NEW,
-
+    KW_ALIAS,
+    KW_TEMPLATE,
+    KW_EXPAND,
     MAX_TOKEN_TYPES
 };
 

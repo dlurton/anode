@@ -1,7 +1,19 @@
 # Anode Programming Language
 
-[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)](https://travis-ci.org/dlurton/anode)
+[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=templates)](https://travis-ci.org/dlurton/anode)
 
+TODO: in this branch:
+
+ - What happens when the same template is expanded twice
+    - in the same scope
+    - in different scopes
+    - in different modules error message and not the parameter's name.  Need to handle if a TypeRef is resolved or not when displaying
+ completed generic types.
+ - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
+ - Search for other TODOs within comments and see if they can be done or removed.
+ - Other things I'm sure I can't think of at the moment.
+ - Before merging back to master, change the build status badge link URL (above) back to the master branch.
+    
 Anode is yet another embryonic programming language using LLVM as a back-end.
 
 There's a basic REPL you can use.  Statements entered there will be parsed and then:
@@ -12,8 +24,10 @@ There's a basic REPL you can use.  Statements entered there will be parsed and t
  
 It's also possible to execute scripts directly, i.e.
 
-    ./bin/anode path/to/source_file.an
+    ./bin/<build type>/anode path/to/source_file.an
     
+Where `<build type>` is either `Release` or `Debug`.
+
 A `.an` file may also include a shebang line, i.e.
 
     #!/path/to/anode/executable 
@@ -119,8 +133,40 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     - Functions may be invoked:  `anInt:int = someFunction()`    
     - Primitive types may be used as function arguments:
         - `func someFunc:void(arg1:int, arg2:float, arg3:bool) someExpression`
-        
-#### Really Really Rough Feature Backlog
+ - Templates!  The tempplates feature is preliminary in form, but working!  It is a means to implement generic types:
+``` 
+    template LinkedList(TItem) {
+        class Node {
+            item:TItem
+            next:Node<TItem>
+        }
+    }
+    # Node<int> is not a valid type until the LinkedList<> template has been expanded
+    # The line below explicity expands the LinkedList template, specifying TItem to be of type int.    
+    expand LinkedList(int) 
+    # (eventually, explicit template instantiation will not be required for types like this...)
+    
+    n1:Node<int> = new Node<int>()
+    n1.next = new Node<int>()
+    n1.item = 10
+    n1.next.item = 11
+```
+ - Templates can also be used as a means of reducing code duplication without having to resort to inheritance.  The
+ snippet below gives `WidgetDocumentItem` the `documentItemId` field and `assignDocumentItemId()` method.
+```
+    template CommonDocumentItemMembers() {
+        documentItemId:int
+        func assignDocumentItemId() {
+            ...generate unique documentItemId...
+        }
+    }
+    class WidgetDocumentItem {
+        expand CommonDocumentItemMembers()
+    }
+``` 
+    
+ 
+#### Really Remally Rough Feature Backlog
 
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 

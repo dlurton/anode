@@ -1,0 +1,6 @@
+#############################################################################
+# The scope of symbol resolution inside the template expansion's arguments
+# should *not* should be the global scope.
+template TFoo(T){ }
+expand TFoo(T)
+?TypeNotDefined, 5, 13

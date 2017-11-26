@@ -82,6 +82,8 @@ protected:
                 error::ErrorKind::UnexpectedToken,
                 token->span(),
                 "Expected " + humanReadableExpectedText);
+
+            throw ParseAbortedException();
         }
         return token;
     }
@@ -93,6 +95,8 @@ protected:
                 error::ErrorKind::UnexpectedToken,
                 token->span(),
                 "Expected " + humanReadableExpectedText);
+
+            throw ParseAbortedException();
         }
         return token;
     }
@@ -127,7 +131,6 @@ protected:
                 t->span(),
                 message,
                 t->text().c_str());
-
             throw ParseAbortedException();
         }
 
@@ -147,8 +150,6 @@ protected:
                     t->span(),
                     message,
                     t->text().c_str());
-
-                throw ParseAbortedException();
             }
 
             left = foundInfixParselet(left, t);

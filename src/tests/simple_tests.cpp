@@ -1,4 +1,4 @@
-#include "front/error.h"
+#include "front/ErrorStream.h"
 #include "execute/execute.h"
 #include "back/compile.h"
 #include "test_util.h"
@@ -10,7 +10,9 @@
 #include <common/stacktrace.h>
 
 using namespace anode;
+using namespace anode::front;
 using namespace anode::test_util;
+
 
 void sigsegv_handler(int) {
     std::cerr << "SIGSEGV!\n";
@@ -651,9 +653,14 @@ TEST_CASE("class") {
             a:int
             b:float
             c:bool
+            d:int
         }
     )");
     exec(ec, "someWidget:Widget = new Widget()");
+    REQUIRE(!test<bool>(ec, "someWidget.c"));
+    REQUIRE(test<bool>(ec, "someWidget.c = true"));
+    REQUIRE(test<bool>(ec, "someWidget.c"));
+
     REQUIRE(test<int>(ec, "someWidget.a") == 0);
     REQUIRE(test<int>(ec, "someWidget.a = 234") == 234);
     REQUIRE(test<int>(ec, "someWidget.a") == 234);
@@ -662,11 +669,6 @@ TEST_CASE("class") {
     REQUIRE(test<float>(ec, "someWidget.b = 234.0") == 234.0);
     REQUIRE(test<float>(ec, "someWidget.b") == 234.0);
 
-    REQUIRE(!test<bool>(ec, "someWidget.c"));
-    REQUIRE(test<bool>(ec, "someWidget.c = true"));
-    REQUIRE(test<bool>(ec, "someWidget.c"));
-
-    //Assertion, for the moment, has to be done by examining the LLVM-IR.
 }
 
 TEST_CASE("class with references to another class") {
@@ -680,26 +682,81 @@ TEST_CASE("class with references to another class") {
     REQUIRE(test<int>(ec, "instance.a1.a") == 234);
 
     REQUIRE(test<float>(ec, "instance.a1.b") == 0.0);
-    REQUIRE(test<float>(ec, "instance.a1.b = 234.0") == 234.0);
-    REQUIRE(test<float>(ec, "instance.a1.b") == 234.0);
+    REQUIRE(test<float>(ec, "instance.a1.b = 345.0") == 345.0);
+    REQUIRE(test<float>(ec, "instance.a1.b") == 345.0);
 
     REQUIRE(!test<bool>(ec, "instance.a1.c"));
     REQUIRE(test<bool>(ec, "instance.a1.c = true"));
     REQUIRE(test<bool>(ec, "instance.a1.c"));
 
     REQUIRE(test<int>(ec, "instance.a2.a") == 0);
-    REQUIRE(test<int>(ec, "instance.a2.a = 345") == 345);
-    REQUIRE(test<int>(ec, "instance.a2.a") == 345);
+    REQUIRE(test<int>(ec, "instance.a2.a = 456") == 456);
+    REQUIRE(test<int>(ec, "instance.a2.a") == 456);
 
     REQUIRE(test<float>(ec, "instance.a2.b") == 0.0);
-    REQUIRE(test<float>(ec, "instance.a2.b = 345.0") == 345.0);
-    REQUIRE(test<float>(ec, "instance.a2.b") == 345.0);
+    REQUIRE(test<float>(ec, "instance.a2.b = 567.0") == 567.0);
+    REQUIRE(test<float>(ec, "instance.a2.b") == 567.0);
 
     REQUIRE(!test<bool>(ec, "instance.a2.c"));
     REQUIRE(test<bool>(ec, "instance.a2.c = true"));
     REQUIRE(test<bool>(ec, "instance.a2.c"));
+}
 
-    //Assertion, for the moment, has to be done by examining the LLVM-IR.
+TEST_CASE("class with reference to itself") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            class AnotherClass {
+                next:AnotherClass
+                value:int
+            }
+            foo:AnotherClass = new AnotherClass()
+            foo.value = 1
+            foo.next = new AnotherClass()
+            foo.next.value = 2
+        )";
+    exec(ec, src);
+    REQUIRE(test<int>(ec, "foo.value") == 1);
+    REQUIRE(test<int>(ec, "foo.next.value") == 2);
+}
+
+TEST_CASE("big class ") {
+    std::shared_ptr<execute::ExecutionContext> ec = execute::createExecutionContext();
+    auto src = R"(
+            class AnotherClass {
+                value0:int
+                value1:int
+                value2:int
+                value3:int
+                value4:int
+                value5:int
+                value6:int
+                value7:int
+                value8:int
+                value9:int
+            }
+            foo:AnotherClass = new AnotherClass()
+            foo.value0 = 0
+            foo.value1 = 1
+            foo.value2 = 2
+            foo.value3 = 3
+            foo.value4 = 4
+            foo.value5 = 5
+            foo.value6 = 6
+            foo.value7 = 7
+            foo.value8 = 8
+            foo.value9 = 9
+        )";
+    exec(ec, src);
+    REQUIRE(test<int>(ec, "foo.value0") == 0);
+    REQUIRE(test<int>(ec, "foo.value1") == 1);
+    REQUIRE(test<int>(ec, "foo.value2") == 2);
+    REQUIRE(test<int>(ec, "foo.value3") == 3);
+    REQUIRE(test<int>(ec, "foo.value4") == 4);
+    REQUIRE(test<int>(ec, "foo.value5") == 5);
+    REQUIRE(test<int>(ec, "foo.value6") == 6);
+    REQUIRE(test<int>(ec, "foo.value7") == 7);
+    REQUIRE(test<int>(ec, "foo.value8") == 8);
+    REQUIRE(test<int>(ec, "foo.value9") == 9);
 }
 
 TEST_CASE("basic function definition and invocation") {

@@ -4,12 +4,9 @@
 #include "emit.h"
 #include "CompileContext.h"
 #include "CompileAstVisitor.h"
-#include "CreateStructsAstVisitor.h"
 #include "llvm.h"
 #include "GlobalVariableAstVisitor.h"
 
-
-using namespace anode::ast;
 
 /**
  * The best way I have found to figure out what instructions to use with LLVM is to
@@ -18,11 +15,8 @@ using namespace anode::ast;
  */
 
 namespace anode { namespace back {
-
-void createLlvmStructsForClasses(ast::Module *anodeModule, CompileContext &cc) {
-    CreateStructsAstVisitor visitor{cc};
-    anodeModule->accept(&visitor);
-}
+using namespace anode::front;
+using namespace anode::front::ast;
 
 class ModuleEmitter : public gc {
     CompileContext &cc_;
@@ -32,17 +26,16 @@ class ModuleEmitter : public gc {
     int resultExprStmtCount_ = 0;
     llvm::Function *resultFunc_ = nullptr;
     llvm::Value *executionContextPtrValue_ = nullptr;
-    scope::SymbolTable *globalScope_ = nullptr;
 
 public:
     ModuleEmitter(CompileContext &cc, llvm::TargetMachine &targetMachine)
         : cc_{cc}, targetMachine_{targetMachine} {}
 
 
-    void emitModuleLevelExprStmt(ExprStmt *expr)  {
+    void emitModuleLevelExprStmt(ExprStmt &expr)  {
         llvm::Value *llvmValue = emitExpr(expr, cc_);
 
-        if (!expr->type()->isPrimitive()) {
+        if (!expr.type().isPrimitive()) {
             //eventually, we'll call toString() or somesuch.
             return;
         }
@@ -61,7 +54,7 @@ public:
                 //ExecutionContext pointer
                 executionContextPtrValue_,
                 //PrimitiveType,
-                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr->type()->primitiveType(), true)),
+                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr.type().primitiveType(), true)),
                 //Pointer to value.
                 bitcasted
             };
@@ -71,24 +64,16 @@ public:
 
 public:
     void emitModule(Module *module)  {
-        globalScope_ = module->scope();
 
         cc_.llvmModule().setDataLayout(targetMachine_.createDataLayout());
 
         declareResultFunction();
-
         startModuleInitFunc(module);
-
         declareExecutionContextGlobal();
-
-        createLlvmStructsForClasses(module, cc_);
-
         emitGlobals(module, cc_);
-
         emitFuncDefs(module, cc_);
 
-
-        for(auto exprStmt : module->body()->expressions()) {
+        for(auto exprStmt : module->body().expressions()) {
             emitModuleLevelExprStmt(exprStmt);
         }
 
@@ -103,6 +88,11 @@ public:
             ASSERT_FAIL("Failed LLVM module verification.");
         }
 
+        //Copy global variables to the global scope so they can be shared among modules..
+        for(auto symbolToExport : module->scope().symbols()) {
+            //TODO:  naming collisions here?
+            cc_.world().globalScope().addSymbol(symbolToExport->cloneForExport());
+        }
     }
 
 private:
@@ -148,7 +138,8 @@ private:
 };
 
 std::unique_ptr<llvm::Module> emitModule(
-    anode::ast::Module *module,
+    anode::front::ast::AnodeWorld &world,
+    anode::front::ast::Module *module,
     anode::back::TypeMap &typeMap,
     llvm::LLVMContext &llvmContext,
     llvm::TargetMachine *targetMachine
@@ -157,7 +148,7 @@ std::unique_ptr<llvm::Module> emitModule(
     std::unique_ptr<llvm::Module> llvmModule = std::make_unique<llvm::Module>(module->name(), llvmContext);
     llvm::IRBuilder<> irBuilder{llvmContext};
 
-    CompileContext cc{llvmContext, *llvmModule.get(), irBuilder, typeMap};
+    CompileContext cc{world, llvmContext, *llvmModule.get(), irBuilder, typeMap};
     ModuleEmitter visitor{cc, *targetMachine};
     visitor.emitModule(module);
 

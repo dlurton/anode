@@ -101,10 +101,10 @@ ast::ExprStmt *AnodeParser::parseBinaryExpr(ast::ExprStmt *lValue, Token *operat
 
     return new ast::BinaryExpr(
         getSourceSpan(lValue->sourceSpan(), rValue->sourceSpan()),
-        lValue,
+        *lValue,
         opKind,
         operatorToken->span(),
-        rValue
+        *rValue
     );
 }
 
