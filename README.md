@@ -1,19 +1,7 @@
 # Anode Programming Language
 
-[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=templates)](https://travis-ci.org/dlurton/anode)
+[![Build Status](https://travis-ci.org/dlurton/anode.svg?branch=master)](https://travis-ci.org/dlurton/anode)
 
-TODO: in this branch:
-
- - What happens when the same template is expanded twice
-    - in the same scope
-    - in different scopes
-    - in different modules error message and not the parameter's name.  Need to handle if a TypeRef is resolved or not when displaying
- completed generic types.
- - Review if we can populate `GenericType` with expanded `ClassType` instances without the use of a separate pass.
- - Search for other TODOs within comments and see if they can be done or removed.
- - Other things I'm sure I can't think of at the moment.
- - Before merging back to master, change the build status badge link URL (above) back to the master branch.
-    
 Anode is yet another embryonic programming language using LLVM as a back-end.
 
 There's a basic REPL you can use.  Statements entered there will be parsed and then:
