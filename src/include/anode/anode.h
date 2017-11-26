@@ -96,6 +96,11 @@ bool isInstanceOf(Object *node) {
 }
 
 template<typename TObject>
+bool isInstanceOf(Object &node) {
+    return dynamic_cast<TObject*>(&node);
+}
+
+template<typename TObject>
 TObject *upcast(Object *node) {
     TObject *upcasted = dynamic_cast<TObject*>(node);
     if(!upcasted){

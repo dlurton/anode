@@ -31,20 +31,20 @@ public:
         if (symbols.empty()) {
             writer_.write(')');
         } else if (symbols.size() == 1) {
-            writer_.write(symbols.front()->toString());
+            writer_.write(symbols.front().get().toString());
             writer_.write(')');
         } else {
             std::sort(symbols.begin(), symbols.end(),
-               [](scope::Symbol *a, scope::Symbol *b) {
-                   return a->name() < b->name();
+               [](scope::Symbol &a, scope::Symbol &b) {
+                   return a.name() < b.name();
                });
 
             for (auto itr = symbols.begin(); itr != symbols.end() - 1; ++itr) {
-                writer_.write((*itr)->toString());
+                writer_.write((*itr).get().toString());
                 writer_.write(", ");
             }
 
-            writer_.write(symbols.back()->toString());
+            writer_.write(symbols.back().get().toString());
             writer_.write(')');
         }
     }

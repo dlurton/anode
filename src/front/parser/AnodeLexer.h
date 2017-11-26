@@ -52,16 +52,16 @@ class AnodeLexer : no_new, no_copy, no_assign {
 
     SourceReader &reader_;
     error::ErrorStream &errorStream_;
-    gc_deque<Token*> lookahead_;
+    gc_ref_deque<Token> lookahead_;
     SourceLocation startLocation_;
 public:
     AnodeLexer(SourceReader &reader, error::ErrorStream &errorStream) : reader_(reader), errorStream_{errorStream} {
         InitStaticTokenLookup();
     }
 
-    Token *nextToken() {
+    Token &nextToken() {
         if(!lookahead_.empty()) {
-            Token *next = lookahead_.front();
+            Token &next = lookahead_.front();
             lookahead_.pop_front();
             return next;
         } else {
@@ -69,13 +69,13 @@ public:
         }
     }
 
-    Token *peekToken() {
+    Token &peekToken() {
         primeLookahead(1);
         return lookahead_.front();
     }
 
     bool eof() {
-        return peekToken()->kind() == TokenKind::END_OF_INPUT;
+        return peekToken().kind() == TokenKind::END_OF_INPUT;
     }
 
     std::string inputName() {
@@ -123,27 +123,27 @@ private:
         return SourceSpan(reader_.inputName(), startLocation_, reader_.getCurrentSourceLocation());
     }
 
-    Token *newToken(TokenKind kind, const string_t &text) {
-        return new Token(getSourceSpanForCurrentToken(), kind, text);
+    Token &newToken(TokenKind kind, const string_t &text) {
+        return *new Token(getSourceSpanForCurrentToken(), kind, text);
     }
 
-    Token *newToken(TokenKind kind, const char *text) {
-        return new Token(getSourceSpanForCurrentToken(), kind, string_t(text));
+    Token &newToken(TokenKind kind, const char *text) {
+        return *new Token(getSourceSpanForCurrentToken(), kind, string_t(text));
     }
 
-    Token *newToken(TokenKind kind, char_t c) {
+    Token &newToken(TokenKind kind, char_t c) {
         string_t str;
         str += c;
-        return new Token(getSourceSpanForCurrentToken(), kind, str);
+        return *new Token(getSourceSpanForCurrentToken(), kind, str);
     }
 
-    Token *newUnexpectedToken(char_t c) {
+    Token &newUnexpectedToken(char_t c) {
         return newToken(TokenKind::UNEXPECTED, to_string(c));
     }
 
-    Token *extractToken();
-    Token *extractIdentifier();
-    Token *extractLiteralNumber();
+    Token &extractToken();
+    Token &extractIdentifier();
+    Token &extractLiteralNumber();
 };
 
 }}}

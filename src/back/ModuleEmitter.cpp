@@ -73,7 +73,7 @@ public:
         emitGlobals(module, cc_);
         emitFuncDefs(module, cc_);
 
-        for(auto exprStmt : module->body().expressions()) {
+        for(ExprStmt &exprStmt : module->body().expressions()) {
             emitModuleLevelExprStmt(exprStmt);
         }
 
@@ -89,9 +89,9 @@ public:
         }
 
         //Copy global variables to the global scope so they can be shared among modules..
-        for(auto symbolToExport : module->scope().symbols()) {
+        for(scope::Symbol &symbolToExport : module->scope().symbols()) {
             //TODO:  naming collisions here?
-            cc_.world().globalScope().addSymbol(symbolToExport->cloneForExport());
+            cc_.world().globalScope().addSymbol(symbolToExport.cloneForExport());
         }
     }
 

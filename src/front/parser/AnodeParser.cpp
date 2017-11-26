@@ -64,13 +64,13 @@ int AnodeParser::getOperatorPrecedence(TokenKind kind) {
     }
 }
 
-ast::ExprStmt *AnodeParser::parseBinaryExpr(ast::ExprStmt *lValue, Token *operatorToken) {
+ast::ExprStmt &AnodeParser::parseBinaryExpr(ast::ExprStmt &lValue, Token &operatorToken) {
     ast::BinaryOperationKind opKind;
 
-    switch(operatorToken->kind()) {
+    switch(operatorToken.kind()) {
         case TokenKind::OP_ASSIGN: {
             opKind = ast::BinaryOperationKind::Assign;
-            ast::VariableRefExpr *varRef = dynamic_cast<ast::VariableRefExpr*>(lValue);
+            ast::VariableRefExpr *varRef = dynamic_cast<ast::VariableRefExpr*>(&lValue);
             if(varRef != nullptr) {
                 varRef->setVariableAccess(ast::VariableAccess::Write);
             }
@@ -93,18 +93,18 @@ ast::ExprStmt *AnodeParser::parseBinaryExpr(ast::ExprStmt *lValue, Token *operat
             ASSERT_FAIL("Unhandled Token Type (Operators)");
     }
 
-    int precedence = getOperatorPrecedence(operatorToken->kind());
-    if(getOperatorAssociativity(operatorToken->kind()) == Associativity::Right)
+    int precedence = getOperatorPrecedence(operatorToken.kind());
+    if(getOperatorAssociativity(operatorToken.kind()) == Associativity::Right)
         precedence -= 1;
 
-    ast::ExprStmt *rValue = parseExpr(precedence);
+    ast::ExprStmt &rValue = parseExpr(precedence);
 
-    return new ast::BinaryExpr(
-        getSourceSpan(lValue->sourceSpan(), rValue->sourceSpan()),
-        *lValue,
+    return *new ast::BinaryExpr(
+        getSourceSpan(lValue.sourceSpan(), rValue.sourceSpan()),
+        lValue,
         opKind,
-        operatorToken->span(),
-        *rValue
+        operatorToken.span(),
+        rValue
     );
 }
 

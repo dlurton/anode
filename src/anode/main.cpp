@@ -215,7 +215,7 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
 
     ast::Module *module;
     try {
-        module = anode::front::parseModule(lineOfCode, moduleName);
+        module = &anode::front::parseModule(lineOfCode, moduleName);
     } catch (anode::front::ParseAbortedException &e) {
         std::cerr << "Parse aborted!\n";
         std::cerr << e.what();
@@ -234,7 +234,7 @@ void executeLine(std::shared_ptr<execute::ExecutionContext> executionContext, st
 
 ast::Module *parseModule(const std::string &startScriptFilename) {
     try {
-        return anode::front::parseModule(startScriptFilename);
+        return &anode::front::parseModule(startScriptFilename);
     }
     catch (anode::front::ParseAbortedException &e) {
         std::cerr << "Parse aborted!\n";

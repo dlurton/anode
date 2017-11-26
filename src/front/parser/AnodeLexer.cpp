@@ -61,7 +61,7 @@ void InitStaticTokenLookup() {
     registerStaticToken(",", TokenKind::COMMA);
 }
 
-Token *AnodeLexer::extractLiteralNumber() {
+Token &AnodeLexer::extractLiteralNumber() {
     string_t number;
     number += reader_.next();
     int c = reader_.peek();
@@ -95,7 +95,7 @@ Token *AnodeLexer::extractLiteralNumber() {
     }
 }
 
-Token *AnodeLexer::extractIdentifier() {
+Token &AnodeLexer::extractIdentifier() {
     std::string id;
     id += reader_.next();
     char_t c = reader_.peek();
@@ -106,7 +106,7 @@ Token *AnodeLexer::extractIdentifier() {
     return newToken(TokenKind::ID, id);
 }
 
-Token *AnodeLexer::extractToken() {
+Token &AnodeLexer::extractToken() {
     discardWhite();
     markTokenStart();
 

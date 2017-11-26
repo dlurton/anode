@@ -103,11 +103,11 @@ int main(int argc, char **argv) {
             std::stringstream errorOutput;
             error::ErrorStream errorStream{errorOutput};
             try {
-                auto module = parseModule(stream, string::format("<test case ending at %s:%d>", filename.c_str(), startingLine), errorStream);
+                auto &&module = parseModule(stream, string::format("<test case ending at %s:%d>", filename.c_str(), startingLine), errorStream);
                 if (errorStream.errorCount() == 0) {
                     ast::AnodeWorld world;
                     try {
-                        front::passes::runAllPasses(world, *module, errorStream);
+                        front::passes::runAllPasses(world, module, errorStream);
                     } catch(anode::exception::DebugAssertionFailedException &de) {
                         std::string msg = std::string("Debug assertion failed:\n\t") + de.what();
                         fail(filename, lineNum, formatErrorDetails(msg, source, errorOutput.str()));

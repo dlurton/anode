@@ -37,8 +37,8 @@ const std::string ScopeSeparator = "::";
 class SymbolTable : public gc, no_copy, no_assign {
 
     SymbolTable *parent_ = nullptr;
-    gc_unordered_map<std::string, scope::Symbol *> symbols_;
-    gc_vector<scope::Symbol *> orderedSymbols_;
+    gc_ref_unordered_map<std::string, scope::Symbol> symbols_;
+    gc_ref_vector<scope::Symbol> orderedSymbols_;
     StorageKind storageKind_;
     std::string name_;
 
@@ -94,15 +94,15 @@ public:
     /** Finds the named symbol in the current scope or any parent. */
     Symbol *recursiveFindSymbol(const std::string &name) const;
 
-    void addSymbol(Symbol *symbol);
+    void addSymbol(Symbol &symbol);
 
-    gc_vector<VariableSymbol *> variables();
+    gc_ref_vector<VariableSymbol> variables();
 
-    gc_vector<TypeSymbol *> types();
+    gc_ref_vector<TypeSymbol> types();
 
-    gc_vector<FunctionSymbol *> functions() const;
+    gc_ref_vector<FunctionSymbol> functions() const;
 
-    gc_vector<Symbol *> symbols() const;
+    gc_ref_vector<Symbol> symbols() const;
 };
 
 class Symbol : public Object, no_copy, no_assign {
@@ -112,12 +112,12 @@ public:
     virtual void fullyQualify(SymbolTable *symbolTable) = 0;
     virtual std::string name() const = 0;
     virtual std::string toString() const = 0;
-    virtual type::Type *type() const = 0;
+    virtual type::Type &type() const = 0;
     virtual std::string fullyQualifiedName() = 0;
     virtual StorageKind storageKind() const = 0;
     virtual void setStorageKind(StorageKind storageKind) = 0;
     virtual bool isExternal() const = 0;
-    virtual Symbol *cloneForExport() = 0;
+    virtual Symbol &cloneForExport() = 0;
 };
 
 class SymbolBase : public Symbol {
@@ -166,17 +166,16 @@ public:
 };
 
 class VariableSymbol : public SymbolBase {
-    type::Type *type_;
+    type::Type &type_;
     std::string name_;
 
     /** "Cloning" constructor. */
     explicit VariableSymbol(const VariableSymbol &other) : SymbolBase(other), type_{other.type_}, name_{other.name_} {}
 
 public:
-    VariableSymbol(const std::string &name, type::Type *type) : SymbolBase(), type_{type}, name_{name} {}
+    VariableSymbol(const std::string &name, type::Type &type) : SymbolBase(), type_{type}, name_{name} {}
 
-    virtual type::Type *type() const override {
-        ASSERT(type_ && "Type must be resolved first");
+    virtual type::Type &type() const override {
         return type_;
     }
 
@@ -185,12 +184,12 @@ public:
     }
 
     virtual std::string toString() const override {
-        return name_ + ":" + (type() ? type()->nameForDisplay() : "<unresolved type>");
+        return name_ + ":" + type().nameForDisplay();
     }
 
-    Symbol *cloneForExport() override {
+    Symbol &cloneForExport() override {
         ASSERT(storageKind() == StorageKind::Global);
-        return (new VariableSymbol(*this))->markExternal();
+        return *(new VariableSymbol(*this))->markExternal();
     }
 };
 
@@ -203,7 +202,7 @@ class FunctionSymbol : public SymbolBase {
         : SymbolBase(other),
           name_{other.name_},
           functionType_{other.functionType_},
-          thisSymbol_{other.thisSymbol_ ? static_cast<VariableSymbol *>(other.thisSymbol_->cloneForExport()) : nullptr} {}
+          thisSymbol_{other.thisSymbol_ ? static_cast<VariableSymbol *>(&other.thisSymbol_->cloneForExport()) : nullptr} {}
 
 public:
     FunctionSymbol(const std::string &name, type::FunctionType *functionType) : name_{std::move(name)}, functionType_{functionType} {}
@@ -212,7 +211,7 @@ public:
 
     std::string toString() const override { return name_ + ":" + functionType_->returnType()->nameForDisplay() + "()"; }
 
-    type::Type *type() const override { return functionType_; }
+    type::Type &type() const override { return *functionType_; }
 
     /** This is just a convenience so we don't have to upcast the return value of type() when we need an instance of FunctionType. */
     type::FunctionType *functionType() { return functionType_; }
@@ -229,9 +228,9 @@ public:
         thisSymbol_ = thisSymbol;
     }
 
-    Symbol *cloneForExport() override {
+    Symbol &cloneForExport() override {
         ASSERT(storageKind() == StorageKind::Global);
-        return (new FunctionSymbol(*this))->markExternal();
+        return *(new FunctionSymbol(*this))->markExternal();
     }
 };
 
@@ -245,35 +244,35 @@ public:
 
     std::string name() const override { return name_; }
     std::string toString() const override { return string::format("%s-%d", name_.c_str(), astNodeId_); }
-    type::Type *type() const override { return &type::ScalarType::Void; }
+    type::Type &type() const override { return type::ScalarType::Void; }
     UniqueId astNodeId() { return astNodeId_; }
 
 
-    Symbol *cloneForExport() override {
+    Symbol &cloneForExport() override {
         ASSERT(storageKind() == StorageKind::Global);
-        return (new TemplateSymbol(*this))->markExternal();
+        return *(new TemplateSymbol(*this))->markExternal();
     }
 };
 
 
 class TypeSymbol : public SymbolBase {
     std::string name_;
-    type::Type *type_;
+    type::Type &type_;
     TypeSymbol(const TypeSymbol &other) : SymbolBase(other), name_{other.name_}, type_{other.type_} {}
 
 public:
-    TypeSymbol(type::Type *type) : name_{type->name()}, type_(type) {}
-    TypeSymbol(const std::string &name, type::Type *type) : name_{name}, type_(type) {}
+    TypeSymbol(type::Type &type) : name_{type.name()}, type_(type) {}
+    TypeSymbol(const std::string &name, type::Type &type) : name_{name}, type_(type) {}
 
     std::string name() const override { return name_; }
 
-    std::string toString() const override { return type_->nameForDisplay(); }
+    std::string toString() const override { return type_.nameForDisplay(); }
 
-    type::Type *type() const override { return type_; }
+    type::Type &type() const override { return type_; }
 
-    Symbol *cloneForExport() override {
+    Symbol &cloneForExport() override {
         ASSERT(storageKind() == StorageKind::Global);
-        return (new TypeSymbol(*this))->markExternal();
+        return *(new TypeSymbol(*this))->markExternal();
     }
 };
 

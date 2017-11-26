@@ -10,10 +10,10 @@ namespace anode { namespace front { namespace parser {
 /** Defines a function signature which is invoked by PrattParser when it encounters a specific symbol.
  * Such as a prefix operator (i.e. ++i), or a keyword (i.e. 'if' or 'while') to parse the appropriate language construct.
  */
-typedef std::function<ast::ExprStmt*(Token*)> generic_parselet_t;
+typedef std::function<ast::ExprStmt&(Token&)> generic_parselet_t;
 
 /** Like generic_parselet_t, but for parsing infix expressions (a.k.a binary expressions, i.e. 1 + 1). */
-typedef std::function<ast::ExprStmt*(ast::ExprStmt*, Token*)> infix_parselet_t;
+typedef std::function<ast::ExprStmt&(ast::ExprStmt&, Token&)> infix_parselet_t;
 
 /** Operator associativity. */
 enum class Associativity {
@@ -55,7 +55,7 @@ protected:
         infixParsers_[(int)tokenKind] = parselet;
     }
 
-    Token *consume(TokenKind tokenKind, char_t expectedCharacter) {
+    Token &consume(TokenKind tokenKind, char_t expectedCharacter) {
         string_t msg;
         msg += '\'';
         msg += expectedCharacter;
@@ -64,7 +64,7 @@ protected:
         return consume(tokenKind, msg);
     }
 
-    Token *consume(TokenKind tokenKind1, TokenKind tokenKind2, char_t expectedCharacter1, char_t expectedCharacter2) {
+    Token &consume(TokenKind tokenKind1, TokenKind tokenKind2, char_t expectedCharacter1, char_t expectedCharacter2) {
         string_t msg;
         msg += '\'';
         msg += expectedCharacter1;
@@ -75,12 +75,12 @@ protected:
         return consume(tokenKind1, tokenKind2, msg);
     }
 
-    Token *consume(TokenKind tokenKind1, TokenKind tokenKind2, const std::string &humanReadableExpectedText) {
-        Token *token = lexer_.nextToken();
-        if(token->kind() != tokenKind1 && token->kind() != tokenKind2) {
+    Token &consume(TokenKind tokenKind1, TokenKind tokenKind2, const std::string &humanReadableExpectedText) {
+        Token &token = lexer_.nextToken();
+        if(token.kind() != tokenKind1 && token.kind() != tokenKind2) {
             errorStream_.error(
                 error::ErrorKind::UnexpectedToken,
-                token->span(),
+                token.span(),
                 "Expected " + humanReadableExpectedText);
 
             throw ParseAbortedException();
@@ -88,12 +88,12 @@ protected:
         return token;
     }
 
-    Token *consume(TokenKind tokenKind, const std::string &humanReadableExpectedText) {
-        Token *token = lexer_.nextToken();
-        if(token->kind()!= tokenKind) {
+    Token &consume(TokenKind tokenKind, const std::string &humanReadableExpectedText) {
+        Token &token = lexer_.nextToken();
+        if(token.kind()!= tokenKind) {
             errorStream_.error(
                 error::ErrorKind::UnexpectedToken,
-                token->span(),
+                token.span(),
                 "Expected " + humanReadableExpectedText);
 
             throw ParseAbortedException();
@@ -102,8 +102,8 @@ protected:
     }
 
     Token *consumeOptional(TokenKind tokenKind) {
-        if(lexer_.peekToken()->kind() == tokenKind) {
-            return lexer_.nextToken();
+        if(lexer_.peekToken().kind() == tokenKind) {
+            return &lexer_.nextToken();
         }
         return nullptr;
     }
@@ -111,13 +111,13 @@ protected:
 
     virtual int getOperatorPrecedence(TokenKind kind) = 0;
 
-    TExpression *parseExpr() {
+    TExpression &parseExpr() {
         return parseExpr(0);
     }
 
-    TExpression *parseExpr(int precedence) {
+    TExpression &parseExpr(int precedence) {
 
-        Token *t = lexer_.nextToken();
+        Token *t = &lexer_.nextToken();
         if(t->kind() == TokenKind::END_OF_INPUT) {
             throw ParseAbortedException("Unexpected end of input!");
         }
@@ -134,16 +134,16 @@ protected:
             throw ParseAbortedException();
         }
 
-        ast::ExprStmt *left = foundPrefixParselet(t);
+        ast::ExprStmt *left = &foundPrefixParselet(*t);
 
-        t = lexer_.peekToken();
+        t = &lexer_.peekToken();
         if(t->kind() == TokenKind::END_OF_INPUT) {
-            return left;
+            return *left;
         }
 
         while(precedence < getOperatorPrecedence(t->kind())) {
             lexer_.nextToken();
-            auto foundInfixParselet = infixParsers_[(int)t->kind()];
+            auto &&foundInfixParselet = infixParsers_[(int)t->kind()];
             if(foundInfixParselet == nullptr) {
                 errorStream_.error(
                     error::ErrorKind::SurpriseToken,
@@ -152,15 +152,15 @@ protected:
                     t->text().c_str());
             }
 
-            left = foundInfixParselet(left, t);
+            left = &foundInfixParselet(*left, *t);
 
-            t = lexer_.peekToken();
+            t = &lexer_.peekToken();
             if(t->kind() == TokenKind::END_OF_INPUT) {
-                return left;
+                return *left;
             }
         }
 
-        return left;
+        return *left;
     }
 };
 

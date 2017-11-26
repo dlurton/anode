@@ -6,16 +6,16 @@
 
 namespace anode { namespace front {
 
-    ast::Module *parseModule(std::istream &inputStream, const std::string &name) {
+    ast::Module &parseModule(std::istream &inputStream, const std::string &name) {
         error::ErrorStream errorStream{std::cerr};
         return parseModule(inputStream, name, errorStream);
     }
 
-    ast::Module *parseModule(std::istream &inputStream, const std::string &name, error::ErrorStream &errorStream) {
+    ast::Module &parseModule(std::istream &inputStream, const std::string &name, error::ErrorStream &errorStream) {
         parser::SourceReader reader{name, inputStream};
         parser::AnodeLexer lexer{reader, errorStream};
         parser::AnodeParser parser{lexer, errorStream};
-        ast::Module *module = parser.parseModule();
+        ast::Module &module = parser.parseModule();
 
         if(errorStream.errorCount() > 0) {
             throw ParseAbortedException("Parse aborted.");
@@ -24,7 +24,7 @@ namespace anode { namespace front {
         return module;
     }
 
-    ast::Module *parseModule(const std::string &filename)
+    ast::Module &parseModule(const std::string &filename)
     {
         std::ifstream inputFileStream{filename};
         if(!inputFileStream) {
@@ -34,7 +34,7 @@ namespace anode { namespace front {
         return parseModule(inputFileStream, filename);
     }
 
-    ast::Module *parseModule(const std::string &lineOfCode, const std::string &inputName) {
+    ast::Module &parseModule(const std::string &lineOfCode, const std::string &inputName) {
         std::stringstream inputStringStream{lineOfCode};
         return parseModule(inputStringStream, inputName);
     }

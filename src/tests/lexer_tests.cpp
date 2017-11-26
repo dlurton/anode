@@ -22,7 +22,7 @@ gc_vector<Token*> extractAllTokens(const std::string &fromStr) {
     gc_vector<Token*> tokens;
     Token *t;
     do {
-        t = lexer.nextToken();
+        t = &lexer.nextToken();
         tokens.push_back(t);
     } while(t->kind() != TokenKind::END_OF_INPUT);
 

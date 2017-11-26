@@ -51,7 +51,7 @@ namespace anode { namespace back {
             
             auto classType = dynamic_cast<front::type::ClassType*>(actualType);
             if(foundType == nullptr && classType != nullptr) {
-                gc_vector<front::type::ClassField*> fields = classType->fields();
+                gc_ref_vector<front::type::ClassField> fields = classType->fields();
 
                 std::vector<llvm::Type *> fieldTypes;
                 fieldTypes.reserve(fields.size());
@@ -60,8 +60,8 @@ namespace anode { namespace back {
                 llvm::PointerType *pointerType = structType->getPointerTo(0);
                 mapTypes(classType, pointerType);
 
-                for (auto s : fields) {
-                    fieldTypes.push_back(toLlvmType(*s->type()));
+                for (auto &&s : fields) {
+                    fieldTypes.push_back(toLlvmType(s.get().type()));
                 }
 
                 structType->setBody(fieldTypes);

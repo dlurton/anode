@@ -47,7 +47,7 @@ Symbol *SymbolTable::findSymbol(const std::string &name) const {
     if (found == symbols_.end()) {
         return nullptr;
     }
-    return found->second;
+    return &found->second.get();
 }
 
 Symbol *SymbolTable::recursiveFindSymbol(const std::string &name) const {
@@ -63,60 +63,60 @@ Symbol *SymbolTable::recursiveFindSymbol(const std::string &name) const {
     return nullptr;
 }
 
-void SymbolTable::addSymbol(Symbol *symbol) {
+void SymbolTable::addSymbol(Symbol &symbol) {
     ASSERT(storageKind_ != StorageKind::NotSet);
-    ASSERT(!symbol->name().empty());
+    ASSERT(!symbol.name().empty());
 #ifdef ANODE_DEBUG
-    if(findSymbol(symbol->name())) {
-        throw exception::DebugAssertionFailedException(string::format("Symbol '%s' already exists in this SymbolTable", symbol->name().c_str()));
+    if(findSymbol(symbol.name())) {
+        throw exception::DebugAssertionFailedException(string::format("Symbol '%s' already exists in this SymbolTable", symbol.name().c_str()));
     }
 #endif
 
-    ASSERT(!findSymbol(symbol->name()));
+    ASSERT(!findSymbol(symbol.name()));
 
-    if(!symbol->isFullyQualified()) {
-        symbol->fullyQualify(this);
+    if(!symbol.isFullyQualified()) {
+        symbol.fullyQualify(this);
     }
-    symbol->setStorageKind(storageKind_);
-    symbols_.emplace(symbol->name(), symbol);
+    symbol.setStorageKind(storageKind_);
+    symbols_.emplace(symbol.name(), symbol);
     orderedSymbols_.emplace_back(symbol);
 }
 
-gc_vector<VariableSymbol *> SymbolTable::variables() {
-    gc_vector<VariableSymbol*> variables;
+gc_ref_vector<VariableSymbol> SymbolTable::variables() {
+    gc_ref_vector<VariableSymbol> variables;
     for (auto symbol : orderedSymbols_) {
-        auto variable = dynamic_cast<VariableSymbol*>(symbol);
+        auto variable = dynamic_cast<VariableSymbol*>(&symbol.get());
         if(variable)
-            variables.push_back(variable);
+            variables.emplace_back(*variable);
     }
 
     return variables;
 }
 
-gc_vector<TypeSymbol *> SymbolTable::types() {
-    gc_vector<TypeSymbol*> classes;
+gc_ref_vector<TypeSymbol> SymbolTable::types() {
+    gc_ref_vector<TypeSymbol> classes;
     for (auto symbol : orderedSymbols_) {
-        auto type = dynamic_cast<scope::TypeSymbol*>(symbol);
+        auto type = dynamic_cast<scope::TypeSymbol*>(&symbol.get());
         if(type)
-            classes.push_back(type);
+            classes.emplace_back(*type);
     }
 
     return classes;
 }
 
-gc_vector<FunctionSymbol *> SymbolTable::functions() const {
-    gc_vector<FunctionSymbol*> symbols;
+gc_ref_vector<FunctionSymbol> SymbolTable::functions() const {
+    gc_ref_vector<FunctionSymbol> symbols;
     for (auto symbol : orderedSymbols_) {
-        auto function = dynamic_cast<FunctionSymbol*>(symbol);
+        auto function = dynamic_cast<FunctionSymbol*>(&symbol.get());
         if(function != nullptr) {
-            symbols.push_back(function);
+            symbols.emplace_back(*function);
         }
     }
 
     return symbols;
 }
 
-gc_vector<Symbol *> SymbolTable::symbols() const {
+gc_ref_vector<Symbol> SymbolTable::symbols() const {
     return orderedSymbols_;
 }
 

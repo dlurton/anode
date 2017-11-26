@@ -27,7 +27,7 @@ std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<execute:
 
     front::ast::Module *module = nullptr;
     try {
-        module = front::parseModule(source, module_name);
+        module = &front::parseModule(source, module_name);
     } catch(anode::front::ParseAbortedException&) {
         FAIL("Parse aborted.");
     }

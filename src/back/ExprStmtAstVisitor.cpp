@@ -176,7 +176,7 @@ public:
         if (expr.symbol()->storageKind() == scope::StorageKind::Instance) {
             //Variable is an instance field
             scope::VariableSymbol *thisSymbol = cc().currentFuncDefStmt()->symbol()->thisSymbol();
-            auto classType = dynamic_cast<type::ClassType *>(thisSymbol->type());
+            auto classType = dynamic_cast<type::ClassType *>(&thisSymbol->type());
             ASSERT(classType);
             llvm::Value *pointerToPointerToStruct = cc().getMappedValue(thisSymbol);
             llvm::Value *pointerToStruct = cc().irBuilder().CreateLoad(pointerToPointerToStruct);

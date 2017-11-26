@@ -91,12 +91,12 @@ public:
 
 class ResolutionDeferredType : public Type {
     Type *actualType_ = &UnresolvedType::Instance;
-    gc_vector<Type*> typeArguments_;
+    gc_ref_vector<Type> typeArguments_;
     void assertResolved() const {
         ASSERT(isResolved() && "ResolutionDeferredType has not been resolved yet.");
     }
 public:
-    ResolutionDeferredType(const gc_vector<Type*> typeArguments)
+    ResolutionDeferredType(const gc_ref_vector<Type> &typeArguments)
         : typeArguments_{typeArguments} { }
 
     bool isActualType() override { return false; }
@@ -115,7 +115,7 @@ public:
         return true;
     }
 
-    gc_vector<type::Type*> typeArguments() { return typeArguments_; }
+    gc_ref_vector<type::Type> typeArguments() { return typeArguments_; }
 
     void resolve(Type* type) {
 #ifdef ANODE_DEBUG
@@ -282,28 +282,28 @@ class ClassMember : public gc {
 public:
     explicit ClassMember(const std::string &name) : name_(name) {}
 
-    virtual Type *type() const = 0;
+    virtual Type &type() const = 0;
 
     std::string name() const { return name_; }
 };
 
 class ClassField : public ClassMember {
     unsigned const ordinal_;
-    type::Type * type_;
+    type::Type &type_;
 public:
-    explicit ClassField(const std::string &name, type::Type *type, unsigned ordinal)
+    explicit ClassField(const std::string &name, type::Type &type, unsigned ordinal)
         : ClassMember(name), ordinal_{ordinal}, type_(type) { }
 
     unsigned ordinal() const { return ordinal_; }
-    Type *type() const override { return type_; }
+    Type &type() const override { return type_; }
 };
 
 class ClassMethod : public ClassMember {
-    scope::FunctionSymbol *symbol_;
+    scope::FunctionSymbol &symbol_;
 public:
-    explicit ClassMethod(const std::string &name, scope::FunctionSymbol *symbol) : ClassMember(name), symbol_{symbol} { }
-    Type *type() const override;
-    scope::FunctionSymbol *symbol() const { return symbol_; }
+    explicit ClassMethod(const std::string &name, scope::FunctionSymbol &symbol) : ClassMember(name), symbol_{symbol} { }
+    Type &type() const override;
+    scope::FunctionSymbol &symbol() const { return symbol_; }
 };
 
 
@@ -312,14 +312,14 @@ class GenericType;
 class ClassType : public Type {
     const UniqueId astNodeId_;
     std::string name_;
-    gc_vector<ClassField*> orderedFields_;
-    gc_unordered_map<std::string, ClassField*> fields_;
-    gc_unordered_map<std::string, ClassMethod*> methods_;
+    gc_ref_vector<ClassField> orderedFields_;
+    gc_ref_unordered_map<std::string, ClassField> fields_;
+    gc_ref_unordered_map<std::string, ClassMethod> methods_;
     GenericType *genericType_ = nullptr;
-    gc_vector<Type*> typeArguments_;
+    gc_ref_vector<Type> typeArguments_;
 
 public:
-        ClassType(UniqueId astNodeId, const std::string &name, gc_vector<Type*> typeArguments)
+    ClassType(UniqueId astNodeId, const std::string &name, gc_ref_vector<Type> typeArguments)
         : astNodeId_{astNodeId},
           name_{name},
           typeArguments_{typeArguments}
@@ -337,10 +337,10 @@ public:
             className += '<';
 
             auto itr = typeArguments_.begin();
-            className += (*itr++)->nameForDisplay();
+            className += (*itr++).get().nameForDisplay();
             for(; itr != typeArguments_.end(); ++itr) {
                 className += ", ";
-                className += (*itr)->nameForDisplay();
+                className += (*itr).get().nameForDisplay();
             }
             className += '>';
         }
@@ -364,44 +364,44 @@ public:
     bool canExplicitCastTo(const Type *) const override { return false; };
 
     ClassField *findField(const std::string &name) const {
-        auto found = fields_.find(name);
-        return found == fields_.end() ? nullptr : found->second;
+        auto &&found = fields_.find(name);
+        return found == fields_.end() ? nullptr : &found->second.get();
     }
 
-    void addField(const std::string &name, type::Type *type) {
-        auto field = new ClassField(name, type, (unsigned) orderedFields_.size());
+    void addField(const std::string &name, type::Type &type) {
+        auto &&field = *new ClassField(name, type, (unsigned) orderedFields_.size());
 
         orderedFields_.emplace_back(field);
         fields_.emplace(name, field);
     }
 
-    gc_vector<ClassField*> fields() {
+    gc_ref_vector<ClassField> fields() {
         return orderedFields_;
     }
 
     ClassMethod *findMethod(const std::string &name) const {
         auto found = methods_.find(name);
-        return found == methods_.end() ? nullptr : found->second;
+        return found == methods_.end() ? nullptr : &found->second.get();
     }
 
-    void addMethod(const std::string &name, scope::FunctionSymbol *symbol);
+    void addMethod(const std::string &name, scope::FunctionSymbol &symbol);
 };
 
 class ExpandedClassEntry {
-    gc_vector<type::Type*> templateArgs_;
-    type::ClassType* classType_;
+    gc_ref_vector<type::Type> templateArgs_;
+    type::ClassType &classType_;
 public:
-    ExpandedClassEntry(gc_vector<type::Type*> templateArgs, ClassType *classType_)
+    ExpandedClassEntry(gc_ref_vector<type::Type> templateArgs, ClassType &classType_)
         : templateArgs_{templateArgs}, classType_(classType_) { }
 
-    type::ClassType* classType() const { return classType_; }
+    type::ClassType& classType() const { return classType_; }
 
-    bool templateArgsMatch(const gc_vector<type::Type*> &otherArgs) const {
+    bool templateArgsMatch(const gc_ref_vector<type::Type> &otherArgs) const {
         ASSERT(templateArgs_.size() == otherArgs.size());
 
         // O(n)... could be optimized.
         for(size_t i = 0; i < templateArgs_.size(); ++i) {
-            if(!templateArgs_[i]->isSameType(otherArgs[i])) {
+            if(!templateArgs_[i].get().isSameType(otherArgs[i])) {
                 return false;
             }
         }
@@ -427,17 +427,17 @@ public:
     std::vector<std::string> templateParameterNames() { return templateParameterNames_; }
     int templateParameterCount() { return (int) templateParameterNames_.size(); }
 
-    ClassType *findExpandedClassType(const gc_vector<type::Type*> &templateArgs) {
+    ClassType *findExpandedClassType(const gc_ref_vector<type::Type> &templateArgs) {
         // O(n)... could also be optimized
         for(const auto &entry : expandedClasses_) {
             if(entry.templateArgsMatch(templateArgs)) {
-               return entry.classType();
+               return &entry.classType();
             }
         }
         return nullptr;
     }
 
-    void addExpandedClass(const gc_vector<type::Type*> &templateArgs, type::ClassType *classType) {
+    void addExpandedClass(const gc_ref_vector<type::Type> &templateArgs, type::ClassType &classType) {
         expandedClasses_.emplace_back(templateArgs, classType);
     }
 };

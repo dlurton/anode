@@ -19,15 +19,15 @@ private:
         //Create "this" argument, if needed.
         if(functionSymbol.storageKind() == scope::StorageKind::Instance) {
             llvmParamTypes.reserve(anodeParamTypes.size() + 1);
-            llvm::Type *thisType = cc().typeMap().toLlvmType(*functionSymbol.thisSymbol()->type());
+            llvm::Type *thisType = cc().typeMap().toLlvmType(functionSymbol.thisSymbol()->type());
             llvmParamTypes.push_back(thisType);
         } else {
             llvmParamTypes.reserve(anodeParamTypes.size());
         }
 
         //Create other arguments.
-        for(auto anodeType : anodeParamTypes) {
-            llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType.get());
+        for(type::Type &anodeType : anodeParamTypes) {
+            llvm::Type *llvmType = cc().typeMap().toLlvmType(anodeType);
             llvmParamTypes.push_back(llvmType);
         }
 
@@ -51,11 +51,11 @@ public:
 
         //All external functions must be added to the current llvm module.
         //TODO:  emit only those functions which are actually referenced.
-        gc_vector<scope::FunctionSymbol*> functions = cc().world().globalScope().functions();
-        for(scope::FunctionSymbol *functionSymbol : functions) {
+        gc_ref_vector<scope::FunctionSymbol> functions = cc().world().globalScope().functions();
+        for(scope::FunctionSymbol &functionSymbol : functions) {
             //Skip functions that are not defined externally - we do that in visitingFuncDefStmt, below...
-            if(functionSymbol->isExternal())
-                declareFunction(*functionSymbol);
+            if(functionSymbol.isExternal())
+                declareFunction(functionSymbol);
         }
     }
 
@@ -68,7 +68,7 @@ class DefineFuncsAstVisitor : public CompileAstVisitor {
 
     void emitCopyParameterToLocal(llvm::Argument &argument, scope::Symbol *argumentSymbol) {
         argument.setName(argumentSymbol->name());
-        llvm::Type *localParamType = cc().typeMap().toLlvmType(*argumentSymbol->type());
+        llvm::Type *localParamType = cc().typeMap().toLlvmType(argumentSymbol->type());
 
         llvm::AllocaInst *localParamValue = cc().irBuilder().CreateAlloca(localParamType);
         localParamValue->setName("local_" + argumentSymbol->name());

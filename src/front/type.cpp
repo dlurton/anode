@@ -48,10 +48,10 @@ std::string to_string(PrimitiveType dataType) {
     }
 }
 
-Type *ClassMethod::type() const { return symbol_->type(); }
+Type &ClassMethod::type() const { return symbol_.type(); }
 
-void ClassType::addMethod(const std::string &name, scope::FunctionSymbol *symbol) {
-    methods_.emplace(std::make_pair(name, new ClassMethod(name, symbol)));
+void ClassType::addMethod(const std::string &name, scope::FunctionSymbol &symbol) {
+    methods_.emplace(name, *new ClassMethod(name, symbol));
 }
 
 

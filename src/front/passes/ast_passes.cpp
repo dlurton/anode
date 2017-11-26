@@ -158,7 +158,7 @@ public:
             if(currentScope().findSymbol(cd.name().text())) {
                 symbolPreviouslyDefinedError(cd.name());
             } else {
-                auto *classSymbol = new scope::TypeSymbol(&definedType);
+                auto &&classSymbol = *new scope::TypeSymbol(definedType);
                 currentScope().addSymbol(classSymbol);
             }
         }
@@ -169,13 +169,13 @@ public:
         if(currentScope().findSymbol(funcDeclStmt.name().text())) {
             symbolPreviouslyDefinedError(funcDeclStmt.name());
         } else {
-            scope::FunctionSymbol *funcSymbol = new scope::FunctionSymbol(funcDeclStmt.name().text(), &funcDeclStmt.functionType());
+            scope::FunctionSymbol &funcSymbol = *new scope::FunctionSymbol(funcDeclStmt.name().text(), &funcDeclStmt.functionType());
 
             currentScope().addSymbol(funcSymbol);
             funcDeclStmt.setSymbol(funcSymbol);
 
             for (auto p : funcDeclStmt.parameters()) {
-                scope::VariableSymbol *symbol = new scope::VariableSymbol(p.get().name().text(), &p.get().type());
+                scope::VariableSymbol &symbol = *new scope::VariableSymbol(p.get().name().text(), p.get().type());
                 if (funcDeclStmt.parameterScope().findSymbol(p.get().name().text())) {
                     errorStream_.error(
                         error::ErrorKind::SymbolAlreadyDefinedInScope,
@@ -195,9 +195,9 @@ public:
         if(currentScope().findSymbol(expr.name().text())) {
             symbolPreviouslyDefinedError(expr.name());
         } else {
-            auto symbol = new scope::VariableSymbol(expr.name().text(), &expr.typeRef().type());
+            auto &&symbol = *new scope::VariableSymbol(expr.name().text(), expr.typeRef().type());
             currentScope().addSymbol(symbol);
-            expr.setSymbol(*symbol);
+            expr.setSymbol(symbol);
         }
     }
 
@@ -205,7 +205,7 @@ public:
         if (currentScope().findSymbol(templ.name().text())) {
             symbolPreviouslyDefinedError(templ.name());
         } else {
-            auto symbol = new scope::TemplateSymbol(templ.name().text(), templ.nodeId());
+            auto &&symbol = *new scope::TemplateSymbol(templ.name().text(), templ.nodeId());
             currentScope().addSymbol(symbol);
         }
 
@@ -215,7 +215,7 @@ public:
                 if (currentScope().findSymbol(cd->name().text())) {
                     symbolPreviouslyDefinedError(cd->name());
                 } else {
-                    auto symbol = new scope::TypeSymbol(cd->name().text(), &cd->definedType());
+                    auto &&symbol = *new scope::TypeSymbol(cd->name().text(), cd->definedType());
                     currentScope().addSymbol(symbol);
                 }
             }
@@ -250,7 +250,7 @@ public:
                 expr.name().text().c_str());
         } else {
 
-            if(!found->type()->isClass() && !found->type()->isFunction()) {
+            if(!found->type().isClass() && !found->type().isFunction()) {
                 if (found->storageKind() == scope::StorageKind::Local && definedSymbols_.count(found) == 0) {
                     errorStream_.error(
                         error::ErrorKind::VariableUsedBeforeDefinition, expr.sourceSpan(), "Variable '%s' used before its definition.",
@@ -298,8 +298,7 @@ public:
                 return;
             }
 
-            type = typeSymbol->type();
-            typeRef.setType(*type);
+            typeRef.setType(typeSymbol->type());
         }
     }
 };
@@ -555,7 +554,7 @@ public:
         gc_ref_vector<ast::TemplateArgument> templateArgs;
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
-            expansion.templateParameterScope().addSymbol(new scope::TypeSymbol(tParams[i].get().name().text(), &tArgs[i].get().type()));
+            expansion.templateParameterScope().addSymbol(*new scope::TypeSymbol(tParams[i].get().name().text(), tArgs[i].get().type()));
             templateArgs.emplace_back(*new ast::TemplateArgument(tParams[i].get().name().text(), tArgs[i].get()));
         }
 
@@ -580,9 +579,9 @@ public:
 class PopulateGenericTypesWithCompleteTypesPass : public ErrorContextAstVisitor {
 
     class PopulateGenericTypesSubPass : public ScopeFollowingAstVisitor {
-        gc_vector<type::Type*> templateArguments_;
+        gc_ref_vector<type::Type> templateArguments_;
     public:
-        PopulateGenericTypesSubPass(error::ErrorStream &errorStream, const gc_vector<type::Type *> &templateArgs)
+        PopulateGenericTypesSubPass(error::ErrorStream &errorStream, const gc_ref_vector<type::Type> &templateArgs)
             : ScopeFollowingAstVisitor(errorStream), templateArguments_(templateArgs) { }
 
         void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
@@ -591,7 +590,7 @@ class PopulateGenericTypesWithCompleteTypesPass : public ErrorContextAstVisitor 
             if(genericType->findExpandedClassType(templateArguments_)) {
                 return;
             }
-            genericType->addExpandedClass(templateArguments_, &upcast<type::ClassType>(cd.definedType()));
+            genericType->addExpandedClass(templateArguments_, upcast<type::ClassType>(cd.definedType()));
         }
     };
 
@@ -601,11 +600,11 @@ public:
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
         ErrorContextAstVisitor::visitingTemplateExpansionExprStmt(expansion);
 
-        gc_vector<type::Type*> typeArguments;
-        gc_vector<scope::TypeSymbol*> argumentSymbols = expansion.templateParameterScope().types();
+        gc_ref_vector<type::Type> typeArguments;
+        gc_ref_vector<scope::TypeSymbol> argumentSymbols = expansion.templateParameterScope().types();
         typeArguments.reserve(argumentSymbols.size());
-        for(auto argSymbol : argumentSymbols) {
-            typeArguments.push_back(argSymbol->type());
+        for(scope::TypeSymbol &argSymbol : argumentSymbols) {
+            typeArguments.emplace_back(argSymbol.type());
         }
 
         PopulateGenericTypesSubPass pass{errorStream_, typeArguments};
@@ -625,7 +624,7 @@ public:
 
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
         if(typeRef.type().isGeneric()) {
-            gc_vector<type::Type*> templateArgs = typeRef.resolutionDeferredType()->typeArguments();
+            gc_ref_vector<type::Type> templateArgs = typeRef.resolutionDeferredType()->typeArguments();
             auto genericType = upcast<type::GenericType>(typeRef.type().actualType());
             if(genericType->templateParameterCount() != (int)templateArgs.size()) {
                 errorStream_.error(
