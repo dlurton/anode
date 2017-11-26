@@ -6,16 +6,16 @@
 
 namespace anode { namespace front  { namespace passes {
 
-bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode &node, error::ErrorStream &es, scope::SymbolTable *startingSymbolTable);
+bool runPasses(const gc_ref_vector<ast::AstVisitor> &visitors, ast::AstNode &node, error::ErrorStream &es, scope::SymbolTable *startingSymbolTable);
 
-inline bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode &node, error::ErrorStream &es, scope::SymbolTable &startingSymbolTable) {
+inline bool runPasses(const gc_ref_vector<ast::AstVisitor> &visitors, ast::AstNode &node, error::ErrorStream &es, scope::SymbolTable &startingSymbolTable) {
     return runPasses(visitors, node, es, &startingSymbolTable);
 }
 
-inline bool runPasses(const gc_vector<ast::AstVisitor*> &visitors, ast::AstNode &node, error::ErrorStream &es) {
+inline bool runPasses(const gc_ref_vector<ast::AstVisitor> &visitors, ast::AstNode &node, error::ErrorStream &es) {
     return runPasses(visitors, node, es, nullptr);
 }
-gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es);
+gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es);
 
 class ErrorContextAstVisitor : public ast::AstVisitor {
 protected:
@@ -660,17 +660,17 @@ public:
 };
 
 bool runPasses(
-    const gc_vector<ast::AstVisitor*> &visitors,
+    const gc_ref_vector<ast::AstVisitor> &visitors,
     ast::AstNode &node,
     error::ErrorStream &es,
     scope::SymbolTable *startingSymbolTable) {
 
-    for(ast::AstVisitor *pass : visitors) {
+    for(ast::AstVisitor &pass : visitors) {
         if(startingSymbolTable)
-        if(auto sfav = dynamic_cast<ScopeFollowingAstVisitor*>(pass)) {
+        if(auto sfav = dynamic_cast<ScopeFollowingAstVisitor*>(&pass)) {
             sfav->pushScope(*startingSymbolTable);
         }
-        node.accept(*pass);
+        node.accept(pass);
         //If an error occurs during any pass, stop executing passes immediately because
         //some passes depend on the success of previous passes.
         if(es.errorCount() > 0) {
@@ -681,18 +681,18 @@ bool runPasses(
 }
 
 
-gc_vector<ast::AstVisitor*> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es) {
-    gc_vector<ast::AstVisitor*> passes;
+gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es) {
+    gc_ref_vector<ast::AstVisitor> passes;
 
     //Symbol resolution works recursively, examining the current scope first and then
     //searching each parent until the symbol is found.
-    passes.push_back(new SetSymbolTableParentsPass(es, world));
+    passes.emplace_back(*new SetSymbolTableParentsPass(es, world));
 
     //Build the symbol tables so that symbol resolution works
     //Symbol tables are really just metadata generated from global definitions (i.e. class, func, etc.)
-    passes.push_back(new PopulateSymbolTablesPass(es));
+    passes.emplace_back(*new PopulateSymbolTablesPass(es));
 
-    passes.push_back(new TemplateExpanderPass(es, world));
+    passes.emplace_back(*new TemplateExpanderPass(es, world));
 
     return passes;
 }
@@ -709,8 +709,8 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
     // an at least partially mutable AST here but there's not an easy way around these as far as
     // I can tell because it's impossible to know all the information needed at parse time.
 
-    gc_vector<ast::AstVisitor*> passes;
-    passes.push_back(new TemplateWorldRecorderPass(es, world));
+    gc_ref_vector<ast::AstVisitor> passes;
+    passes.emplace_back(*new TemplateWorldRecorderPass(es, world));
     if(runPasses(passes, module, es)) return;
 
     passes = getPreTemplateExpansionPassses(world, es);
@@ -720,30 +720,30 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
 
     //Resolve all ast::TypeRefs here (i.e. variables, arguments, class fields, function arguments, etc)
     //will know to the type::Type after this phase
-    passes.push_back(new ResolveTypesPass(es));
+    passes.emplace_back(*new ResolveTypesPass(es));
 
-    passes.push_back(new PopulateGenericTypesWithCompleteTypesPass(es));
+    passes.emplace_back(*new PopulateGenericTypesWithCompleteTypesPass(es));
 
-    passes.push_back(new ConvertGenericTypeRefsToCompletePass(es));
+    passes.emplace_back(*new ConvertGenericTypeRefsToCompletePass(es));
 
     //Symbol references (i.e. variable, call sites, etc) find their corresponding symbols here.
-    passes.emplace_back(new ResolveSymbolsPass(es));
+    passes.emplace_back(*new ResolveSymbolsPass(es));
     //Create type::ClassType and populate all the fields, for all classes
-    passes.emplace_back(new PrepareClassesVisitor());
+    passes.emplace_back(*new PrepareClassesVisitor());
     //Resolve all member references
-    passes.emplace_back(new ResolveDotExprMemberPass(es));
+    passes.emplace_back(*new ResolveDotExprMemberPass(es));
     //Insert implicit casts where they are allowed
-    passes.emplace_back(new AddImplicitCastsPass(es));
+    passes.emplace_back(*new AddImplicitCastsPass(es));
     //
-    passes.emplace_back(new BinaryExprSemanticsPass(es));
+    passes.emplace_back(*new BinaryExprSemanticsPass(es));
 
     //Finally, on to some semantics checking:
-    passes.emplace_back(new CastExprSemanticPass(es));
-    passes.emplace_back(new FuncCallSemanticsPass(es));
+    passes.emplace_back(*new CastExprSemanticPass(es));
+    passes.emplace_back(*new FuncCallSemanticsPass(es));
 
     //Dot expressions immediately to the left of '=' should be properly marked as "writes" so the correct
     //LLVM IR can be emitted for them.  (No way to know this at parse time.)
-    passes.emplace_back(new MarkDotExprWritesPass());
+    passes.emplace_back(*new MarkDotExprWritesPass());
 
     runPasses(passes, module, es);
 }
