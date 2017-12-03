@@ -9,8 +9,6 @@
 
 namespace anode { namespace front { namespace scope {
 
-extern std::string createRandomUniqueName();
-
 /** Indicates type of storage for this variable. */
 enum class StorageKind : unsigned char {
     NotSet,
@@ -48,7 +46,7 @@ class SymbolTable : public gc {
 
 public:
     NO_COPY_NO_ASSIGN(SymbolTable)
-    explicit SymbolTable(StorageKind storageKind, const std::string &name = "") : storageKind_(storageKind), name_{name} {}
+    explicit SymbolTable(StorageKind storageKind, const std::string &name) : storageKind_(storageKind), name_{name} {}
 
     SymbolTable *parent() {
         return parent_;
@@ -59,10 +57,7 @@ public:
         parent_ = &parent;
     }
 
-    std::string name() {
-        if (name_.empty()) {
-            name_ = createRandomUniqueName();
-        }
+    std::string name() const {
         return name_;
     }
 
@@ -70,11 +65,6 @@ public:
         std::string fn;
         appendName(fn);
         return fn;
-    }
-
-    void setName(const std::string &name) {
-        ASSERT(name_.empty() && "Shouldn't mutate name after it has been set.");
-        name_ = name;
     }
 
     StorageKind storageKind() const {

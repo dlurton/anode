@@ -1,5 +1,4 @@
 
-
 # create namespace "foo" and nested namespace "bar"
 namespace foo::bar {
     d:int = 23
@@ -25,7 +24,6 @@ namespace foo {
     c:int = 23
 
     func someFunc:int() 111
-
 
     # function "somefun" can be referenced without qualification
     assert(111 == someFunc())

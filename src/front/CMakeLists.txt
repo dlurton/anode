@@ -21,8 +21,5 @@ set(FRONT_SRC_FILES
         SourceReader.h
         parse.cpp scope.cpp unique_id.cpp ../include/anode/front/unique_id.h ../include/anode/common/enum.h passes/symbol_search.cpp passes/symbol_search.h passes/PopulateSymbolTablesPass.h passes/ScopeFollowingAstVisitor.h passes/ErrorContextAstVisitor.h passes/SetSymbolTableParentsPass.h passes/ResolveSymbolsPass.h passes/ResolvesTypesPass.h passes/CastExprSemanticPass.h passes/ResolveDotExprMemberPass.h passes/BinaryExprSemanticsPass.h passes/FuncCallSemanticsPass.h passes/TemplateExpanderPass.h passes/run_passes.h passes/PopulateGenericTypesWithCompleteTypesPass.h passes/ConvertGenericTypeRefsToCompletePass.h)
 
-find_library(LIB_UUID uuid)
 
 add_library(anode-front ${FRONT_SRC_FILES})
-
-target_link_libraries(anode-front ${LIB_UUID})

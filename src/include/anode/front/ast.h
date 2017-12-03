@@ -454,9 +454,10 @@ public:
     CompoundExpr(
         source::SourceSpan sourceSpan,
         scope::StorageKind storageKind,
-        const gc_ref_vector<ExprStmt> &expressions)
+        const gc_ref_vector<ExprStmt> &expressions,
+        const std::string &scopeName)
         : ExprStmt(sourceSpan),
-          scope_{storageKind},
+          scope_{storageKind, scopeName},
           expressions_{expressions}
     {
 
@@ -499,7 +500,7 @@ public:
         for(ExprStmt &exprStmt : expressions_) {
             clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(templateArgs));
         }
-        return *new CompoundExpr(sourceSpan_, scope_.storageKind(), clonedExprs);
+        return *new CompoundExpr(sourceSpan_, scope_.storageKind(), clonedExprs, scope_.name());
     }
 
 };
@@ -578,7 +579,7 @@ public:
         : VoidExprStmt(sourceSpan),
           templateName_{templateName},
           typeArguments_{typeArguments},
-          templateParameterScope_{scope::StorageKind::TemplateParameter}
+          templateParameterScope_{scope::StorageKind::TemplateParameter, templateName.qualifedName() + scope::ScopeSeparator + "expanded_arguments"}
     { }
 
 
@@ -1177,7 +1178,7 @@ public:
         ExprStmt& body
     ) : VoidExprStmt(sourceSpan),
         name_{name},
-        parameterScope_{scope::StorageKind::Argument},
+        parameterScope_{scope::StorageKind::Argument, name.text() + scope::ScopeSeparator + "parameters"},
         returnTypeRef_{returnTypeRef},
         parameters_{parameters},
         body_{&body},
