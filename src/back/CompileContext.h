@@ -12,7 +12,7 @@ namespace anode { namespace back {
 /** CompileContext is a place to keep track of values that need to be shared among the AstVisitors that make up the
  * IR generation phase.  A new CompileContext must be created for each module being compiled.
  */
-class CompileContext : no_copy, no_assign {
+class CompileContext {
     front::ast::AnodeWorld &world_;
     llvm::LLVMContext &llvmContext_;
     llvm::Module &llvmModule_;
@@ -26,6 +26,7 @@ class CompileContext : no_copy, no_assign {
 
     std::stack<front::ast::FuncDefStmt*> funcDefStack_;
 public:
+    NO_COPY_NO_ASSIGN(CompileContext)
 
     CompileContext(
         front::ast::AnodeWorld &world,

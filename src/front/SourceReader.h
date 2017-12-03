@@ -11,7 +11,7 @@ namespace anode { namespace front { namespace parser {
 /** This is a kind of "stream" which is used by the lexer to read characters.
  * It can lookahead an unlimited number of characters and also keeps track of the current line and character index.
  */
-class SourceReader : no_new, no_copy, no_assign {
+class SourceReader {
     string_t inputName_;
     std::istream &inputStream_;
     int lineNo_;

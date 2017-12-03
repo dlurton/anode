@@ -5,7 +5,7 @@
 
 namespace anode { namespace source {
     /** Represents a location within a source file. */
-    class SourceLocation : no_new {
+    class SourceLocation {
         unsigned int line_;
         unsigned int position_;
     public:

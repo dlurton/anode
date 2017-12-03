@@ -1,7 +1,7 @@
 
 #############################################################################
 undefined_variable = 1
-?VariableNotDefined, 3, 1
+?SymbolNotDefined, 3, 1
 
 #############################################################################
 #can't cast class to primitive
@@ -98,7 +98,7 @@ template foo() { }
 
 #############################################################################
 abcdef = 1
-?VariableNotDefined, 3, 1
+?SymbolNotDefined, 3, 1
 
 #############################################################################
 func foo:void() { n = 1 n:int } # Note this rule does not apply to classes, functions or global variables
@@ -106,7 +106,7 @@ func foo:void() { n = 1 n:int } # Note this rule does not apply to classes, func
 
 #############################################################################
 abc:Unknown
-?TypeNotDefined, 3, 5
+?SymbolNotDefined, 3, 5
 
 #############################################################################
 #can't cast SomeClass to integer
@@ -189,4 +189,22 @@ f()
 func f:void(a:int)
 f(1, 1)
 ?IncorrectNumberOfArguments, 5, 1
+
+#############################################################################
+# attempt to instantiate something that's not a class
+a:int
+b:a
+?SymbolIsNotAType, 5, 3
+
+#############################################################################
+# attempt to invoke something that's not a function
+a:int
+a()
+?ExpressionIsNotFunction, 5, 1
+
+#############################################################################
+# attempt to reference something like a namespace that is not a namespace
+a:int
+a::b
+?IdentifierIsNotNamespace, 5, 1
 

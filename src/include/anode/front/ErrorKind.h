@@ -33,23 +33,28 @@ BETTER_ENUM(
     InvalidImplicitCastInFunctionCallArgument,
     InvalidImplicitCastInAssertCondition,
     SymbolAlreadyDefinedInScope,
-    VariableNotDefined,
+    SymbolNotDefined,
     VariableUsedBeforeDefinition,
-    TypeNotDefined,
     InvalidExplicitCast,
     CannotAssignToLValue,
     SymbolIsNotAType,
     OperatorCannotBeUsedWithType,
+    ExpressionIsNotFunction,
     LeftOfDotNotClass,
     ClassMemberNotFound,
     IncorrectNumberOfArguments,
     MethodNotDefined,
-    TemplateDoesNotExist,
+    SymbolIsNotATemplate,
     IncorrectNumberOfTemplateArguments,
     IncorrectNumberOfGenericArguments,
     TypeIsNotGenericButIsReferencedWithGenericArgs,
     GenericTypeWasNotExpandedWithSpecifiedArguments,
-    CircularTemplateReference
+    CircularTemplateReference,
+    NamespaceDoesNotExist,
+    IdentifierIsNotNamespace,
+    ChildNamespaceDoesNotExist,
+    MemberOfNamespaceIsNotNamespace,
+    NamespaceMemberDoesNotExist
 );
 
 }}}

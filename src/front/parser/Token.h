@@ -34,6 +34,7 @@ enum class TokenKind : unsigned short {
     OP_INC,
     OP_DEC,
     OP_COND,
+    OP_NAMESPACE,
     OPEN_PAREN,
     CLOSE_PAREN,
     OPEN_CURLY,
@@ -55,6 +56,7 @@ enum class TokenKind : unsigned short {
     KW_ALIAS,
     KW_TEMPLATE,
     KW_EXPAND,
+    KW_NAMESPACE,
     MAX_TOKEN_TYPES
 };
 

@@ -42,6 +42,7 @@ void InitStaticTokenLookup() {
     registerStaticToken("alias", TokenKind::KW_ALIAS);
     registerStaticToken("expand", TokenKind::KW_EXPAND);
     registerStaticToken("template", TokenKind::KW_TEMPLATE);
+    registerStaticToken("namespace", TokenKind::KW_NAMESPACE);
     registerStaticToken(";", TokenKind::END_OF_STATEMENT);
     registerStaticToken("!", TokenKind::OP_NOT);
     registerStaticToken("+", TokenKind::OP_ADD);
@@ -53,6 +54,7 @@ void InitStaticTokenLookup() {
     registerStaticToken(">", TokenKind::OP_DIV);
     registerStaticToken("<", TokenKind::OP_LT);
     registerStaticToken(".", TokenKind::OP_DOT);
+    registerStaticToken("::", TokenKind::OP_NAMESPACE);
     registerStaticToken(":", TokenKind::OP_DEF);
     registerStaticToken("(", TokenKind::OPEN_PAREN);
     registerStaticToken(")", TokenKind::CLOSE_PAREN);

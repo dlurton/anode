@@ -48,16 +48,19 @@ inline bool isValidFloat(const string_t &str) {
 
 extern void InitStaticTokenLookup();
 
-class AnodeLexer : no_new, no_copy, no_assign {
+class AnodeLexer {
 
     SourceReader &reader_;
     error::ErrorStream &errorStream_;
     gc_ref_deque<Token> lookahead_;
     SourceLocation startLocation_;
 public:
+    NO_COPY_NO_ASSIGN(AnodeLexer)
+
     AnodeLexer(SourceReader &reader, error::ErrorStream &errorStream) : reader_(reader), errorStream_{errorStream} {
         InitStaticTokenLookup();
     }
+
 
     Token &nextToken() {
         if(!lookahead_.empty()) {

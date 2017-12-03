@@ -100,7 +100,7 @@ ast::ExprStmt &AnodeParser::parseBinaryExpr(ast::ExprStmt &lValue, Token &operat
     ast::ExprStmt &rValue = parseExpr(precedence);
 
     return *new ast::BinaryExpr(
-        getSourceSpan(lValue.sourceSpan(), rValue.sourceSpan()),
+        makeSourceSpan(lValue.sourceSpan(), rValue.sourceSpan()),
         lValue,
         opKind,
         operatorToken.span(),

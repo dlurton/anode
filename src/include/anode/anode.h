@@ -1,6 +1,11 @@
 
 #pragma once
 
+#define NO_COPY(className) className(const className &) = delete;
+#define NO_ASSIGN(className) className &operator=(const className &) = delete;
+#define NO_COPY_NO_ASSIGN(className) NO_COPY(className) NO_ASSIGN(className)
+
+
 #include "common/string.h"
 //TO DO:  make these no-ops for release builds.
 #define ASSERT_FAIL(message) \
@@ -22,25 +27,6 @@
 #include <gc/gc_cpp.h>
 
 namespace anode {
-
-class no_new {
-private:
-    void *operator new(size_t) throw() { return nullptr; }
-};
-
-class no_copy {
-public:
-    // no copy
-    no_copy(const no_copy &) = delete;
-
-    no_copy() {}
-};
-
-class no_assign {
-public:
-    // no assign
-    no_assign &operator=(const no_assign &) = delete;
-};
 
 class Object : public gc {
 public:
@@ -78,7 +64,7 @@ public:
 };
 
 
-/** Thrown by the compiler whenever a DEBUG_ASSERT has failed.
+/** Thrown whenever a DEBUG_ASSERT has failed.
  * This perhaps should not exist and we should dumping a message to stderr and abort()ing instead? */
 class DebugAssertionFailedException : public FatalException {
 public:

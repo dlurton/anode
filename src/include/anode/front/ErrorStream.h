@@ -23,7 +23,7 @@ struct ErrorDetail {
 };
 
 
-class ErrorStream : no_assign, no_copy {
+class ErrorStream {
     std::ostream &output_;
     int errorCount_ = 0;
     int warningCount_ = 0;
@@ -40,6 +40,7 @@ class ErrorStream : no_assign, no_copy {
     }
 
 public:
+    NO_COPY_NO_ASSIGN(ErrorStream)
     ErrorStream(std::ostream &output) : output_(output) { }
 
     void pushContextMessage(const std::string &message) {

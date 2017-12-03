@@ -90,8 +90,8 @@ public:
     }
 
     void visitingVariableDeclExpr(VariableDeclExpr &expr) override {
-        writer_.writeln("VariableDeclExpr: (%s:%s)", expr.name().text().c_str(),
-                        expr.typeRef().name().text().c_str());
+        writer_.writeln("VariableDeclExpr: (%s:%s)", expr.name().qualifedName().c_str(),
+                        expr.typeRef().name().qualifedName().c_str());
         writer_.incIndent();
     }
 
@@ -100,7 +100,7 @@ public:
 
     }
     void visitVariableRefExpr(VariableRefExpr &expr) override {
-        writer_.writeln("VariableRefExpr: " + expr.name().text());
+        writer_.writeln("VariableRefExpr: " + expr.name().qualifedName());
     }
 
     void visitingIfExpr(IfExprStmt &) override {
@@ -139,7 +139,7 @@ public:
     }
 
     void visitingNewExpr(NewExpr &expr) override {
-        writer_.writeln("NewExpr(%s):", expr.typeRef().name().text().c_str());
+        writer_.writeln("NewExpr(%s):", expr.typeRef().name().qualifedName().c_str());
 
         writer_.incIndent();
     }
@@ -161,7 +161,7 @@ public:
         writer_.write("ParameterDef: ");
         writer_.write(pd.name().text());
         writer_.write(':');
-        writer_.writeln(pd.typeRef().name().text());
+        writer_.writeln(pd.typeRef().name().qualifedName().c_str());
     }
 
     void visitingFuncDefStmt(FuncDefStmt &func) override {
@@ -226,7 +226,7 @@ public:
     }
 
     virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt &expansion) override {
-        writer_.writeln("TemplateExpansionExprStmt: " + expansion.templateName().text());
+        writer_.writeln("TemplateExpansionExprStmt: " + expansion.templateName().qualifedName());
         writer_.incIndent();
     }
 

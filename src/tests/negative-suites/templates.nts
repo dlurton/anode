@@ -1,7 +1,7 @@
 #############################################################################
 # reference unknown template
 expand UndefinedTemplate()
-?TemplateDoesNotExist, 3, 8
+?SymbolNotDefined, 3, 8
 
 #############################################################################
 # nested templates
@@ -98,3 +98,9 @@ template TBat() {
 }
 expand TFoo()
 ?CircularTemplateReference, 11, 5
+
+#############################################################################
+# attempt to expand a symbol that is not a template
+notATemplate:int
+expand notATemplate()
+?SymbolIsNotATemplate, 5, 8

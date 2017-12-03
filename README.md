@@ -29,7 +29,6 @@ Goals of the language:
 - Strongly typed like C#/Java
 - High performance (utilizes LLVM back-end which has an extensive suite of compiler optimizations)  
 - Don't needlessly exclude features (post/pre increment operators, ternary operator, generics, etc)
-- Have fun
 
 Examination of [simple_tests.cpp](https://github.com/dlurton/anode/blob/master/src/tests/simple_tests.cpp) and the [these files](https://github.com/dlurton/anode/tree/master/src/tests/suites) 
 will give a complete and up-to-date picture of supported syntax and features, however, here's a summary:
@@ -121,6 +120,13 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     - Functions may be invoked:  `anInt:int = someFunction()`    
     - Primitive types may be used as function arguments:
         - `func someFunc:void(arg1:int, arg2:float, arg3:bool) someExpression`
+ - Namespaces
+```
+    namespace Foo::Bar {
+        class SomeClass { ... }
+    } 
+    anInstance:Foo::Bar::SomeClass = new Foo::Bar::SomeClass()
+```
  - Templates!  The tempplates feature is preliminary in form, but working!  It is a means to implement generic types:
 ``` 
     template LinkedList(TItem) {
@@ -151,10 +157,9 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     class WidgetDocumentItem {
         expand CommonDocumentItemMembers()
     }
-``` 
-    
+```     
  
-#### Really Remally Rough Feature Backlog
+#### Really Really Rough Feature Backlog
 
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 

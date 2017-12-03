@@ -1,0 +1,81 @@
+
+
+# create namespace "foo" and nested namespace "bar"
+namespace foo::bar {
+    d:int = 23
+    # within this namespace, "d" can be referenced without qualification.
+    assert(23 == d)
+}
+
+# When closing and re-opening the same namespace, "d" can still be referenced without qualification.
+namespace foo::bar {
+    assert(23 == d)
+}
+
+# Extending namespace foo
+namespace foo {
+    a:int = 67
+
+    # "foo:bar::d" can be referenced with partial qualification
+    assert(23 == bar::d)
+}
+
+# Extending namespace foo again..
+namespace foo {
+    c:int = 23
+
+    func someFunc:int() 111
+
+
+    # function "somefun" can be referenced without qualification
+    assert(111 == someFunc())
+}
+
+
+# Adding child namespace "bat" to "foo::bar"
+namespace foo::bar::bat {
+
+    e:int = 48
+    class SomeClass {
+        aField:int
+    }
+
+    # classes declared here can be referenced without qualification.
+    n:SomeClass = new SomeClass()
+    n.aField = 1
+    assert(1 == n.aField)
+}
+
+shadowed:int = 1111
+namespace shadow_test {
+    shadowed:int = 1112
+    assert(shadowed == 1112)
+    # TODO: global scope resolution...
+    #assert(::shadowed == 1111)
+}
+
+assert(1111 == shadowed)
+assert(1112 == shadow_test::shadowed)
+
+# reference a bunch of variables declared within various namespaces
+assert(23 == foo::bar::d)
+assert(48 == foo::bar::bat::e)
+assert(67 == foo::a)
+assert(23 == foo::c)
+
+# Reference class defined in foo::bar::bat
+i:foo::bar::bat::SomeClass = new foo::bar::bat::SomeClass()
+i.aField = 10
+assert(10 == i.aField)
+# Can reference function defined in foo
+assert(111 == foo::someFunc())
+
+# Variables with the same name but declared in sibling namespaces are in fact different
+namespace a {
+    aVariable:int = 123
+}
+namespace b {
+    aVariable:int = 456
+}
+assert(123 == a::aVariable)
+assert(456 == b::aVariable)

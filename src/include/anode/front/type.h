@@ -35,8 +35,10 @@ class ScalarType;
 class GenericType;
 class ClassType;
 
-class Type : public Object, no_assign, no_copy {
+class Type : public Object {
 public:
+    NO_COPY_NO_ASSIGN(Type)
+    Type() {}
     virtual UniqueId astNodeId() const { return (UniqueId)-1; }
     virtual std::string name() const = 0;
     virtual std::string nameForDisplay() const { return name(); }

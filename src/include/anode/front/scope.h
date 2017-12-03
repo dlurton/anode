@@ -23,18 +23,14 @@ enum class StorageKind : unsigned char {
 
 
 class Symbol;
-
 class VariableSymbol;
-
 class FunctionSymbol;
-
 class TypeSymbol;
-
 class AliasSymbol;
 
 const std::string ScopeSeparator = "::";
 
-class SymbolTable : public gc, no_copy, no_assign {
+class SymbolTable : public gc {
 
     SymbolTable *parent_ = nullptr;
     gc_ref_unordered_map<std::string, scope::Symbol> symbols_;
@@ -51,6 +47,7 @@ class SymbolTable : public gc, no_copy, no_assign {
     }
 
 public:
+    NO_COPY_NO_ASSIGN(SymbolTable)
     explicit SymbolTable(StorageKind storageKind, const std::string &name = "") : storageKind_(storageKind), name_{name} {}
 
     SymbolTable *parent() {
@@ -89,10 +86,10 @@ public:
     }
 
     /** Finds the named symbol in the current scope */
-    Symbol *findSymbol(const std::string &name) const;
+    Symbol *findSymbolInCurrentScope(const std::string &name) const;
 
     /** Finds the named symbol in the current scope or any parent. */
-    Symbol *recursiveFindSymbol(const std::string &name) const;
+    Symbol *findSymbolInCurrentScopeOrParents(const std::string &name) const;
 
     void addSymbol(Symbol &symbol);
 
@@ -105,8 +102,10 @@ public:
     gc_ref_vector<Symbol> symbols() const;
 };
 
-class Symbol : public Object, no_copy, no_assign {
+class Symbol : public Object {
 public:
+    NO_COPY_NO_ASSIGN(Symbol)
+    Symbol() { }
     virtual UniqueId symbolId() = 0;
     virtual bool isFullyQualified() = 0;
     virtual void fullyQualify(SymbolTable *symbolTable) = 0;
@@ -126,6 +125,7 @@ class SymbolBase : public Symbol {
     StorageKind storageKind_ = StorageKind::NotSet;
     std::string fullyQualifiedName_;
 protected:
+    SymbolBase();
     /** "Cloning" constructor */
     explicit SymbolBase(const SymbolBase &other);
 
@@ -135,8 +135,8 @@ protected:
     }
 
 public:
-    SymbolBase();
 
+    NO_ASSIGN(SymbolBase)
     virtual ~SymbolBase() = default;
 
     UniqueId symbolId() override { return symbolId_; }
@@ -276,7 +276,28 @@ public:
     }
 };
 
+class NamespaceSymbol : public SymbolBase {
+    SymbolTable &symbolTable_;
+public:
+    NO_COPY_NO_ASSIGN(NamespaceSymbol)
 
+    explicit NamespaceSymbol(SymbolTable &symbolTable) : symbolTable_{symbolTable} { }
+//    NamespaceSymbol(const NamespaceSymbol &) = delete;
+//    NamespaceSymbol &operator=(const NamespaceSymbol &) = delete;
+
+    std::string name() const override { return symbolTable_.name(); }
+
+    std::string toString() const override { return "NS: " + symbolTable_.name(); }
+
+    type::Type &type() const override { return type::ScalarType::Void; }
+
+    SymbolTable &symbolTable() { return symbolTable_; }
+
+    Symbol &cloneForExport() override {
+        //TODO: it's quite possible that we will need to clone sybmolTable_ here... (though I hope not! that could get expensive)
+        return *new NamespaceSymbol(symbolTable_);
+    }
+};
 
 
 }}}

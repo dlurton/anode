@@ -159,8 +159,9 @@ public:
                 break;
             }
             case scope::StorageKind::Local: {
+                ASSERT(expr.name().size() == 1 && "TODO: semantic error or refactor VariableDeclExpr and VariableRefExpr so they don't both have to use MultiPartIdentifier");
                 llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.type());
-                llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().text());
+                llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().front().text());
                 cc().mapSymbolToValue(*expr.symbol(), localVariable);
                 break;
             }
@@ -180,7 +181,8 @@ public:
             ASSERT(classType);
             llvm::Value *pointerToPointerToStruct = cc().getMappedValue(thisSymbol);
             llvm::Value *pointerToStruct = cc().irBuilder().CreateLoad(pointerToPointerToStruct);
-            pointer = createStructGep(classType, pointerToStruct, expr.name().text());
+            ASSERT(expr.name().size() == 1);
+            pointer = createStructGep(classType, pointerToStruct, expr.name().front().text());
         } else {
             //Variable is an argument or local variable.
             pointer = cc().getMappedValue(expr.symbol());

@@ -45,6 +45,7 @@ class NewExpr;
 class ResolutionDeferredTypeRef;
 class KnownTypeRef;
 class AssertExprStmt;
+class NamespaceExpr;
 class TemplateParameter;
 class TemplateExprStmt;
 class TemplateExpansionExprStmt;
@@ -121,6 +122,9 @@ public:
     virtual void visitingExpressionList(ExpressionList &) { }
     virtual void visitedExpressionList(ExpressionList &) { }
 
+    virtual void visitingNamespaceExpr(NamespaceExpr &) { }
+    virtual void visitedNamespaceExpr(NamespaceExpr &) { }
+
     virtual void visitingTemplateExprStmt(TemplateExprStmt &) { }
     virtual void visitedTemplateExprStmt(TemplateExprStmt &) { }
 
@@ -141,9 +145,10 @@ public:
 
 extern unsigned long astNodesDestroyedCount;
 
+
 class Identifier {
-    source::SourceSpan span_;
-    std::string text_;
+    const source::SourceSpan span_;
+    const std::string text_;
 
 public:
     Identifier(source::SourceSpan span, const std::string &text)
@@ -154,10 +159,76 @@ public:
 
 };
 
+
+/** Represents a multi-part identifier, i.e. "system::io::filesystem" */
+class MultiPartIdentifier {
+    source::SourceSpan span_;
+    std::vector<Identifier> parts_;
+
+    inline static source::SourceSpan spanFromIdVector(const std::vector<Identifier> &parts) {
+        const source::SourceSpan &firstSpan = parts.front().span();
+        const source::SourceSpan &lastSpan = parts.back().span();
+        return source::SourceSpan(firstSpan.name(), firstSpan.start(), lastSpan.end());
+    }
+
+    inline static std::vector<Identifier> idVectorFromId(const Identifier &part) {
+        std::vector<Identifier> parts;
+        parts.push_back(part);
+        return parts;
+    }
+
+public:
+    MultiPartIdentifier(std::vector<Identifier> &parts) : span_{spanFromIdVector(parts)}, parts_{parts} {
+        ASSERT(parts_.size() >= 1);
+    }
+    MultiPartIdentifier(const Identifier part) : span_{part.span()}, parts_{idVectorFromId(part)} {
+        ASSERT(parts_.size() >= 1);
+    }
+
+    const source::SourceSpan &span() const { return span_; }
+
+    int size() const { return (int)parts_.size(); }
+
+    std::vector<Identifier> allParts() const {
+        return parts_;
+    }
+
+    /** The first identifier element. */
+    const Identifier &front() const {
+        return parts_.front();
+    }
+
+    typedef std::vector<Identifier>::const_iterator part_iterator;
+
+    part_iterator begin() const { return parts_.begin(); }
+    part_iterator end() const { return parts_.end(); }
+
+    typedef std::vector<std::reference_wrapper<const Identifier>> middle_vector;
+    /** Everything between but not including the first and last identifier elements. */
+    middle_vector middle() const {
+        middle_vector middle;
+        if(parts_.size() > 2) {
+            std::copy(parts_.begin() + 1, parts_.end() - 1, std::back_inserter(middle));
+        }
+        return middle;
+    }
+
+    /** The last identiufier element. */
+    const Identifier &back() const {
+        return parts_.back();
+    }
+
+    std::string qualifedName() const {
+        return string::join<std::vector<Identifier>::const_iterator, Identifier>(
+            parts_.begin(), parts_.end(), "::", [](const Identifier &id) { return id.text(); });
+    }
+};
+
 /** Base class for all nodes */
-class AstNode : public Object, no_copy, no_assign {
+class AstNode : public Object {
     UniqueId nodeId_;
 public:
+    NO_COPY_NO_ASSIGN(AstNode)
     AstNode();
 
     virtual ~AstNode() {
@@ -174,7 +245,7 @@ public:
  */
 class Stmt : public AstNode {
 protected:
-    source::SourceSpan sourceSpan_;
+    const source::SourceSpan sourceSpan_;
     Stmt(const source::SourceSpan &sourceSpan) : sourceSpan_(sourceSpan) { }
 public:
     //virtual StmtKind stmtKind() const = 0;
@@ -191,11 +262,13 @@ protected:
     TypeRef(const source::SourceSpan &sourceSpan) : sourceSpan_{sourceSpan} { }
 public:
     source::SourceSpan sourceSpan() const {
+
+
         return sourceSpan_;
     }
 
     virtual type::Type &type() const = 0;
-    virtual const Identifier &name() const = 0;
+    virtual const MultiPartIdentifier &name() const = 0;
     virtual TypeRef &deepCopyForTemplate() const = 0;
 };
 
@@ -203,14 +276,15 @@ public:
 /** A reference to a data type that is known at parse time (used for primitive data types). */
 class KnownTypeRef : public TypeRef {
     type::Type &referencedType_;
-    const Identifier name_;
+    const MultiPartIdentifier name_;
 public:
     KnownTypeRef(source::SourceSpan sourceSpan, type::Type &dataType)
-        : TypeRef(sourceSpan), referencedType_{dataType}, name_{Identifier(source::SourceSpan::Any, referencedType_.name())}
+        : TypeRef(sourceSpan), referencedType_{dataType}, name_{
+                MultiPartIdentifier(Identifier(source::SourceSpan::Any, referencedType_.name()))}
     { }
 
     type::Type &type() const override { return referencedType_; };
-    const Identifier &name() const override { return name_; };
+    const MultiPartIdentifier &name() const override { return name_; };
 
     TypeRef &deepCopyForTemplate() const override {
         return *new KnownTypeRef(sourceSpan(), referencedType_);
@@ -221,22 +295,10 @@ public:
     }
 };
 
-template<typename TIterator, typename TItem>
-inline std::string join(TIterator begin, TIterator end, std::string delimiter, std::function<std::string(TItem)> toString) {
-    if(begin == end) return "";
-    std::string output = toString(*(begin++));
-
-    while(begin != end) {
-        output += delimiter;
-        output += toString(*(begin++));
-    }
-
-    return output;
-}
 
 /** A reference to a data type that doesn't exist at parse time. i.e.: classes.  Resolved during an AST pass. */
 class ResolutionDeferredTypeRef : public TypeRef {
-    const Identifier name_;
+    const MultiPartIdentifier name_;
     gc_ref_vector<ResolutionDeferredTypeRef> templateArgs_;
     type::ResolutionDeferredType *referencedType_;
 
@@ -249,10 +311,10 @@ class ResolutionDeferredTypeRef : public TypeRef {
         return types;
     }
 public:
-    ResolutionDeferredTypeRef(const source::SourceSpan &sourceSpan, const Identifier &name, const gc_ref_vector<ResolutionDeferredTypeRef> &args)
+    ResolutionDeferredTypeRef(const source::SourceSpan &sourceSpan, const MultiPartIdentifier &name, const gc_ref_vector<ResolutionDeferredTypeRef> &args)
         : TypeRef(sourceSpan), name_{name}, templateArgs_{args}, referencedType_(new type::ResolutionDeferredType(getTypesFromTypeRefs(templateArgs_))) { }
 
-    const Identifier &name() const override { return name_; }
+    const MultiPartIdentifier &name() const override { return name_; }
 
     type::Type &type() const override {
          return *referencedType_;
@@ -323,7 +385,15 @@ public:
     virtual ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const = 0;
 };
 
-
+/** AST nodes representing language constructs which do not return a meaningful value (i.e. a function or definition, a while statemnt,
+ * template definition or template expansion, etc, should inherit from this class. */
+class VoidExprStmt : public ExprStmt {
+protected:
+    VoidExprStmt(const source::SourceSpan &sourceSpan) : ExprStmt(sourceSpan) { }
+public:
+    type::Type &type() const override { return type::ScalarType::Void; };
+    bool canWrite() const override { return false; }
+};
 
 /** Like CompoundExpr but does not create a lexical scope. */
 class ExpressionList : public ExprStmt {
@@ -450,7 +520,7 @@ public:
     }
 };
 
-class TemplateExprStmt : public ExprStmt {
+class TemplateExprStmt : public VoidExprStmt {
     const Identifier name_;
     gc_ref_vector<ast::TemplateParameter> parameters_;
     ast::ExpressionList &body_;
@@ -460,15 +530,12 @@ public:
         const Identifier &name,
         const gc_ref_vector<ast::TemplateParameter> &parameters,
         ast::ExpressionList &body)
-        : ExprStmt(sourceSpan),
+        : VoidExprStmt(sourceSpan),
           name_{name},
           parameters_{parameters},
           body_{body} {}
 
     gc_ref_vector<ast::TemplateParameter> &parameters() { return parameters_; }
-
-    type::Type &type() const override { return type::ScalarType::Void; }
-    bool canWrite() const override { return false; };
 
     const Identifier &name() { return name_; }
     ExpressionList &body() { return body_; }
@@ -496,8 +563,8 @@ public:
     }
 };
 
-class TemplateExpansionExprStmt : public ExprStmt {
-    Identifier templateName_;
+class TemplateExpansionExprStmt : public VoidExprStmt {
+    MultiPartIdentifier templateName_;
     TemplateExprStmt *template_ = nullptr;
     //TODO:  convert below to vector of TemplateArgument*
     gc_ref_vector<ast::TypeRef> typeArguments_;
@@ -506,16 +573,14 @@ class TemplateExpansionExprStmt : public ExprStmt {
 public:
     TemplateExpansionExprStmt(
         source::SourceSpan sourceSpan,
-        const Identifier &templateName,
+        const MultiPartIdentifier &templateName,
         const gc_ref_vector<TypeRef> &typeArguments)
-        : ExprStmt(sourceSpan),
+        : VoidExprStmt(sourceSpan),
           templateName_{templateName},
           typeArguments_{typeArguments},
           templateParameterScope_{scope::StorageKind::TemplateParameter}
     { }
 
-    type::Type &type() const override { return type::ScalarType::Void; }
-    virtual bool canWrite() const override { return false; };
 
     TemplateExprStmt &templ() const { return *template_; }
     void setTempl(TemplateExprStmt &templ) {
@@ -523,7 +588,7 @@ public:
         template_ = &templ;
     }
 
-    const Identifier &templateName() const { return templateName_; }
+    const MultiPartIdentifier &templateName() const { return templateName_; }
     gc_ref_vector<ast::TypeRef> typeArguments() const { return typeArguments_; }
 
     scope::SymbolTable &templateParameterScope() { return templateParameterScope_; }
@@ -805,21 +870,18 @@ class VariableRefExpr : public ExprStmt {
     scope::Symbol *symbol_ = nullptr;
     VariableAccess access_ = VariableAccess::Read;
 protected:
-    const Identifier name_;
+    const MultiPartIdentifier name_;
 
 public:
-    VariableRefExpr(source::SourceSpan sourceSpan, const Identifier &name, VariableAccess access = VariableAccess::Read)
-        : ExprStmt(sourceSpan), access_{access}, name_{ name } {
-        ASSERT(name.text().size() > 0);
-    }
+    VariableRefExpr(source::SourceSpan sourceSpan, const MultiPartIdentifier &name, VariableAccess access = VariableAccess::Read)
+        : ExprStmt(sourceSpan), access_{access}, name_{ name } { }
 
     type::Type &type() const override {
-        ASSERT(symbol_);
-        return symbol_->type();
+        return symbol_ ? symbol_->type() : type::UnresolvedType::Instance;
     }
 
-    const Identifier &name() const { return name_; }
-    std::string toString() const { return name_.text() + ":" + this->type().nameForDisplay(); }
+    const MultiPartIdentifier &name() const { return name_; }
+    std::string toString() const { return name_.qualifedName() + ":" + this->type().nameForDisplay(); }
 
     scope::Symbol *symbol() {
         return symbol_;
@@ -850,7 +912,7 @@ public:
 class VariableDeclExpr : public VariableRefExpr {
     TypeRef& typeRef_;
 public:
-    VariableDeclExpr(source::SourceSpan sourceSpan, const Identifier &name, TypeRef& typeRef, VariableAccess access = VariableAccess::Read)
+    VariableDeclExpr(source::SourceSpan sourceSpan, const MultiPartIdentifier &name, TypeRef& typeRef, VariableAccess access = VariableAccess::Read)
         : VariableRefExpr(sourceSpan, name, access),
           typeRef_(typeRef)
     {
@@ -1019,7 +1081,7 @@ public:
     }
 };
 
-class WhileExpr : public ExprStmt {
+class WhileExpr : public VoidExprStmt {
     ExprStmt* condition_;
     ExprStmt& body_;
 public:
@@ -1028,16 +1090,11 @@ public:
     WhileExpr(source::SourceSpan sourceSpan,
               ExprStmt& condition,
               ExprStmt& body)
-        : ExprStmt(sourceSpan),
+        : VoidExprStmt(sourceSpan),
           condition_{ &condition },
           body_{ body } {
         ASSERT(&condition_);
         ASSERT(&body_)
-    }
-
-    type::Type &type() const override {
-        //For now, while expressions will not return a value.
-        return type::ScalarType::Void;
     }
 
     ExprStmt &condition() const { return *condition_; }
@@ -1048,8 +1105,6 @@ public:
     }
 
     ExprStmt &body() const { return body_; }
-
-    virtual bool canWrite() const override { return false; };
 
     void accept(AstVisitor &visitor) override {
         visitor.visitingWhileExpr(*this);
@@ -1104,7 +1159,7 @@ public:
 };
 type::FunctionType &createFunctionType(type::Type &returnType, const gc_ref_vector<ParameterDef> &parameters);
 
-class FuncDefStmt : public ExprStmt {
+class FuncDefStmt : public VoidExprStmt {
     const Identifier name_;
     scope::FunctionSymbol *symbol_= nullptr;
     scope::SymbolTable parameterScope_;
@@ -1120,7 +1175,7 @@ public:
         TypeRef& returnTypeRef,
         gc_ref_vector<ParameterDef> parameters,
         ExprStmt& body
-    ) : ExprStmt(sourceSpan),
+    ) : VoidExprStmt(sourceSpan),
         name_{name},
         parameterScope_{scope::StorageKind::Argument},
         returnTypeRef_{returnTypeRef},
@@ -1130,9 +1185,6 @@ public:
     {
         parameterScope_.name() = name_.text() + "-parameters";
     }
-
-    type::Type &type() const override { return type::ScalarType::Void; }
-    bool canWrite() const override { return false; }
 
     const Identifier &name() const { return name_; }
     type::Type &returnType() const { return *functionType_.returnType(); }
@@ -1279,7 +1331,40 @@ public:
     }
 };
 
-class ClassDefinitionBase : public ExprStmt {
+class NamespaceExpr : public VoidExprStmt {
+    MultiPartIdentifier qualifiedName_;
+    ExpressionList &body_;
+    scope::SymbolTable *scope_;
+public:
+    NamespaceExpr(const source::SourceSpan &sourceSpan, const MultiPartIdentifier &qualifiedName, ExpressionList &body)
+        : VoidExprStmt(sourceSpan),
+          qualifiedName_{qualifiedName}, body_{body} { }
+
+    scope::SymbolTable &scope() {
+        ASSERT(scope_);
+        return *scope_;
+    }
+
+    void setScope(scope::SymbolTable &scope) {
+        scope_ = &scope;
+    }
+
+    const MultiPartIdentifier &name() { return qualifiedName_; }
+    ExpressionList &body() { return body_; }
+
+
+    void accept(AstVisitor &visitor) override {
+        visitor.visitingNamespaceExpr(*this);
+        body_.accept(visitor);
+        visitor.visitedNamespaceExpr(*this);
+    }
+
+    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+        return *new NamespaceExpr(sourceSpan_, qualifiedName_, upcast<ExpressionList>(body_.deepCopyExpandTemplate(templateArgs)));
+    }
+};
+
+class ClassDefinitionBase : public VoidExprStmt {
     Identifier name_;
     CompoundExpr &body_;
 protected:
@@ -1287,19 +1372,13 @@ protected:
         source::SourceSpan span,
         const Identifier &name,
         ast::CompoundExpr &body
-    ) : ExprStmt{span},
+    ) : VoidExprStmt{span},
         name_{name},
         body_{body}
     { }
 public:
-
-    /** The class definition, as an expression in the language, doesn't return a meaningful value. */
-    type::Type &type() const override { return type::ScalarType::Void; }
-
     /** The type of the class being defined. */
     virtual type::Type &definedType() const = 0;
-
-    bool canWrite() const override { return false; }
 
     CompoundExpr &body() const { return body_; }
     Identifier name() const { return name_; }
@@ -1475,16 +1554,14 @@ public:
     }
 };
 
-class AssertExprStmt : public ExprStmt {
+class AssertExprStmt : public VoidExprStmt {
     ast::ExprStmt *condition_;
 public:
     AssertExprStmt(const source::SourceSpan &sourceSpan, ExprStmt &condition)
-        : ExprStmt(sourceSpan), condition_{&condition} {
+        : VoidExprStmt(sourceSpan), condition_{&condition} {
         ASSERT(condition_);
     }
 
-    type::Type &type() const override { return type::ScalarType::Void; }
-    bool canWrite() const override { return false; }
     ast::ExprStmt &condition() {
         return *condition_;
     }
@@ -1528,12 +1605,13 @@ public:
     }
 };
 
-class AnodeWorld : public gc, no_assign, no_copy {
+class AnodeWorld : public gc {
     scope::SymbolTable globalScope_{scope::StorageKind::Global, ""};
     gc_unordered_map<UniqueId, TemplateExprStmt*> templateIndex_;
     gc_unordered_set<ast::TemplateExprStmt*> expandingTemplates_;
 public:
-
+    NO_COPY_NO_ASSIGN(AnodeWorld)
+    AnodeWorld() { }
     scope::SymbolTable &globalScope() { return globalScope_; }
 
     void addTemplate(TemplateExprStmt *templateExprStmt) {

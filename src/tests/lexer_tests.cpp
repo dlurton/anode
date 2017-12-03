@@ -30,7 +30,8 @@ gc_vector<Token*> extractAllTokens(const std::string &fromStr) {
 }
 
 TEST_CASE("simple tokens") {
-    auto tokens = extractAllTokens("; ! + - * / = == != > < >= <= ++ -- . : ( ) { } true false while if func cast class assert new alias expand");
+    auto tokens = extractAllTokens("; ! + - * / = == != > < >= <= ++ -- . : :: ( ) { }"
+                                   "true false while if func cast class assert new alias template expand namespace");
     int i = 0;
     REQUIRE(tokens[i++]->kind() == TokenKind::END_OF_STATEMENT);
     REQUIRE(tokens[i++]->kind() == TokenKind::OP_NOT);
@@ -49,10 +50,12 @@ TEST_CASE("simple tokens") {
     REQUIRE(tokens[i++]->kind() == TokenKind::OP_DEC);
     REQUIRE(tokens[i++]->kind() == TokenKind::OP_DOT);
     REQUIRE(tokens[i++]->kind() == TokenKind::OP_DEF);
+    REQUIRE(tokens[i++]->kind() == TokenKind::OP_NAMESPACE);
     REQUIRE(tokens[i++]->kind() == TokenKind::OPEN_PAREN);
     REQUIRE(tokens[i++]->kind() == TokenKind::CLOSE_PAREN);
     REQUIRE(tokens[i++]->kind() == TokenKind::OPEN_CURLY);
     REQUIRE(tokens[i++]->kind() == TokenKind::CLOSE_CURLY);
+
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_TRUE);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_FALSE);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_WHILE);
@@ -63,7 +66,9 @@ TEST_CASE("simple tokens") {
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_ASSERT);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_NEW);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_ALIAS);
+    REQUIRE(tokens[i++]->kind() == TokenKind::KW_TEMPLATE);
     REQUIRE(tokens[i++]->kind() == TokenKind::KW_EXPAND);
+    REQUIRE(tokens[i++]->kind() == TokenKind::KW_NAMESPACE);
     REQUIRE(tokens[i++]->kind() == TokenKind::END_OF_INPUT);
 
     REQUIRE(i == tokens.size());

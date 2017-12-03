@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <functional>
 
 namespace anode { namespace string {
 
@@ -77,4 +78,19 @@ namespace anode { namespace string {
         trim(s);
         return s;
     }
+
+
+    template<typename TIterator, typename TItem>
+    inline std::string join(TIterator begin, TIterator end, const std::string &delimiter, std::function<std::string(const TItem &)> toString) {
+        if(begin == end) return "";
+        std::string output = toString(*(begin++));
+
+        while(begin != end) {
+            output += delimiter;
+            output += toString(*(begin++));
+        }
+
+        return output;
+    }
+
 }}

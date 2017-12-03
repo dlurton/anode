@@ -272,7 +272,6 @@ bool dumpAst(const std::string &startScriptFilename) {
     std::shared_ptr<execute::ExecutionContext> executionContext = execute::createExecutionContext();
 
     if(executionContext->prepareModule(module)) {
-        std::cerr << "Semantic module preparation failed.\n";
         return true;
     }
 

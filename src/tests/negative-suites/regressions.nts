@@ -3,4 +3,4 @@
 # should *not* should be the global scope.
 template TFoo(T){ }
 expand TFoo(T)
-?TypeNotDefined, 5, 13
+?SymbolNotDefined, 5, 13

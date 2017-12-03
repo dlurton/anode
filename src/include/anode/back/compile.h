@@ -27,10 +27,11 @@ namespace anode { namespace back {
     const char * const MALLOC_FUNC_NAME = "__malloc__";
     const char * const EXECUTION_CONTEXT_GLOBAL_NAME = "__execution__context__";
 
-    class TypeMap : no_assign, no_copy {
+    class TypeMap  {
         gc_unordered_map<const front::type::Type *, llvm::Type *> typeMap_;
         llvm::LLVMContext &llvmContext_;
     public:
+        NO_COPY_NO_ASSIGN(TypeMap)
         TypeMap(llvm::LLVMContext &llvmContext) : llvmContext_{llvmContext} {
 
             mapTypes(&front::type::ScalarType::Void, llvm::Type::getVoidTy(llvmContext_));

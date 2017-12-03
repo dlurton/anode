@@ -17,7 +17,7 @@ to make a usable, "cushy" language that is easy to grok yet is also powerful and
 When in Rome, do as the Romans do.  Some things however, do need to be said:
 
 - Try to make your changes look like the existing code.
-- Don't make style changes to code that you are not otherwise modifying.
+- Don't make style changes to code that you are not otherwise modifying unless it doesn't comply with these few rules.
 - Spaces, not tabs.
 - Curly braces at end of line.
 - Long lines aren't the end of the world, but I suggest wrapping them at 140 characters.
@@ -36,7 +36,7 @@ plans to ever remove the collector--at least for the compiler itself.
 - When deciding between pointer and reference types:
     - Use references for:
         - Variables and member variables that are never `nullptr` and never need to point to a different instance after initialization.
-        - Get accessors and other references that return values which are never `nullptr`.
+        - Get accessors and other functions that return values which are never `nullptr`.
     - Use pointers for:
         - Variables and member variables which may be null or whose instances need to be changed after being initialized.
         - Get accessors and other references that might return `nullptr.`

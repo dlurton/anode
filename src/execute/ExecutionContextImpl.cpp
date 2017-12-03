@@ -33,7 +33,7 @@ void InitializeJit() {
  * so that it's memory is scanned for  pointers to live objects, otherwise these may get collected prematurely.
  * Most likely, there can only ever be one instance of this at a time--but that would depend on if AnodeJit is
  * thread-safe and that depends mostly on LLVM. */
-class ExecutionContextImpl : public ExecutionContext, no_copy, no_assign {
+class ExecutionContextImpl : public ExecutionContext {
     llvm::LLVMContext context_;
     bool dumpIROnModuleLoad_ = false;
     bool setPrettyPrintAst_ = false;
@@ -41,6 +41,7 @@ class ExecutionContextImpl : public ExecutionContext, no_copy, no_assign {
     ResultCallbackFunctor resultFunctor_ = nullptr;
     back::TypeMap typeMap_;
 public:
+    NO_COPY_NO_ASSIGN(ExecutionContextImpl)
     ExecutionContextImpl() : typeMap_{context_} {
         Jit->putExport(back::EXECUTION_CONTEXT_GLOBAL_NAME, reinterpret_cast<runtime::symbolptr_t>(this));
     }

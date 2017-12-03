@@ -42,7 +42,7 @@ SymbolBase::SymbolBase()
 
 }
 
-Symbol *SymbolTable::findSymbol(const std::string &name) const {
+Symbol *SymbolTable::findSymbolInCurrentScope(const std::string &name) const {
     auto found = symbols_.find(name);
     if (found == symbols_.end()) {
         return nullptr;
@@ -50,10 +50,10 @@ Symbol *SymbolTable::findSymbol(const std::string &name) const {
     return &found->second.get();
 }
 
-Symbol *SymbolTable::recursiveFindSymbol(const std::string &name) const {
+Symbol *SymbolTable::findSymbolInCurrentScopeOrParents(const std::string &name) const {
     SymbolTable const *current = this;
     while(current) {
-        Symbol* found = current->findSymbol(name);
+        Symbol* found = current->findSymbolInCurrentScope(name);
         if(found) {
             return found;
         }
@@ -67,12 +67,12 @@ void SymbolTable::addSymbol(Symbol &symbol) {
     ASSERT(storageKind_ != StorageKind::NotSet);
     ASSERT(!symbol.name().empty());
 #ifdef ANODE_DEBUG
-    if(findSymbol(symbol.name())) {
+    if(findSymbolInCurrentScope(symbol.name())) {
         throw exception::DebugAssertionFailedException(string::format("Symbol '%s' already exists in this SymbolTable", symbol.name().c_str()));
     }
 #endif
 
-    ASSERT(!findSymbol(symbol.name()));
+    ASSERT(!findSymbolInCurrentScope(symbol.name()));
 
     if(!symbol.isFullyQualified()) {
         symbol.fullyQualify(this);
