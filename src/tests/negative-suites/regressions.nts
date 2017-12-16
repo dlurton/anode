@@ -1,6 +1,6 @@
 #############################################################################
 # The scope of symbol resolution inside the template expansion's arguments
 # should be the global scope.
-template TFoo(T){ }
-expand TFoo(T)
+template TFoo<T> { }
+expand TFoo<T>
 ?SymbolNotDefined, 5, 13

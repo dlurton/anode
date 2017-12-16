@@ -91,12 +91,6 @@ class foo { }
 ?SymbolAlreadyDefinedInScope, 5, 7
 
 #############################################################################
-#duplicate template name
-template foo() { }
-template foo() { }
-?SymbolAlreadyDefinedInScope, 5, 10
-
-#############################################################################
 abcdef = 1
 ?SymbolNotDefined, 3, 1
 

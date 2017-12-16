@@ -1,11 +1,10 @@
 
-template (TArg) {
-    class SomeWidget {
-        someValue: TArg
-    }
+template <TArg>
+class SomeWidget {
+    someValue: TArg
 }
 
-template (TArg) {
+template <TArg> {
     class Node {
         next: Node<TArg>
         item: Item<TArg>
@@ -76,7 +75,7 @@ template (TArg) {
 
 # a generic class is expanded into the same namespace in which it was initially declared
 {
-    namespace Foo::Bar template (TItem) {
+    namespace Foo::Bar template <TItem> {
         class Node {
             someValue: TItem
         }
@@ -87,12 +86,13 @@ template (TArg) {
     assert(n1.someValue == 4747)
 }
 
-
-namespace Noo::Nar template (TItem) {
+{
+    namespace Noo::Nar template <TItem>
     class AnotherNode {
         anotherValue: TItem
     }
+
+    a: Noo::Nar::AnotherNode<int> = new Noo::Nar::AnotherNode<int>()
+    a.anotherValue = 858
+    assert(858 == a.anotherValue)
 }
-a: Noo::Nar::AnotherNode<int> = new Noo::Nar::AnotherNode<int>()
-a.anotherValue = 858
-assert(858 == a.anotherValue)

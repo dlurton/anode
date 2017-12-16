@@ -1,15 +1,15 @@
 
 # basic template expansion
 {
-    template TList(T1) {
+    template TList<T1> {
         class LinkedList {
             head:Node
             tail:Node
         }
-        expand TNode(T1)
+        expand TNode<T1>
     }
 
-    template TNode(T2) {
+    template TNode<T2> {
         class Node {
             next:Node
             item:T2
@@ -17,7 +17,7 @@
     }
 
     {
-        namespace ints expand TList(int)
+        namespace ints expand TList<int>
 
         list:ints::LinkedList = new ints::LinkedList()
         list.head = new ints::Node()
@@ -27,8 +27,9 @@
         assert(list.head.item == 10)
         assert(list.head.next.item == 11)
     }
+
     {
-        namespace floats expand TList(float)
+        namespace floats expand TList<float>
 
         list2:floats::LinkedList = new floats::LinkedList()
         list2.head = new floats::Node()
@@ -43,16 +44,16 @@
 # expanded templates inherit the scope at the location of the expansion template, meaning that nested template expansions
 # can access the template parameters of the outer expansion
 {
-    template OuterTemplate(TOuterParam) {
-        expand InnerTemplate()
+    template OuterTemplate<TOuterParam> {
+        expand InnerTemplate
     }
 
-    template InnerTemplate() {
+    template InnerTemplate {
         value:TOuterParam # might be confusing.
     }
 
-    namespace ints expand OuterTemplate(int)
-    namespace floats expand OuterTemplate(float)
+    namespace ints expand OuterTemplate<int>
+    namespace floats expand OuterTemplate<float>
 
     ints::value = 678
     assert(ints::value == 678)

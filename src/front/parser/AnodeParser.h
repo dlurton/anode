@@ -44,6 +44,13 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     Token &consumeOpenCurly() {
         return consume(TokenKind::OPEN_CURLY, '{');
     }
+    Token &consumeOpGt() {
+        return consume(TokenKind::OP_GT, '>');
+    }
+
+    Token &consumeOpLt() {
+        return consume(TokenKind::OP_LT, '<');
+    }
 
     Token &consumeCloseParen() {
         return consume(TokenKind::CLOSE_PAREN, ')');
@@ -335,16 +342,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt &parseClassDef(Token &classKeyword) {
         auto className = parseIdentifier();
-        if(lexer_.peekToken().kind() == TokenKind::OPEN_PAREN) {
-            if(!templateParameters_.empty()) {
-                ASSERT_FAIL("TODO:  error message preventing generic classes within templates.")
-            }
-            auto parameters = parseTemplateParameters();
-        }
-
 
         storageKindStack_.push(scope::StorageKind::Instance);
-
 
         ast::ExprStmt &classBody = parseExpr();
 
@@ -407,7 +406,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         // GenericClassDefinitions instead of CompleteClassDefinitions
         parsingAnonymousTemplate_ = optionalId == nullptr;
 
-        gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters();
+        gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters(
+            parsingAnonymousTemplate_ ? TemplateParameterRequirement::Required : TemplateParameterRequirement::Optional);
 
         templateParameters_ = parameters;
         auto &&body = upcast<ast::ExpressionList>(parseExpressionList());
@@ -430,15 +430,26 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         }
     }
 
-    gc_ref_vector <ast::TemplateParameter> parseTemplateParameters() {
+    enum class TemplateParameterRequirement {
+        Required,
+        Optional
+    };
+
+    gc_ref_vector <ast::TemplateParameter> parseTemplateParameters(TemplateParameterRequirement requirement) {
         gc_ref_vector<ast::TemplateParameter> parameters;
 
-        consumeOpenParen();
-        if(!consumeOptional(TokenKind::CLOSE_PAREN)) {
+        if(requirement == TemplateParameterRequirement::Required) {
+            consume(TokenKind::OP_LT, '<');
+        } else {
+            if(!consumeOptional(TokenKind::OP_LT)) {
+                return parameters;
+            }
+        }
+        if(!consumeOptional(TokenKind::OP_GT)) {
             do {
                 auto identifier = parseIdentifier();
                 parameters.emplace_back(*new ast::TemplateParameter(identifier.span(), identifier));
-            } while(consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, "',' or ')'").kind() == TokenKind::COMMA);
+            } while(consume(TokenKind::COMMA, TokenKind::OP_GT, "',' or '>'").kind() == TokenKind::COMMA);
         }
         return parameters;
     }
@@ -446,17 +457,20 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     ast::ExprStmt &parseExpand(Token &expandKeyword) {
         gc_ref_vector<ast::TypeRef> templateArgs;
         ast::MultiPartIdentifier templateName = parseQualifiedIdentifier();
-        consumeOpenParen();
-        Token *terminator = consumeOptional(TokenKind::CLOSE_PAREN);
+        SourceSpan endSpan = templateName.span();
 
-        if(terminator == nullptr) {
-            do {
-                templateArgs.emplace_back(parseTypeRef());
-            } while ((terminator = &consume(TokenKind::CLOSE_PAREN, TokenKind::COMMA, "'>' or ','"))->kind() == TokenKind::COMMA);
+        if(consumeOptional(TokenKind::OP_LT)) {
+            if(!consumeOptional(TokenKind::OP_GT)) {
+                Token *terminator = nullptr;
+                do {
+                    templateArgs.emplace_back(parseTypeRef());
+                } while ((terminator = &consume(TokenKind::OP_GT, TokenKind::COMMA, "'>' or ','"))->kind() == TokenKind::COMMA);
+                endSpan = terminator->span();
+            }
         }
 
         return *new ast::TemplateExpansionExprStmt(
-            makeSourceSpan(expandKeyword.span(), terminator->span()),
+            makeSourceSpan(expandKeyword.span(), endSpan),
             templateName, templateArgs);
     }
 

@@ -41,13 +41,13 @@ public:
 
             typeRef.setType(*expandedType);
 
-            } else if(typeRef.hasTemplateArguments()) {
-                errorStream_.error(
-                    error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
-                    typeRef.sourceSpan(),
-                    "Type '%s' is not generic but is referenced with generic arguments",
-                    typeRef.type().nameForDisplay().c_str());
-            }
+        } else if(typeRef.hasTemplateArguments()) {
+            errorStream_.error(
+                error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
+                typeRef.sourceSpan(),
+                "Type '%s' is not generic but is referenced with generic arguments",
+                typeRef.type().nameForDisplay().c_str());
+        }
     }
 };
 

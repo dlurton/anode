@@ -1,4 +1,4 @@
-template(TItem) {
+template <TItem> {
     class Node {
     }
 }
@@ -9,7 +9,7 @@ b = a #incompatible types
 
 #############################################################################
 # too few generic arguments
-template (T, TT) {
+template <T, TT> {
     class C { }
 }
 c:C<int>
@@ -17,7 +17,7 @@ c:C<int>
 
 #############################################################################
 # too many generic arguments
-template (T, TT) {
+template <T, TT> {
     class C { }
 }
 c:C<int, float, bool>
@@ -25,7 +25,7 @@ c:C<int, float, bool>
 
 #############################################################################
 # assignment of variable with generic type with a value of the same generic type but different type arguments
-template (T) {
+template <T> {
     class Temp { }
 }
 tempInt:Temp<int>
@@ -37,4 +37,19 @@ tempFloat:Temp<float> = tempInt
 class S { }
 a:S<int>
 ?TypeIsNotGenericButIsReferencedWithGenericArgs, 5, 3
+
+#############################################################################
+# variables cannot exist in anonymous templates
+template <T> i:int
+?OnlyClassesAndFunctionsAllowedInAnonymousTemplates, 4, 14
+
+#############################################################################
+# namespaces cannot exist in anonymous templates
+template <T> namespace foo class bar { i:int }
+?OnlyClassesAndFunctionsAllowedInAnonymousTemplates, 4, 14
+
+#############################################################################
+# expressions cannot exist in anonymous templates
+template <T> 1 + 1
+?OnlyClassesAndFunctionsAllowedInAnonymousTemplates, 4, 14
 

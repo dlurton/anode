@@ -8,10 +8,9 @@
 namespace anode { namespace front  { namespace passes {
 
 
-class CastExprSemanticPass : public ast::AstVisitor {
-    error::ErrorStream &errorStream_;
+class CastExprSemanticPass : public ErrorContextAstVisitor {
 public:
-    explicit CastExprSemanticPass(error::ErrorStream &errorStream_) : errorStream_(errorStream_) { }
+    explicit CastExprSemanticPass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
     void visitingCastExpr(ast::CastExpr &expr) override {
         //Note:  we are not excluding implicit casts here...

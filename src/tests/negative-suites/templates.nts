@@ -1,30 +1,36 @@
 #############################################################################
+#duplicate template name
+template foo { }
+template foo { }
+?SymbolAlreadyDefinedInScope, 4, 10
+
+#############################################################################
 # reference unknown template
 expand UndefinedTemplate()
-?SymbolNotDefined, 3, 8
+?SymbolNotDefined, 4, 8
 
 #############################################################################
 # nested templates
-template TOuter() {
-    template TInner() { }
+template TOuter {
+    template TInner { }
 }
 ?CannotNestTemplates, 5, 5
 
 #############################################################################
 # too few template arguments
-template TTemplate(T, TT) { }
-expand TTemplate(int)
+template TTemplate<T, TT> { }
+expand TTemplate<int>
 ?IncorrectNumberOfTemplateArguments, 5, 1
 
 #############################################################################
 # too many template arguments
-template TTemplate(T, TT) { }
+template TTemplate<T, TT> { }
 expand TTemplate(int, float, bool)
 ?IncorrectNumberOfTemplateArguments, 5, 1
 
 #############################################################################
 # can't reference class within non-expanded template
-template Temp(T) {
+template Temp<T> {
     class S { }
 }
 a:S
@@ -32,7 +38,7 @@ a:S
 
 #############################################################################
 # can't reference function within non-expanded template
-template Temp(T) {
+template Temp<T> {
     func foo:void() 1
 }
 foo()
@@ -40,7 +46,7 @@ foo()
 
 #############################################################################
 # can't reference variable within non-expanded template
-template Temp(T) {
+template Temp<T> {
     f:int = 1
 }
 f
@@ -48,39 +54,40 @@ f
 
 #############################################################################
 # circular template reference (1 template)
-template TFoo() {
-    expand TFoo()
+template TFoo {
+    expand TFoo
 }
-expand TFoo()
+expand TFoo
 ?CircularTemplateReference, 5, 5
 
 #############################################################################
 # circular template references (2 templates)
-template TFoo() {
-    expand TBar()
+template TFoo {
+    expand TBar
 }
-template TBar() {
-    expand TFoo()
+template TBar {
+    expand TFoo
 }
-expand TFoo()
+expand TFoo
 ?CircularTemplateReference, 8, 5
 
 #############################################################################
 # circular template references (3 templates)
-template TFoo() {
-    expand TBar()
+template TFoo {
+    expand TBar
 }
-template TBar() {
-    expand TBat()
+template TBar {
+    expand TBat
 }
-template TBat() {
-    expand TBar()
+template TBat {
+    expand TBar
 }
-expand TFoo()
+expand TFoo
 ?CircularTemplateReference, 11, 5
 
 #############################################################################
 # attempt to expand a symbol that is not a template
 notATemplate:int
-expand notATemplate()
+expand notATemplate
 ?SymbolIsNotATemplate, 5, 8
+

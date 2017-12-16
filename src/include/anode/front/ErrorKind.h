@@ -42,14 +42,23 @@ BETTER_ENUM(
     ExpressionIsNotFunction,
     LeftOfDotNotClass,
     ClassMemberNotFound,
+
+    //Function related
     IncorrectNumberOfArguments,
     MethodNotDefined,
+
+    //Template related
     SymbolIsNotATemplate,
     IncorrectNumberOfTemplateArguments,
+    CircularTemplateReference,
+
+    //Anonymous template related
     IncorrectNumberOfGenericArguments,
     TypeIsNotGenericButIsReferencedWithGenericArgs,
     GenericTypeWasNotExpandedWithSpecifiedArguments,
-    CircularTemplateReference,
+    OnlyClassesAndFunctionsAllowedInAnonymousTemplates,
+
+    //Namespace related
     NamespaceDoesNotExist,
     IdentifierIsNotNamespace,
     ChildNamespaceDoesNotExist,
