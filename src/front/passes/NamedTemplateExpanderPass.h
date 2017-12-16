@@ -9,21 +9,17 @@ namespace anode { namespace front  { namespace passes {
 
 
 /** Expands explicit template expansions. */
-class TemplateExpanderPass : public ErrorContextAstVisitor {
+class NamedTemplateExpanderPass : public ErrorContextAstVisitor {
     ast::AnodeWorld &world_;
-    ast::Module *module_ = nullptr;
+    ast::Module &module_;
     bool visitingExpansion_ = false;
 public:
 
-    TemplateExpanderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world_)
-        : ErrorContextAstVisitor(errorStream), world_(world_) { }
+    NamedTemplateExpanderPass(error::ErrorStream &errorStream, ast::Module &module, ast::AnodeWorld &world_)
+        : ErrorContextAstVisitor(errorStream), world_(world_), module_{module} { }
 
     bool shouldVisitChildren() override {
         return !visitingExpansion_;
-    }
-
-    void visitingModule(ast::Module &module) override {
-        module_ = &module;
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
@@ -85,20 +81,19 @@ public:
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
             expansion.templateParameterScope().addSymbol(*new scope::TypeSymbol(tParams[i].get().name().text(), tArgs[i].get().type()));
-            templateArgs.emplace_back(*new ast::TemplateArgument(tParams[i].get().name().text(), tArgs[i].get()));
+            templateArgs.emplace_back(*new ast::TemplateArgument(tParams[i].get().name(), tArgs[i].get()));
         }
 
         expansion.setExpandedTemplate(&templ.body().deepCopyExpandTemplate(templateArgs));
 
-        auto visitors = getPreTemplateExpansionPassses(world_, errorStream_);
-        runPasses(visitors, *expansion.expandedTemplate(), errorStream_, expansion.templateParameterScope());
+        auto visitors = getPreTemplateExpansionPassses(world_, module_, errorStream_);
+        runPasses(visitors,  *expansion.expandedTemplate(), errorStream_, expansion.templateParameterScope());
     }
 
     void visitedTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
         visitingExpansion_ = false;
         world_.removeExpandingTemplate(expansion.templ());
         ErrorContextAstVisitor::visitedTemplateExpansionExprStmt(expansion);
-
     }
 };
 

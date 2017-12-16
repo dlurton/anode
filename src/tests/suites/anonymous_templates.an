@@ -1,0 +1,98 @@
+
+template (TArg) {
+    class SomeWidget {
+        someValue: TArg
+    }
+}
+
+template (TArg) {
+    class Node {
+        next: Node<TArg>
+        item: Item<TArg>
+    }
+
+    class Item {
+        value: TArg
+    }
+}
+
+# basic generic classes
+{
+    intWidget: SomeWidget<int> = new SomeWidget<int>()
+    intWidget.someValue = 99
+    assert(intWidget.someValue = 99)
+
+    floatWidget: SomeWidget<float> = new SomeWidget<float>()
+
+    floatWidget.someValue = 1.01
+    assert(floatWidget.someValue = 1.01)
+}
+
+# generic class that references another generic class (int)
+{
+    n3:Node<int> = new Node<int>()
+    n3.item = new Item<int>()
+    n3.item.value = 20
+
+    n3.next = new Node<int>()
+    n3.next.item = new Item<int>()
+    n3.next.item.value = 21
+
+    assert(n3.item.value == 20)
+    assert(n3.next.item.value == 21)
+}
+
+# generic class that references another generic class (float)
+{
+    n3:Node<float> = new Node<float>()
+    n3.item = new Item<float>()
+    n3.item.value = 22.2
+
+    n3.next = new Node<float>()
+    n3.next.item = new Item<float>()
+    n3.next.item.value = 33.3
+
+    assert(n3.item.value == 22.2)
+    assert(n3.next.item.value == 33.3)
+}
+
+# generic class that references another generic class (SomeClass)
+{
+    class SomeClass { n:int }
+    
+    n3:Node<SomeClass> = new Node<SomeClass>()
+    n3.item = new Item<SomeClass>()
+    n3.item.value = new SomeClass()
+    n3.item.value.n = 123
+
+    n3.next = new Node<SomeClass>()
+    n3.next.item = new Item<SomeClass>()
+    n3.next.item.value = new SomeClass()
+    n3.next.item.value.n = 234
+
+    assert(n3.item.value.n == 123)
+    assert(n3.next.item.value.n == 234)
+}
+
+# a generic class is expanded into the same namespace in which it was initially declared
+{
+    namespace Foo::Bar template (TItem) {
+        class Node {
+            someValue: TItem
+        }
+    }
+
+    n1: Foo::Bar::Node<int> = new Foo::Bar::Node<int>()
+    n1.someValue = 4747
+    assert(n1.someValue == 4747)
+}
+
+
+namespace Noo::Nar template (TItem) {
+    class AnotherNode {
+        anotherValue: TItem
+    }
+}
+a: Noo::Nar::AnotherNode<int> = new Noo::Nar::AnotherNode<int>()
+a.anotherValue = 858
+assert(858 == a.anotherValue)

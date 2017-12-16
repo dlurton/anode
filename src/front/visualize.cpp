@@ -59,7 +59,7 @@ public:
     }
 
     void visitingUnaryExpr(UnaryExpr &expr) override {
-        writer_.writeln("UnaryExpr: " + to_string(expr.operation()) + ", " + expr.type().nameForDisplay());
+        writer_.writeln("UnaryExpr: " + to_string(expr.operation()) + ", " + expr.exprType().nameForDisplay());
         writer_.incIndent();
     }
 
@@ -216,12 +216,21 @@ public:
         writer_.decIndent();
     }
 
-    virtual void visitingTemplateExprStmt(TemplateExprStmt &templ) override {
-        writer_.writeln("Template: " + templ.name().text());
+    virtual void visitingAnonymousTemplateExprStmt(AnonymousTemplateExprStmt &) override {
+        writer_.writeln("AnonymousTemplateExprStmt");
         writer_.incIndent();
     }
 
-    virtual void visitedTemplateExprStmt(TemplateExprStmt &) override {
+    virtual void visitedAnonymousTemplateExprStmt(AnonymousTemplateExprStmt &) override {
+        writer_.decIndent();
+    }
+
+    virtual void visitingNamedTemplateExprStmt(NamedTemplateExprStmt &templ) override {
+        writer_.writeln("NamedTemplateExprStmt: " + templ.name().text());
+        writer_.incIndent();
+    }
+
+    virtual void visitedNamedTemplateExprStmt(NamedTemplateExprStmt &) override {
         writer_.decIndent();
     }
 

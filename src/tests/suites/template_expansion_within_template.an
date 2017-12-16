@@ -1,39 +1,62 @@
 
-
-template TList(TItem2) {
-    class LinkedList {
-        head:Node<TItem2>
-        tail:Node<TItem2>
-    }
-    expand TNode(TItem2)
-}
-
-template TNode(TItem) {
-
-    class Node {
-        next:Node<TItem>
-        item:TItem
-    }
-}
+# basic template expansion
 {
-    expand TList(int)
+    template TList(T1) {
+        class LinkedList {
+            head:Node
+            tail:Node
+        }
+        expand TNode(T1)
+    }
 
-    list:LinkedList<int> = new LinkedList<int>()
-    list.head = new Node<int>()
-    list.head.next = new Node<int>()
-    list.head.item = 10
-    list.head.next.item = 11
-    assert(list.head.item == 10)
-    assert(list.head.next.item == 11)
+    template TNode(T2) {
+        class Node {
+            next:Node
+            item:T2
+        }
+    }
+
+    {
+        namespace ints expand TList(int)
+
+        list:ints::LinkedList = new ints::LinkedList()
+        list.head = new ints::Node()
+        list.head.next = new ints::Node()
+        list.head.item = 10
+        list.head.next.item = 11
+        assert(list.head.item == 10)
+        assert(list.head.next.item == 11)
+    }
+    {
+        namespace floats expand TList(float)
+
+        list2:floats::LinkedList = new floats::LinkedList()
+        list2.head = new floats::Node()
+        list2.head.next = new floats::Node()
+        list2.head.item = 10.0
+        list2.head.next.item = 11.0
+        assert(list2.head.item == 10.0)
+        assert(list2.head.next.item == 11.0)
+    }
 }
-{
-    expand TList(float)
 
-    list2:LinkedList<float> = new LinkedList<float>()
-    list2.head = new Node<float>()
-    list2.head.next = new Node<float>()
-    list2.head.item = 10.0
-    list2.head.next.item = 11.0
-    assert(list2.head.item == 10.0)
-    assert(list2.head.next.item == 11.0)
+# expanded templates inherit the scope at the location of the expansion template, meaning that nested template expansions
+# can access the template parameters of the outer expansion
+{
+    template OuterTemplate(TOuterParam) {
+        expand InnerTemplate()
+    }
+
+    template InnerTemplate() {
+        value:TOuterParam # might be confusing.
+    }
+
+    namespace ints expand OuterTemplate(int)
+    namespace floats expand OuterTemplate(float)
+
+    ints::value = 678
+    assert(ints::value == 678)
+
+    floats::value = 345.6
+    assert(floats::value = 345.6)
 }

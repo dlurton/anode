@@ -3,45 +3,42 @@
     # template expansion/generic class with simple scalar type arguments.
 
     template TNode(TItem) {
-
-        #Top level definition picks up "ambient" template parameters.
         class Node {
-            next:Node<TItem>
+            next:Node
             item:TItem
         }
     }
 
-    expand TNode(int)
-    expand TNode(float)
+    namespace TestInt expand TNode(int)
 
-    n1:Node<int> = new Node<int>()
-    n1.next = new Node<int>()
+    n1:TestInt::Node = new TestInt::Node()
+    n1.next = new TestInt::Node()
     n1.item = 10
     n1.next.item = 11
     assert(n1.item == 10)
     assert(n1.next.item == 11)
 
-    n2:Node<float> = new Node<float>()
-    n2.next = new Node<float>()
+    namespace TestFloat expand TNode(float)
+    n2:TestFloat::Node = new TestFloat::Node()
+    n2.next = new TestFloat::Node()
     n2.item = 20.0
     n2.next.item = 21.0
     assert(n2.item == 20.0)
     assert(n2.next.item == 21.0)
 
     # template expansion/generic class with class type argument.
+    class Item { value:int }
 
-    class Item {
-        value:int
-    }
+    namespace TestItem expand TNode(Item)
 
-    expand TNode(Item)
-
-    n3:Node<int> = new Node<int>()
-    n3.next = new Node<int>()
-    n3.item = 20
-    n3.next.item = 21
-    assert(n3.item == 20)
-    assert(n3.next.item == 21)
+    n3: TestItem::Node = new TestItem::Node()
+    n3.item = new Item()
+    n3.item.value = 20
+    n3.next = new TestItem::Node()
+    n3.next.item = new Item()
+    n3.next.item.value = 21
+    assert(n3.item.value == 20)
+    assert(n3.next.item.value == 21)
 
 } {
 
@@ -52,11 +49,11 @@
             a:TTypeA b:TTypeB c:TTypeC
         }
     }
-    expand TTest(int, float, bool)
-    expand TTest(float, bool, int)
-    expand TTest(bool, int, float)
+    namespace n1 expand TTest(int, float, bool)
+    namespace n2 expand TTest(float, bool, int)
+    namespace n3 expand TTest(bool, int, float)
 
-    t1:Test<int, float, bool> = new Test<int, float, bool>()
+    t1:n1::Test = new n1::Test()
     t1.a = 789
     t1.b = 790.0
     t1.c = true
@@ -66,7 +63,7 @@
     t1.c = false
     assert(false == t1.c)
 
-    t2:Test<float, bool, int> = new Test<float, bool, int>()
+    t2:n2::Test = new n2::Test()
     t2.a = 790.0
     t2.b = true
     t2.c = 789
@@ -76,7 +73,7 @@
     t2.b = false
     assert(false == t2.b)
 
-    t3:Test<bool, int, float> = new Test<bool, int, float>()
+    t3:n3::Test = new n3::Test()
     t3.a = true
     t3.b = 789
     t3.c = 789.0
@@ -87,7 +84,7 @@
     assert(false == t3.a)
 } {
 
-    #template expansion which has a generic type as one of its arguments.
+    #template expansions can have a generic type as one of its arguments.
 
     template TBar(T) {
         class Bar {
@@ -101,10 +98,10 @@
     }
 
     expand TBar(int)
-    expand TFoo(Bar<int>)
+    expand TFoo(Bar)
 
-    f:Foo<Bar<int>> = new Foo<Bar<int>>()
-    f.b = new Bar<int>()
+    f:Foo = new Foo()
+    f.b = new Bar()
     f.b.a = 1024
 
     assert(f.b.a == 1024)
@@ -128,4 +125,18 @@
     c.setWidgetId(1024)
     assert(1024 == c.getWidgetId())
     assert(10240 == c.getWidgetIdTimes10())
+}
+{
+    # namespaces declared within templates are relative to the namespaces in which they are expanded
+
+    template SomeTemplate() {
+        namespace Foo someValue:int
+    }
+
+    namespace ns1 expand SomeTemplate()
+    namespace ns2 expand SomeTemplate()
+    ns1::Foo::someValue = 15
+    ns2::Foo::someValue = 16
+    assert(ns1::Foo::someValue == 15)
+    assert(ns2::Foo::someValue == 16)
 }

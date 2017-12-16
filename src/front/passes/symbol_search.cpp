@@ -24,7 +24,7 @@ scope::Symbol *findQualifiedSymbol(scope::SymbolTable &startingScope, const ast:
             errorStream.error(
                 error::ErrorKind::SymbolNotDefined,
                 id.front().span(),
-                "identifier '%s' does not exist or is not accessible from the current scope.",
+                "identifier '%s' does not exist or is not accessible from the current scope",
                 id.front().text().c_str());
         }
         return foundSymbol;
@@ -37,7 +37,7 @@ scope::Symbol *findQualifiedSymbol(scope::SymbolTable &startingScope, const ast:
             errorStream.error(
                 error::ErrorKind::NamespaceDoesNotExist,
                 id.front().span(),
-                "namespace '%s' does not exist or is not accessible from the current scope.",
+                "namespace '%s' does not exist or is not accessible from the current scope",
                 id.front().text().c_str());
             return nullptr;
         }
@@ -50,7 +50,7 @@ scope::Symbol *findQualifiedSymbol(scope::SymbolTable &startingScope, const ast:
             errorStream.error(
                 error::ErrorKind::IdentifierIsNotNamespace,
                 id.front().span(),
-                "identifier '%s' is not a namespace.",
+                "identifier '%s' is not a namespace",
                 id.front().text().c_str());
             return nullptr;
         }
@@ -65,7 +65,7 @@ scope::Symbol *findQualifiedSymbol(scope::SymbolTable &startingScope, const ast:
                 errorStream.error(
                     error::ErrorKind::ChildNamespaceDoesNotExist,
                     part.span(),
-                    "namespace '%s' does not exist within namespace '%s'.",
+                    "namespace '%s' does not exist within namespace '%s'",
                     part.text().c_str(),
                     scopePath.c_str());
                 return nullptr;
@@ -77,7 +77,7 @@ scope::Symbol *findQualifiedSymbol(scope::SymbolTable &startingScope, const ast:
                 errorStream.error(
                     error::ErrorKind::MemberOfNamespaceIsNotNamespace,
                     part.span(),
-                    "identifier '%s' of namespace '%s' is not a child namespace.",
+                    "identifier '%s' of namespace '%s' is not a child namespace",
                     part.text().c_str(),
                     scopePath.c_str());
                 return nullptr;

@@ -77,3 +77,10 @@ namespace b {
 }
 assert(123 == a::aVariable)
 assert(456 == b::aVariable)
+
+# adding multiple items to a namespace with single line namespaces
+namespace SingleLine::A a:int = 827
+namespace SingleLine::A b:int = 567
+
+assert(SingleLine::A::a == 827)
+assert(SingleLine::A::b == 567)

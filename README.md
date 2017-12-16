@@ -4,7 +4,7 @@
 
 Anode is yet another embryonic programming language using LLVM as a back-end.
 
-There's a basic REPL you can use.  Statements entered there will be parsed and then:
+There's a basic REPL.  Statements entered there will be parsed and then:
 
  - The AST will be displayed.
  - If all passes against the AST succeed LLVM IR will be generated and displayed.
@@ -20,7 +20,6 @@ A `.an` file may also include a shebang line, i.e.
 
     #!/path/to/anode/executable 
  
-The compiler and compiled code use the [Boehm-Demers-Weiser conservative garbage collector](https://github.com/ivmai/bdwgc). 
 
 Goals of the language:
 
@@ -29,6 +28,8 @@ Goals of the language:
 - Strongly typed like C#/Java
 - High performance (utilizes LLVM back-end which has an extensive suite of compiler optimizations)  
 - Don't needlessly exclude features (post/pre increment operators, ternary operator, generics, etc)
+
+The compiler and compiled code use the [Boehm-Demers-Weiser conservative garbage collector](https://github.com/ivmai/bdwgc). 
 
 Examination of [simple_tests.cpp](https://github.com/dlurton/anode/blob/master/src/tests/simple_tests.cpp) and the [these files](https://github.com/dlurton/anode/tree/master/src/tests/suites) 
 will give a complete and up-to-date picture of supported syntax and features, however, here's a summary:
@@ -127,44 +128,75 @@ will give a complete and up-to-date picture of supported syntax and features, ho
     } 
     anInstance:Foo::Bar::SomeClass = new Foo::Bar::SomeClass()
 ```
- - Templates!  The tempplates feature is preliminary in form, but working!  It is a means to implement generic types:
-``` 
-    template LinkedList(TItem) {
-        class Node {
-            item:TItem
-            next:Node<TItem>
-        }
-    }
-    # Node<int> is not a valid type until the LinkedList<> template has been expanded
-    # The line below explicity expands the LinkedList template, specifying TItem to be of type int.    
-    expand LinkedList(int) 
-    # (eventually, explicit template instantiation will not be required for types like this...)
-    
-    n1:Node<int> = new Node<int>()
-    n1.next = new Node<int>()
-    n1.item = 10
-    n1.next.item = 11
+- If a namespace contains only a single item, curly braces may be omitted:
 ```
- - Templates can also be used as a means of reducing code duplication without having to resort to inheritance.  The
- snippet below gives `WidgetDocumentItem` the `documentItemId` field and `assignDocumentItemId()` method.
+    namespace Foo::Bar 
+        class SomeClass { }
 ```
-    template CommonDocumentItemMembers() {
+ - Templates!  Anode's templates are most similar in function to D's mixins but are not as yet as flexible. 
+ Templates can be used as a means of reducing code duplication.  "Expanding" the template essentially causes the template's contents to be
+  copied to the expansion site just as if the code had been copied and pasted.  Templates may have arguments. Currently, only types may 
+  be used as arguments for templates.  The snippet below gives the 
+ `FooDocumentItem` and `BarDocumentItem` classes the `documentItemId` field and `assignDocumentItemId()` method.
+```
+    template CommonDocumentItemMembers() { 
         documentItemId:int
         func assignDocumentItemId() {
             ...generate unique documentItemId...
         }
     }
-    class WidgetDocumentItem {
+    class FooDocumentItem {
         expand CommonDocumentItemMembers()
     }
-```     
+    class BarDocumentItem {
+        expand CommonDocumentItemMembers()
+    }
+```
+- Templates can be used to create variations of the same class:
+```
+   template SomeTemplate(TArg) {
+        class SomeClass {
+            someValue:TArg
+        }
+    }
+    namespace SomeNamespaceInt expand SomeTemplate(int)
+    namespace SomeNamespaceFloat expand SomeTemplate(float)
+    
+    a:SomeNamespaceInt::SomeClass = ...
+    b:SomeNamespaceFloat::SomeClass = ...
+    a.someValue = 10    # a.someValue is an int
+    b.someValue = 1.01  # b.someValue is a float
+ ```
+ - Or of the same function: (note that once function overloading is completed, the expansion sites may exist in the same namespace)
+```
+    template AbsoluteValue(TNumber) {
+        func abs(n:TNumber) (? n > 0 ; n; 0 - n;) 
+    }
+    namespace math::int_funcs expand AbsoluteValue(int)
+    namespace math::float_funcs expand AbsoluteValue(float)
+```
+ - Generics! Generic functions are based on the template feature.  Classes that are placed within an anonymous template
+ can be referenced along with their type arguments similar to C++, Java or C#.
+ ``` 
+     template (TItem) {
+         class Node {
+             item:TItem
+             next:Node
+         }
+     } 
+     
+     n1:Node<int> = new Node<int>()
+     n1.next = new Node<int>()
+     n1.item = 10
+     n1.next.item = 11
+ ```
  
 #### Really Really Rough Feature Backlog
 
 These are listed in roughly the order they will be implemented.  The basic plan is to implement a core set of features found in most 
 languages and that are needed for basic usefulness and then come back and add some (perhaps functional) special sauce. 
 
-- Generate "object_init" which initializes fields to their defaults
+- Generate and invoke "object_init" which initializes class fields to their defaults when instantiated.
 - Strings and their various operations
 - Explicit return, for when an exit before the last expression of the function body is desired.  Will use keyword `ret`
 - `for` loop

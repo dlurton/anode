@@ -5,7 +5,6 @@
 #include "front/ast.h"
 
 #include <functional>
-
 #include <fstream>
 #include <sstream>
 
@@ -20,10 +19,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     std::stack<scope::StorageKind> storageKindStack_;
 
     bool parsingTemplate_ = false;
-//
-//    inline static ast::Identifier makeIdentifier(Token *t) {
-//        return ast::Identifier(t->span(), t->text());
-//    }
+    bool parsingAnonymousTemplate_ = false;
+
     inline static ast::Identifier makeIdentifier(Token &t) {
         return ast::Identifier(t.span(), t.text());
     }
@@ -62,6 +59,14 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     Token &consumeColon() {
         return consume(TokenKind::OP_DEF, ':');
+    }
+
+    ast::Identifier *consumeOptionalIdentifier() {
+         Token *id = consumeOptional(TokenKind::ID);
+         if(id != nullptr) {
+            return new ast::Identifier(id->span(), id->text());
+        }
+        return nullptr;
     }
 
     ast::Identifier parseIdentifier() {
@@ -166,10 +171,17 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         return *closeCurly;
     }
 
-    ast::ExprStmt &parseExpressionList(Token &openCurly) {
+    ast::ExprStmt &parseExpressionList() {
         gc_ref_vector<ast::ExprStmt> stmts;
-        Token &closeCurly = parseUntilCloseCurly(stmts);
-        return *new ast::ExpressionList(makeSourceSpan(openCurly.span(), closeCurly.span()), stmts);
+        Token *openCurly = consumeOptional(TokenKind::OPEN_CURLY);
+        if (openCurly) {
+            Token &closeCurly = parseUntilCloseCurly(stmts);
+            return *new ast::ExpressionList(makeSourceSpan(openCurly->span(), closeCurly.span()), stmts);
+        } else {
+            ast::ExprStmt &expr = parseExpr();
+            stmts.emplace_back(expr);
+            return *new ast::ExpressionList(expr.sourceSpan(), stmts);
+        }
     }
 
     ast::ExprStmt &parseCompoundStmt(Token &openCurly) {
@@ -323,7 +335,16 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt &parseClassDef(Token &classKeyword) {
         auto className = parseIdentifier();
+        if(lexer_.peekToken().kind() == TokenKind::OPEN_PAREN) {
+            if(!templateParameters_.empty()) {
+                ASSERT_FAIL("TODO:  error message preventing generic classes within templates.")
+            }
+            auto parameters = parseTemplateParameters();
+        }
+
+
         storageKindStack_.push(scope::StorageKind::Instance);
+
 
         ast::ExprStmt &classBody = parseExpr();
 
@@ -337,7 +358,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         }
 
         storageKindStack_.pop();
-        if(templateParameters_.empty()) {
+        if(!parsingAnonymousTemplate_) {
             return *new ast::CompleteClassDefinition(
                 makeSourceSpan(classKeyword.span(), classBody.sourceSpan()),
                 className,
@@ -365,7 +386,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt &parseNamespace(Token &namespaceKeyword) {
         ast::MultiPartIdentifier namespaceId = parseQualifiedIdentifier();
-        auto &body = upcast<ast::ExpressionList>(parseExpressionList(consumeOpenCurly()));
+        auto &body = upcast<ast::ExpressionList>(parseExpressionList());
         return *new ast::NamespaceExpr(
             makeSourceSpan(namespaceKeyword.span(), body.sourceSpan()),
             namespaceId,
@@ -379,7 +400,37 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             throw ParseAbortedException();
         }
         parsingTemplate_ = true;
-        auto templateName = parseIdentifier();
+
+        ast::Identifier *optionalId = consumeOptionalIdentifier();
+
+        // When parsingAnonymousTemplate_ == true && !template_parameters.empty(), parseClassDef(...) will instantiate
+        // GenericClassDefinitions instead of CompleteClassDefinitions
+        parsingAnonymousTemplate_ = optionalId == nullptr;
+
+        gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters();
+
+        templateParameters_ = parameters;
+        auto &&body = upcast<ast::ExpressionList>(parseExpressionList());
+        templateParameters_.clear();
+
+        parsingTemplate_ = false;
+        parsingAnonymousTemplate_ = false;
+
+        if(optionalId != nullptr) {
+            return *new ast::NamedTemplateExprStmt(
+                makeSourceSpan(templateKeyword.span(), body.sourceSpan()),
+                *optionalId,
+                parameters,
+                body);
+        } else {
+            return *new ast::AnonymousTemplateExprStmt(
+                makeSourceSpan(templateKeyword.span(), body.sourceSpan()),
+                parameters,
+                body);
+        }
+    }
+
+    gc_ref_vector <ast::TemplateParameter> parseTemplateParameters() {
         gc_ref_vector<ast::TemplateParameter> parameters;
 
         consumeOpenParen();
@@ -389,19 +440,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
                 parameters.emplace_back(*new ast::TemplateParameter(identifier.span(), identifier));
             } while(consume(TokenKind::COMMA, TokenKind::CLOSE_PAREN, "',' or ')'").kind() == TokenKind::COMMA);
         }
-
-
-        templateParameters_ = parameters;
-        auto &&body = upcast<ast::ExpressionList>(parseExpressionList(consumeOpenCurly()));
-        templateParameters_.clear();
-
-
-        parsingTemplate_ = false;
-        return *new ast::TemplateExprStmt(
-            makeSourceSpan(templateKeyword.span(), body.sourceSpan()),
-            templateName,
-            parameters,
-            body);
+        return parameters;
     }
 
     ast::ExprStmt &parseExpand(Token &expandKeyword) {

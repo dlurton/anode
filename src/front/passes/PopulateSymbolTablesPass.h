@@ -80,13 +80,7 @@ public:
         }
     }
 
-    void visitingTemplateExprStmt(ast::TemplateExprStmt &templ) override {
-        if (currentScope().findSymbolInCurrentScope(templ.name().text())) {
-            symbolPreviouslyDefinedError(templ.name());
-        } else {
-            auto &&symbol = *new scope::TemplateSymbol(templ.name().text(), templ.nodeId());
-            currentScope().addSymbol(symbol);
-        }
+    void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &templ) override {
 
         //Grab top-level classes within the scope of the template.
         for (auto exprStmt : templ.body().expressions()) {
@@ -100,6 +94,23 @@ public:
             }
         }
     }
+
+    void visitingNamedTemplateExprStmt(ast::NamedTemplateExprStmt &templ) override {
+        if (currentScope().findSymbolInCurrentScope(templ.name().text())) {
+            symbolPreviouslyDefinedError(templ.name());
+        } else {
+            auto &&symbol = *new scope::TemplateSymbol(templ.name().text(), templ.nodeId());
+            currentScope().addSymbol(symbol);
+        }
+        //FIXME;  would like to eliminate this at some point so that named templates are not/should not/cannot be used for generics.
+        visitingAnonymousTemplateExprStmt(templ);
+    }
+
+    //May need this in order to allow nested templates:
+//    void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &anonymousTemplateExprStmt) override {
+//        //Children of anonymous template not normally visited...
+//        anonymousTemplateExprStmt.body().accept(*this);
+//    }
 };
 
 }}}

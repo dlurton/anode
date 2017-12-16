@@ -12,15 +12,15 @@ public:
     explicit ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
 
     void visitedDotExpr(ast::DotExpr &expr) override {
-        if(!expr.lValue().type().isClass()) {
+        if(!expr.lValue().exprType().isClass()) {
             errorStream_.error(
                 error::ErrorKind::LeftOfDotNotClass,
                 expr.dotSourceSpan(),
                 "Dot operator is not usable with data type of expression on left side of '.' operator: %s",
-                expr.lValue().type().nameForDisplay().c_str());
+                expr.lValue().exprType().nameForDisplay().c_str());
             return;
         }
-        auto classType = static_cast<const type::ClassType*>(expr.lValue().type().actualType());
+        auto classType = static_cast<const type::ClassType*>(expr.lValue().exprType().actualType());
         type::ClassField *field = classType->findField(expr.memberName().text());
         if(!field) {
             errorStream_.error(
@@ -37,7 +37,7 @@ public:
     void visitedFuncCallExpr(ast::FuncCallExpr &expr) override {
         auto methodRef = dynamic_cast<ast::MethodRefExpr*>(&expr.funcExpr());
         if(methodRef && expr.instanceExpr()) {
-            type::Type *instanceType = expr.instanceExpr()->type().actualType();
+            type::Type *instanceType = expr.instanceExpr()->exprType().actualType();
             type::ClassMethod *method = nullptr;
 
             if(auto classType = dynamic_cast<type::ClassType*>(instanceType)) {

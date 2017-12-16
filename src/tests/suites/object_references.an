@@ -1,55 +1,83 @@
 
-# to do:  moving this inside the anonymous scope below causes a debug assertion failed due to unhandled storage type.
-class SomeClass {
-    someField:int
-    anotherField:int
-}
-
-# an object instance can be mutated when passed by reference.
 {
-    func mutateSomeClass:void(instance:SomeClass) {
-        instance.someField = 2
-        instance.anotherField = 3
+    class SomeClass {
+        someField:int
+        anotherField:int
     }
 
-    anInstance:SomeClass = new SomeClass()
+    # an object instance can be mutated when passed by reference.
+    {
 
-    anInstance.someField = 1
-    assert(anInstance.someField == 1)
+        func mutateSomeClass:void(instance:SomeClass) {
+            instance.someField = 2
+            instance.anotherField = 3
+        }
 
-    anInstance.anotherField = 2
-    assert(anInstance.anotherField == 2)
+        anInstance:SomeClass = new SomeClass()
 
-    mutateSomeClass(anInstance)
+        anInstance.someField = 1
+        assert(anInstance.someField == 1)
 
-    assert(anInstance.someField == 2)
-    assert(anInstance.anotherField == 3)
-}
+        anInstance.anotherField = 2
+        assert(anInstance.anotherField == 2)
 
-# an object instance can be returned from a function
-{
-    func testFactory:SomeClass() {
-        sc:SomeClass = new SomeClass()
-        sc.someField = 99
-        sc
+        mutateSomeClass(anInstance)
+
+        assert(anInstance.someField == 2)
+        assert(anInstance.anotherField == 3)
     }
 
-    instance:SomeClass = testFactory()
-    assert(instance.someField == 99)
+    # an object instance can be returned from a function
+    {
+        func testFactory:SomeClass() {
+            sc:SomeClass = new SomeClass()
+            sc.someField = 99
+            sc
+        }
+
+        instance:SomeClass = testFactory()
+        assert(instance.someField == 99)
+    }
 }
 
 # self referencing class can reference itself
-class AnotherClass {
-    next:AnotherClass
-    value:int
+{
+
+    class AnotherClass {
+        next:AnotherClass
+        value:int
+    }
+
+    {
+        foo:AnotherClass = new AnotherClass()
+        foo.value = 1
+        foo.next = new AnotherClass()
+        foo.next.value = 2
+
+        assert(foo.value == 1)
+        assert(foo.next.value == 2)
+    }
 }
 
+# a class referencing another class
 {
-    foo:AnotherClass = new AnotherClass()
-    foo.value = 1
-    foo.next = new AnotherClass()
-    foo.next.value = 2
+    class Node {
+        next:Node
+        item:Item
+    }
 
-    assert(foo.value == 1)
-    assert(foo.next.value == 2)
+    class Item {
+        value:int
+    }
+
+    n3:Node = new Node()
+    n3.item = new Item()
+    n3.item.value = 20
+
+    n3.next = new Node()
+    n3.next.item = new Item()
+    n3.next.item.value = 21
+
+    assert(n3.item.value == 20)
+    assert(n3.next.item.value == 21)
 }

@@ -18,13 +18,13 @@ public:
                     binaryExpr.operatorSpan(), "Cannot assign a value to the expression left of '='");
             }
         } else if(binaryExpr.binaryExprKind() == ast::BinaryExprKind::Arithmetic) {
-            if(!binaryExpr.type().canDoArithmetic()) {
+            if(!binaryExpr.exprType().canDoArithmetic()) {
                 errorStream_.error(
                     error::ErrorKind::OperatorCannotBeUsedWithType,
                     binaryExpr.operatorSpan(),
                     "Operator '%s' cannot be used with type '%s'.",
                     ast::to_string(binaryExpr.operation()).c_str(),
-                    binaryExpr.type().nameForDisplay().c_str());
+                    binaryExpr.exprType().nameForDisplay().c_str());
             }
         }
     }

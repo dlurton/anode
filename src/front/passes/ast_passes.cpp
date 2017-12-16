@@ -3,10 +3,10 @@
 #include "ScopeFollowingAstVisitor.h"
 #include "PopulateSymbolTablesPass.h"
 #include "AddImplicitCastsPass.h"
-#include "ResolvesTypesPass.h"
+#include "ResolveTypesPass.h"
 #include "PopulateGenericTypesWithCompleteTypesPass.h"
 #include "ConvertGenericTypeRefsToCompletePass.h"
-#include "TemplateExpanderPass.h"
+#include "NamedTemplateExpanderPass.h"
 #include "ResolveSymbolsPass.h"
 #include "ResolveDotExprMemberPass.h"
 #include "BinaryExprSemanticsPass.h"
@@ -33,8 +33,8 @@ class MarkDotExprWritesPass : public ast::AstVisitor {
     }
 };
 
-
-/** Stores the all templates in the AnodeWorld instance by UniqueId so they can be fetched later when they're expanded. */
+/** Stores the all templates in the AnodeWorld instance by UniqueId so they can be fetched later when they're expanded.
+ * FIXME:  this class needs a better name. */
 class TemplateWorldRecorderPass : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
 public:
@@ -42,10 +42,38 @@ public:
     explicit TemplateWorldRecorderPass(error::ErrorStream &errorStream, ast::AnodeWorld &world)
         : ScopeFollowingAstVisitor(errorStream), world_(world) { }
 
-    virtual void visitingTemplateExprStmt(ast::TemplateExprStmt &templ) override {
-        world_.addTemplate(&templ);
+    void visitingNamedTemplateExprStmt(ast::NamedTemplateExprStmt &templ) override {
+        world_.addTemplate(templ);
     }
+
+    void visitingGenericClassDefinition(ast::GenericClassDefinition &genericClassDefinition) override {
+        world_.addGenericClassDefinition(genericClassDefinition);
+    }
+
+    void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &anonymousTemplateExprStmt) override {
+        //Children of anonymous template not normally visited...
+        anonymousTemplateExprStmt.body().accept(*this);
+    }
+//    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
+//        if(typeRef.hasTemplateArguments()) {
+//            world_->requestGenericTypeExpansion(typeRef);
+//        }
+//    }
 };
+//
+//class AnonymousTemplateExpanderPass : public ErrorContextAstVisitor {
+//    // ast::Module *module_ = nullptr;
+//public:
+//
+//    AnonymousTemplateExpanderPass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) {
+//
+//    }
+//
+//    void visitingModule(ast::Module &) override {
+//        //FIXME:  this need not be a visitor however getPreTemplateExpansionPasses needs to be refactored
+//        //to allow something other than a visitor to execute between passes.
+//    }
+//};
 
 bool runPasses(
     const gc_ref_vector<ast::AstVisitor> &visitors,
@@ -68,8 +96,7 @@ bool runPasses(
     return false;
 }
 
-
-gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es) {
+gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStream &es) {
     gc_ref_vector<ast::AstVisitor> passes;
 
     //Symbol resolution works recursively, examining the current scope first and then
@@ -80,7 +107,7 @@ gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &w
     //Symbol tables are really just metadata generated from global definitions (i.e. class, func, etc.)
     passes.emplace_back(*new PopulateSymbolTablesPass(es));
 
-    passes.emplace_back(*new TemplateExpanderPass(es, world));
+    passes.emplace_back(*new NamedTemplateExpanderPass(es, module, world));
 
     return passes;
 }
@@ -101,7 +128,7 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
     passes.emplace_back(*new TemplateWorldRecorderPass(es, world));
     if(runPasses(passes, module, es)) return;
 
-    passes = getPreTemplateExpansionPassses(world, es);
+    passes = getPreTemplateExpansionPassses(world, module, es);
     if(runPasses(passes, module, es)) return;
 
     passes.clear();
@@ -109,6 +136,8 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
     //Resolve all ast::TypeRefs here (i.e. variables, arguments, class fields, function arguments, etc)
     //will know to the type::Type after this phase
     passes.emplace_back(*new ResolveTypesPass(es));
+
+    passes.emplace_back(*new ExpandClassesWithinAnonymousTemplates(es, module, world));
 
     passes.emplace_back(*new PopulateGenericTypesWithCompleteTypesPass(es));
 

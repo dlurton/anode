@@ -46,7 +46,12 @@ public:
         setValue(nullptr);
     }
 
-    void visitingTemplateExprStmt(ast::TemplateExprStmt &) override {
+    void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &) override {
+        //this is never visited directly
+        setValue(nullptr);
+    }
+
+    void visitingNamedTemplateExprStmt(ast::NamedTemplateExprStmt &) override {
         //this is never visited directly
         setValue(nullptr);
     }
@@ -83,18 +88,18 @@ public:
     void visitedCastExpr(ast::CastExpr &expr) override {
         llvm::Value *value = emitExpr(expr.valueExpr(), cc());
 
-        ASSERT(expr.type().isPrimitive());
-        ASSERT(expr.valueExpr().type().isPrimitive());
+        ASSERT(expr.exprType().isPrimitive());
+        ASSERT(expr.valueExpr().exprType().isPrimitive());
 
         llvm::Value *castedValue = nullptr;
-        llvm::Type *destLlvmType = cc().typeMap().toLlvmType(expr.type());
-        switch (expr.valueExpr().type().primitiveType()) {
+        llvm::Type *destLlvmType = cc().typeMap().toLlvmType(expr.exprType());
+        switch (expr.valueExpr().exprType().primitiveType()) {
             //From int32
             case type::PrimitiveType::Int32:
-                switch (expr.type().primitiveType()) {
+                switch (expr.exprType().primitiveType()) {
                     //To bool
                     case type::PrimitiveType::Bool:
-                        castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr.valueExpr().type()));
+                        castedValue = cc().irBuilder().CreateICmpNE(value, cc().getDefaultValueForType(expr.valueExpr().exprType()));
                         break;
                         //To int
                     case type::PrimitiveType::Int32:
@@ -110,10 +115,10 @@ public:
                 break;
                 //From float
             case type::PrimitiveType::Float:
-                switch (expr.type().primitiveType()) {
+                switch (expr.exprType().primitiveType()) {
                     //To to int32 or bool
                     case type::PrimitiveType::Bool:
-                        castedValue = cc().irBuilder().CreateFCmpUNE(value, cc().getDefaultValueForType(expr.valueExpr().type()));
+                        castedValue = cc().irBuilder().CreateFCmpUNE(value, cc().getDefaultValueForType(expr.valueExpr().exprType()));
                         break;
                     case type::PrimitiveType::Int32:
                         castedValue = cc().irBuilder().CreateFPToSI(value, destLlvmType);
@@ -137,13 +142,13 @@ public:
     }
 
     void visitingNewExpr(ast::NewExpr &expr) override {
-        auto structType = cc().typeMap().toLlvmType(expr.type())->getPointerElementType();
+        auto structType = cc().typeMap().toLlvmType(expr.exprType())->getPointerElementType();
         uint64_t size = cc().llvmModule().getDataLayout().getTypeAllocSize(structType);
 
         std::vector<llvm::Value *> arguments;
         arguments.push_back(getLiteralUIntLLvmValue((unsigned int) size));
         llvm::Value *pointer = cc().irBuilder().CreateCall(cc().mallocFunc(), arguments);
-        llvm::Value *castedValue = cc().irBuilder().CreatePointerCast(pointer, cc().typeMap().toLlvmType(expr.type()));
+        llvm::Value *castedValue = cc().irBuilder().CreatePointerCast(pointer, cc().typeMap().toLlvmType(expr.exprType()));
 
         setValue(castedValue);
     }
@@ -154,13 +159,13 @@ public:
                 llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr.symbol()->fullyQualifiedName());
                 ASSERT(globalVariable);
                 globalVariable->setAlignment(ALIGNMENT);
-                llvm::Constant *val = cc().getDefaultValueForType(expr.type());
+                llvm::Constant *val = cc().getDefaultValueForType(expr.exprType());
                 globalVariable->setInitializer(val);
                 break;
             }
             case scope::StorageKind::Local: {
                 ASSERT(expr.name().size() == 1 && "TODO: semantic error or refactor VariableDeclExpr and VariableRefExpr so they don't both have to use MultiPartIdentifier");
-                llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.type());
+                llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.exprType());
                 llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().front().text());
                 cc().mapSymbolToValue(*expr.symbol(), localVariable);
                 break;
@@ -195,7 +200,7 @@ public:
             return;
         }
 
-        if (!expr.type().isFunction()) {
+        if (!expr.exprType().isFunction()) {
             llvm::LoadInst *loadInst = cc().irBuilder().CreateLoad(pointer);
             loadInst->setAlignment(ALIGNMENT);
             setValue(loadInst);
@@ -220,12 +225,12 @@ protected:
     void visitedDotExpr(ast::DotExpr &expr) override {
         llvm::Value *instance = emitExpr(expr.lValue(), cc());
 
-        auto classType = dynamic_cast<type::ClassType *>(expr.lValue().type().actualType());
+        auto classType = dynamic_cast<type::ClassType *>(expr.lValue().exprType().actualType());
         ASSERT(classType != nullptr && "lvalues of dot operator must be a ClassType (did the semantic check fail?)");
 
         llvm::Value *ptrOrValue = createStructGep(classType, instance, expr.memberName().text());
 
-        if (expr.isWrite() || expr.type().isFunction()) {
+        if (expr.isWrite() || expr.exprType().isFunction()) {
             setValue(ptrOrValue);
             return;
         }
@@ -261,7 +266,7 @@ protected:
 
 private:
     void emitBinaryArithmetic(ast::BinaryExpr &expr) {
-        ASSERT(expr.lValue().type().isSameType(expr.rValue().type()) && "data types must match");
+        ASSERT(expr.lValue().exprType().isSameType(expr.rValue().exprType()) && "data types must match");
 
         llvm::Value *rValue = emitExpr(expr.rValue(), cc());
 
@@ -269,12 +274,12 @@ private:
 
         if (expr.operation() == ast::BinaryOperationKind::Assign) {
             cc().irBuilder().CreateStore(rValue, lValue); //(args swapped on purpose)
-            //Note:  I think this will call rValue a second time if rValue is a call site.
+            //TODO:  I think this will call rValue a second time if rValue is a call site.  Improve this...
             setValue(rValue);
             return;
         }
         llvm::Value *resultValue = nullptr;
-        ASSERT(expr.type().isPrimitive() && "Only primitive types currently supported here");
+        ASSERT(expr.exprType().isPrimitive() && "Only primitive types currently supported here");
         switch (expr.operandsType().primitiveType()) {
             case type::PrimitiveType::Bool:
                 switch (expr.operation()) {
@@ -446,8 +451,8 @@ protected:
         //Emit the endBlock
         currentFunc->getBasicBlockList().push_back(endBlock);
         cc().irBuilder().SetInsertPoint(endBlock);
-        if (ifExpr.type().primitiveType() != type::PrimitiveType::Void) {
-            llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(ifExpr.type()),
+        if (ifExpr.exprType().primitiveType() != type::PrimitiveType::Void) {
+            llvm::PHINode *phi = cc().irBuilder().CreatePHI(cc().typeMap().toLlvmType(ifExpr.exprType()),
                                                             ifExpr.elseExpr() ? 2 : 1, "iftmp");
             phi->addIncoming(thenValue, thenBlock);
             if (ifExpr.elseExpr()) {

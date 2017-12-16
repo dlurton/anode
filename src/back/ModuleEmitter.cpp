@@ -35,7 +35,7 @@ public:
     void emitModuleLevelExprStmt(ExprStmt &expr)  {
         llvm::Value *llvmValue = emitExpr(expr, cc_);
 
-        if (!expr.type().isPrimitive()) {
+        if (!expr.exprType().isPrimitive()) {
             //eventually, we'll call toString() or somesuch.
             return;
         }
@@ -54,7 +54,7 @@ public:
                 //ExecutionContext pointer
                 executionContextPtrValue_,
                 //PrimitiveType,
-                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr.type().primitiveType(), true)),
+                llvm::ConstantInt::get(cc_.llvmContext(), llvm::APInt(32, (uint64_t) expr.exprType().primitiveType(), true)),
                 //Pointer to value.
                 bitcasted
             };

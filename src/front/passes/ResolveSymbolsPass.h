@@ -22,7 +22,7 @@ public:
     void visitVariableRefExpr(ast::VariableRefExpr &expr) override {
         if (expr.symbol()) return;
 
-        scope::Symbol *found = findQualifiedSymbol(currentScope(), expr.name(), errorStream_);
+        scope::Symbol *found = findQualifiedSymbol(topScope(), expr.name(), errorStream_);
         if (found) {
 
             if (!found->type().isClass() && !found->type().isFunction()) {

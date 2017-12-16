@@ -1,0 +1,40 @@
+template(TItem) {
+    class Node {
+    }
+}
+a:Node<int>
+b:Node<float>
+b = a #incompatible types
+?InvalidImplicitCastInBinaryExpr, 7, 3
+
+#############################################################################
+# too few generic arguments
+template (T, TT) {
+    class C { }
+}
+c:C<int>
+?IncorrectNumberOfGenericArguments, 7, 3
+
+#############################################################################
+# too many generic arguments
+template (T, TT) {
+    class C { }
+}
+c:C<int, float, bool>
+?IncorrectNumberOfGenericArguments, 7, 3
+
+#############################################################################
+# assignment of variable with generic type with a value of the same generic type but different type arguments
+template (T) {
+    class Temp { }
+}
+tempInt:Temp<int>
+tempFloat:Temp<float> = tempInt
+?InvalidImplicitCastInBinaryExpr, 8, 23
+
+#############################################################################
+# can't reference non-generic classes as if they were generic
+class S { }
+a:S<int>
+?TypeIsNotGenericButIsReferencedWithGenericArgs, 5, 3
+

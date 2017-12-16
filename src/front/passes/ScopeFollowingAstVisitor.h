@@ -23,12 +23,17 @@ protected:
      * This member function varies from {@ref topScope()} in that if the current scope a set of template expansions,
      * then it returns the top scope's parent scope.*/
     scope::SymbolTable &currentScope() {
-        scope::SymbolTable &ts = topScope();
-        if (ts.storageKind() == scope::StorageKind::TemplateParameter) {
-            return *ts.parent();
-        }
 
-        return ts;
+        //A template expansion within a template will cause multiple chained template TemplateParameter scopes
+        scope::SymbolTable *current = &topScope();
+
+        while(current) {
+            if (current->storageKind() != scope::StorageKind::TemplateParameter) {
+                return *current;
+            }
+            current = current->parent();
+        }
+        ASSERT_FAIL("Looks like your top-most scope is a TemplateParameter scope.  Did you forget to set its parent?")
     }
 
     size_t scopeDepth() { return symbolTableStack_.size(); }
@@ -64,6 +69,7 @@ public:
     }
 
     scope::SymbolTable *descendIntoNamespace(scope::SymbolTable *current, const ast::Identifier &nsName) {
+        ASSERT(current);
         auto found = current->findSymbolInCurrentScope(nsName.text());
         //No symbol matching the current part was found... create a new namespace in the current scope and descend into it.
         if(found == nullptr) {

@@ -11,7 +11,7 @@ public:
     explicit FuncCallSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
     void visitedFuncCallExpr(ast::FuncCallExpr &funcCallExpr) override {
-        if(!funcCallExpr.funcExpr().type().isFunction()) {
+        if(!funcCallExpr.funcExpr().exprType().isFunction()) {
             errorStream_.error(
                 error::ErrorKind::ExpressionIsNotFunction,
                 funcCallExpr.sourceSpan(),
@@ -19,7 +19,7 @@ public:
             return;
         }
 
-        auto *funcType = dynamic_cast<type::FunctionType*>(&funcCallExpr.funcExpr().type());
+        auto *funcType = dynamic_cast<type::FunctionType*>(&funcCallExpr.funcExpr().exprType());
         ASSERT(funcType);
 
         //When we do function overloading, this is going to get a whole lot more complicated.
@@ -39,14 +39,14 @@ public:
             auto &argument = arguments[i].get();
             auto &parameterType = parameterTypes[i].get();
 
-            if(!parameterType.isSameType(argument.type())) {
-                if(!argument.type().canImplicitCastTo(parameterType)) {
+            if(!parameterType.isSameType(argument.exprType())) {
+                if(!argument.exprType().canImplicitCastTo(parameterType)) {
                     errorStream_.error(
                         error::ErrorKind::InvalidImplicitCastInFunctionCallArgument,
                         argument.sourceSpan(),
                         "Cannot implicitly cast argument %d from '%s' to '%s'.",
                         i,
-                        argument.type().nameForDisplay().c_str(),
+                        argument.exprType().nameForDisplay().c_str(),
                         parameterType.nameForDisplay().c_str());
                 } else {
                     auto &implicitCast = ast::CastExpr::createImplicit(argument, parameterType);

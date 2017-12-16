@@ -51,12 +51,10 @@ void parseCmdLine(int argc, char **argv) {
     cxxopts::Options options("anode", "Anode REPL and JIT compiler/runtime.");
     options.add_options("")
         ("h,help", "Display this text and exit", cxxopts::value<bool>(), "")
-        ("e,execute", "Execute the specified file", cxxopts::value<std::string>(), "")
-        ;
+        ("e,execute", "Execute the specified file", cxxopts::value<std::string>(), "");
     options.add_options("diagnostics")
-    //TODO:  the last argument to OptionsAdder doesn't seem to do anything and doesn't seem to be documented?
-        ("a,dumpast", "Display the AST of the specified file", cxxopts::value<std::string>(), "")
-        ;
+        //TODO:  the last argument to OptionsAdder doesn't seem to do anything and doesn't seem to be documented?
+        ("a,dumpast", "Display the AST of the specified file", cxxopts::value<std::string>(), "");
 
     options.parse(argc, argv);
 

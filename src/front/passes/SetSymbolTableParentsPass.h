@@ -5,7 +5,8 @@
 
 namespace anode { namespace front  { namespace passes {
 
-/** Sets each SymbolTable's parent scope. */
+/** Sets each SymbolTable's parent scope.
+ */
 class SetSymbolTableParentsPass : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
 public:
@@ -21,7 +22,8 @@ public:
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
-
+        //That currentScope() instead of topScope() is important because the scopes of expanded templates always need to
+        //be parented to the outermost inner most scope not marked with scope::StorageKind::TemplateParameter.
         expansion.templateParameterScope().setParent(topScope());
         ScopeFollowingAstVisitor::visitingTemplateExpansionExprStmt(expansion);
     }

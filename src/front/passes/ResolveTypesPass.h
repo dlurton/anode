@@ -28,11 +28,11 @@ public:
             }
         }
 
-        scope::Symbol* maybeType = findQualifiedSymbol(currentScope(),  typeRef.name(), errorStream_);
+        scope::Symbol* maybeType = findQualifiedSymbol(topScope(),  typeRef.name(), errorStream_);
 
         //Symbol doesn't exist in accessible scope?
         if(!maybeType) {
-            //Erro message handled by findQualifiedSymbol(...)
+            //Error message handled by findQualifiedSymbol(...)
             return;
         }
 

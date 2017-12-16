@@ -23,48 +23,28 @@ expand TTemplate(int, float, bool)
 ?IncorrectNumberOfTemplateArguments, 5, 1
 
 #############################################################################
-# too few generic arguments
-template TTemplate(T, TT) {
-    class C { }
-}
-expand TTemplate(int, float)
-c:C<int>
-?IncorrectNumberOfGenericArguments, 8, 3
-
-#############################################################################
-# too many generic arguments
-template TTemplate(T, TT) {
-    class C { }
-}
-expand TTemplate(int, float)
-c:C<int, float, bool>
-?IncorrectNumberOfGenericArguments, 8, 3
-
-#############################################################################
-# assignment of variable with generic type with a value of the same generic type but different type arguments
-template TTemplate(T) {
-    class Temp { }
-}
-expand TTemplate(int)
-expand TTemplate(float)
-tempInt:Temp<int>
-tempFloat:Temp<float> = tempInt
-?InvalidImplicitCastInBinaryExpr, 10, 23
-
-#############################################################################
-# can't reference non-generic classes as if they were generic
-class S { }
-a:S<int>
-?TypeIsNotGenericButIsReferencedWithGenericArgs, 5, 3
-
-#############################################################################
-# can't instantiate non-expanded generic classes
+# can't reference class within non-expanded template
 template Temp(T) {
     class S { }
 }
-expand Temp(int)
-a:S<float>
-?GenericTypeWasNotExpandedWithSpecifiedArguments, 8, 3
+a:S
+?SymbolNotDefined, 7, 3
+
+#############################################################################
+# can't reference function within non-expanded template
+template Temp(T) {
+    func foo:void() 1
+}
+foo()
+?SymbolNotDefined, 7, 1
+
+#############################################################################
+# can't reference variable within non-expanded template
+template Temp(T) {
+    f:int = 1
+}
+f
+?SymbolNotDefined, 7, 1
 
 #############################################################################
 # circular template reference (1 template)

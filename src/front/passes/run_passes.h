@@ -12,9 +12,10 @@ inline bool runPasses(const gc_ref_vector<ast::AstVisitor> &visitors, ast::AstNo
     return runPasses(visitors, node, es, &startingSymbolTable);
 }
 
-inline bool runPasses(const gc_ref_vector<ast::AstVisitor> &visitors, ast::AstNode &node, error::ErrorStream &es) {
+inline bool runPasses(const gc_ref_vector<ast::AstVisitor> &visitors,ast::AstNode &node, error::ErrorStream &es) {
     return runPasses(visitors, node, es, nullptr);
 }
-gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, error::ErrorStream &es);
+
+gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStream &es);
 
 }}}

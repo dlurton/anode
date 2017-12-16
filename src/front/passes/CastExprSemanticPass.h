@@ -18,8 +18,8 @@ public:
         //This is a form of "double-checking" the AddImplicitCastsVisitor that we
         //get for free as long as we don't exclude implicit casts.
 
-        type::Type &fromType = expr.valueExpr().type();
-        type::Type &toType = expr.type();
+        type::Type &fromType = expr.valueExpr().exprType();
+        type::Type &toType = expr.exprType();
 
         if(fromType.canImplicitCastTo(toType)) return;
 
