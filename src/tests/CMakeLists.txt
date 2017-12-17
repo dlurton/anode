@@ -1,6 +1,6 @@
 setup_llvm()
 
-set(TESTS_SOURCE_FILES simple_tests.cpp catch.hpp test_util.h test_util.cpp lexer_tests.cpp ${ANODE_INCLUDE_DIR}/front/parse.h suites/generic_functions.an)
+set(TESTS_SOURCE_FILES simple_tests.cpp catch.hpp test_util.h test_util.cpp lexer_tests.cpp ${ANODE_INCLUDE_DIR}/front/parse.h)
 
 include_directories(${CMAKE_SOURCE_DIR}/externs/catch)
 
