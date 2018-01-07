@@ -1,19 +1,18 @@
 
-template <TArg>
-class SomeWidget {
+
+class SomeWidget<TArg> {
     someValue: TArg
 }
 
-template <TArg> {
-    class Node {
-        next: Node<TArg>
-        item: Item<TArg>
-    }
-
-    class Item {
-        value: TArg
-    }
+class Node<TArg> {
+    next: Node<TArg>
+    item: Item<TArg>
 }
+
+class Item<TArg> {
+    value: TArg
+}
+
 
 # basic generic classes
 {
@@ -75,8 +74,8 @@ template <TArg> {
 
 # a generic class is expanded into the same namespace in which it was initially declared
 {
-    namespace Foo::Bar template <TItem> {
-        class Node {
+    namespace Foo::Bar {
+        class Node<TItem> {
             someValue: TItem
         }
     }
@@ -86,13 +85,18 @@ template <TArg> {
     assert(n1.someValue == 4747)
 }
 
-{
-    namespace Noo::Nar template <TItem>
-    class AnotherNode {
-        anotherValue: TItem
-    }
 
-    a: Noo::Nar::AnotherNode<int> = new Noo::Nar::AnotherNode<int>()
-    a.anotherValue = 858
-    assert(858 == a.anotherValue)
+(# TODO:
+# a generic class may access variables defined within the same scope
+# demonstrates that symbol table parentage is set up correctly.
+{
+    namespace foo {
+        bar:int = 2883
+        class Node<TItem> {
+            func getbar:int() bar
+        }
+    }
+    n1: foo::Node<int> = new foo::Node<int>()
+    assert(2883 == n1.getbar())
 }
+#)

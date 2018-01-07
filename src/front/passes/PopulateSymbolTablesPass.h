@@ -16,12 +16,11 @@ public:
             identifier.text().c_str());
     }
 
-
     void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
 
-        //Classes that are defined within expanded templates do not get their own symbols
-        //Only the generic version of them do. During symbol resolution, the symbol of the GenericType is
-        //resolved and the resolved GenericType is used to determine the Type of the expanded class.
+        // Classes that are defined within expanded templates do not get their own symbols
+        // Only the generic version of them do. During symbol resolution, the symbol of the GenericType is
+        // resolved and the resolved GenericType is used to determine the Type of the expanded class.
         if (!cd.hasTemplateArguments()) {
             type::Type &definedType = cd.definedType();
 
@@ -102,15 +101,7 @@ public:
             auto &&symbol = *new scope::TemplateSymbol(templ.name().text(), templ.nodeId());
             currentScope().addSymbol(symbol);
         }
-        //FIXME;  would like to eliminate this at some point so that named templates are not/should not/cannot be used for generics.
-        visitingAnonymousTemplateExprStmt(templ);
     }
-
-    //May need this in order to allow nested templates:
-//    void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &anonymousTemplateExprStmt) override {
-//        //Children of anonymous template not normally visited...
-//        anonymousTemplateExprStmt.body().accept(*this);
-//    }
 };
 
 }}}

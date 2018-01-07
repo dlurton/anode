@@ -20,6 +20,9 @@ template<typename T>
 class gc_vector : public std::vector<T, gc_allocator<T>> { };
 
 template<typename T>
+class gc_stack : public std::stack<T, gc_allocator<T>> { };
+
+template<typename T>
 class gc_ref_vector : public std::vector<std::reference_wrapper<T>, gc_allocator<std::reference_wrapper<T>>> { };
 
 template<typename TKey, typename TValue>

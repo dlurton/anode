@@ -1,5 +1,4 @@
 #pragma once
-#pragma once
 
 #include "anode.h"
 #include "front/unique_id.h"
@@ -385,6 +384,35 @@ public:
 };
 
 typedef gc_ref_vector<TemplateArgument> TemplateArgVector;
+class TemplateParameter : public Stmt {
+    const Identifier name_;
+public:
+    TemplateParameter(const source::SourceSpan &sourceSpan, const Identifier &name) : Stmt(sourceSpan), name_{name} { }
+
+    const Identifier &name() const { return name_; }
+
+    void accept(AstVisitor &visitor) override {
+        visitor.visitTemplateParameter(*this);
+    }
+
+    TemplateParameter &deepCopyForTemplate() const {
+        return *new TemplateParameter(sourceSpan_, name());
+    }
+};
+
+enum class ExpansionKind {
+    AnonymousTemplate,
+    NamedTemplate
+};
+
+/** Contains details about a template expansion. */
+struct TemplateExpansionContext {
+    const ExpansionKind expansionKind;
+    const TemplateArgVector args;
+    TemplateExpansionContext(ExpansionKind expansionKind, const TemplateArgVector &args) : expansionKind{expansionKind}, args{args} { }
+};
+
+
 
 /** Base class for all expressions. */
 class ExprStmt : public Stmt {
@@ -396,7 +424,7 @@ public:
 
     virtual type::Type &exprType() const  = 0;
     virtual bool canWrite() const = 0;
-    virtual ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const = 0;
+    virtual ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const = 0;
 };
 
 /** AST nodes representing language constructs which do not return a meaningful value (i.e. a function or definition, a while statemnt,
@@ -448,15 +476,14 @@ public:
         visitor.visitedExpressionList(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<ExprStmt> clonedExprs;
         clonedExprs.reserve(expressions_.size());
         for(ExprStmt &exprStmt : expressions_) {
-            clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(templateArgs));
+            clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(expansionContext));
         }
         return *new ExpressionList(sourceSpan_, clonedExprs);
     }
-
 };
 
 /** Contains a series of expressions within a lexical scope, i.e. those contained within { and }.
@@ -508,31 +535,15 @@ public:
         visitor.visitedCompoundExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<ExprStmt> clonedExprs;
         clonedExprs.reserve(expressions_.size());
         for(ExprStmt &exprStmt : expressions_) {
-            clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(templateArgs));
+            clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(expansionContext));
         }
         return *new CompoundExpr(sourceSpan_, scope_.storageKind(), clonedExprs, scope_.name());
     }
 
-};
-
-class TemplateParameter : public Stmt {
-    const Identifier name_;
-public:
-    TemplateParameter(const source::SourceSpan &sourceSpan, const Identifier &name) : Stmt(sourceSpan), name_{name} { }
-
-    const Identifier &name() const { return name_; }
-
-    void accept(AstVisitor &visitor) override {
-        visitor.visitTemplateParameter(*this);
-    }
-
-    TemplateParameter &deepCopyForTemplate() const {
-        return *new TemplateParameter(sourceSpan_, name());
-    }
 };
 
 /**
@@ -566,9 +577,9 @@ public:
 
     ExpressionList &body() { return body_; }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<TemplateParameter> copiedParameters = deepCopyTemplateParameters();
-        auto &copiedBody = body_.deepCopyExpandTemplate(templateArgs);
+        auto &copiedBody = body_.deepCopyExpandTemplate(expansionContext);
         return *new AnonymousTemplateExprStmt(sourceSpan_, copiedParameters,
                                      upcast<ExpressionList>(copiedBody));
     }
@@ -601,9 +612,9 @@ public:
 
 
     const Identifier &name() { return name_; }
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<ast::TemplateParameter> copiedParameters = deepCopyTemplateParameters();
-        auto &copiedBody = body_.deepCopyExpandTemplate(templateArgs);
+        auto &copiedBody = body_.deepCopyExpandTemplate(expansionContext);
         return *new NamedTemplateExprStmt(sourceSpan_, name_, copiedParameters,
                                      upcast<ExpressionList>(copiedBody));
     }
@@ -620,24 +631,29 @@ public:
     }
 };
 
-class TemplateExpansionExprStmt : public VoidExprStmt {
+class TemplateExpansionExprStmt : public ExprStmt {
     MultiPartIdentifier templateName_;
     AnonymousTemplateExprStmt *template_ = nullptr;
     //TODO:  convert below to vector of TemplateArgument*
     gc_ref_vector<ast::TypeRef> typeArguments_;
     ast::ExprStmt *expandedTemplate_ = nullptr;
     scope::SymbolTable templateParameterScope_;
+
 public:
     TemplateExpansionExprStmt(
         source::SourceSpan sourceSpan,
         const MultiPartIdentifier &templateName,
         const gc_ref_vector<TypeRef> &typeArguments)
-        : VoidExprStmt(sourceSpan),
+        : ExprStmt(sourceSpan),
           templateName_{templateName},
           typeArguments_{typeArguments},
           templateParameterScope_{scope::StorageKind::TemplateParameter, templateName.qualifedName() + scope::ScopeSeparator + "expanded_arguments"}
     { }
-
+    bool canWrite() const override { return false; }
+    type::Type &exprType() const override {
+        ASSERT(expandedTemplate_)
+        return expandedTemplate_->exprType();
+    };
 
     AnonymousTemplateExprStmt &templ() const { return *template_; }
     void setTempl(AnonymousTemplateExprStmt &templ) {
@@ -668,7 +684,7 @@ public:
         visitor.visitedTemplateExpansionExprStmt(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new TemplateExpansionExprStmt(sourceSpan_, templateName_, deepCopyVector(typeArguments_));
     }
 };
@@ -688,7 +704,7 @@ public:
         visitor.visitLiteralBoolExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new LiteralBoolExpr(sourceSpan_, value_);
     }
 };
@@ -707,7 +723,7 @@ public:
         visitor.visitLiteralInt32Expr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new LiteralInt32Expr(sourceSpan_, value_);
     }
 };
@@ -727,7 +743,7 @@ public:
         visitor.visitLiteralFloatExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new LiteralFloatExpr(sourceSpan_, value_);
     }
 
@@ -776,8 +792,8 @@ public:
         visitor.visitedUnaryExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return *new UnaryExpr(sourceSpan_, valueExpr_->deepCopyExpandTemplate(templateArgs), operation_, operatorSpan_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
+        return *new UnaryExpr(sourceSpan_, valueExpr_->deepCopyExpandTemplate(expansionContext), operation_, operatorSpan_);
     }
 };
 
@@ -910,12 +926,12 @@ public:
         visitor.visitedBinaryExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         return *new BinaryExpr(sourceSpan_,
-                              lValue_->deepCopyExpandTemplate(templateArgs),
+                              lValue_->deepCopyExpandTemplate(expansionContext),
                               operation_,
                               operatorSpan_,
-                              rValue_->deepCopyExpandTemplate(templateArgs));
+                              rValue_->deepCopyExpandTemplate(expansionContext));
     }
 };
 
@@ -964,7 +980,7 @@ public:
         visitor.visitVariableRefExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new VariableRefExpr(*this);
     }
 };
@@ -998,7 +1014,7 @@ public:
         visitor.visitedVariableDeclExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         VariableDeclExpr &varDecl = *new VariableDeclExpr(*this);
         return varDecl;
     }
@@ -1052,8 +1068,8 @@ public:
         visitor.visitedCastExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return *new CastExpr(sourceSpan_, toType_.deepCopyForTemplate(), valueExpr_.deepCopyExpandTemplate(templateArgs), castKind_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
+        return *new CastExpr(sourceSpan_, toType_.deepCopyForTemplate(), valueExpr_.deepCopyExpandTemplate(expansionContext), castKind_);
     }
 };
 
@@ -1083,7 +1099,7 @@ public:
         visitor.visitedNewExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new NewExpr(sourceSpan_, typeRef_.deepCopyForTemplate());
     }
 };
@@ -1140,12 +1156,12 @@ public:
         visitor.visitedIfExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         return *new IfExprStmt(
             sourceSpan_,
-            condition_->deepCopyExpandTemplate(templateArgs),
-            thenExpr_->deepCopyExpandTemplate(templateArgs),
-            elseExpr_ ? &elseExpr_->deepCopyExpandTemplate(templateArgs) : nullptr);
+            condition_->deepCopyExpandTemplate(expansionContext),
+            thenExpr_->deepCopyExpandTemplate(expansionContext),
+            elseExpr_ ? &elseExpr_->deepCopyExpandTemplate(expansionContext) : nullptr);
     }
 };
 
@@ -1185,11 +1201,11 @@ public:
         visitor.visitedWhileExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         return *new WhileExpr(
             sourceSpan_,
-            condition_->deepCopyExpandTemplate(templateArgs),
-            body_.deepCopyExpandTemplate(templateArgs));
+            condition_->deepCopyExpandTemplate(expansionContext),
+            body_.deepCopyExpandTemplate(expansionContext));
     }
 };
 
@@ -1288,7 +1304,7 @@ public:
         visitor.visitedFuncDeclStmt(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<ParameterDef> clonedParameters;
         for(ParameterDef &p : parameters_) {
             clonedParameters.emplace_back(p.deepCopy());
@@ -1297,7 +1313,7 @@ public:
                                name_,
                                returnTypeRef_.deepCopyForTemplate(),
                                clonedParameters,
-                                body_->deepCopyExpandTemplate(templateArgs));
+                                body_->deepCopyExpandTemplate(expansionContext));
     }
 };
 
@@ -1328,7 +1344,7 @@ public:
         visitor.visitMethodRefExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
         return *new MethodRefExpr(name_);
     }
 };
@@ -1386,16 +1402,16 @@ public:
         visitor.visitedFuncCallExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<ExprStmt> clonedArguments;
         clonedArguments.reserve(arguments_.size());
         for(ExprStmt &a : arguments_) {
-            clonedArguments.emplace_back(a.deepCopyExpandTemplate(templateArgs));
+            clonedArguments.emplace_back(a.deepCopyExpandTemplate(expansionContext));
         }
         return *new FuncCallExpr(sourceSpan_,
-                                 (instanceExpr_ ? &instanceExpr_->deepCopyExpandTemplate(templateArgs) : nullptr),
+                                 (instanceExpr_ ? &instanceExpr_->deepCopyExpandTemplate(expansionContext) : nullptr),
                                 openParenSpan_,
-                                funcExpr_.deepCopyExpandTemplate(templateArgs),
+                                funcExpr_.deepCopyExpandTemplate(expansionContext),
                                 clonedArguments);
     }
 };
@@ -1428,8 +1444,8 @@ public:
         visitor.visitedNamespaceExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return *new NamespaceExpr(sourceSpan_, qualifiedName_, upcast<ExpressionList>(body_.deepCopyExpandTemplate(templateArgs)));
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
+        return *new NamespaceExpr(sourceSpan_, qualifiedName_, upcast<ExpressionList>(body_.deepCopyExpandTemplate(expansionContext)));
     }
 };
 
@@ -1478,7 +1494,7 @@ public:
     CompleteClassDefinition(
         source::SourceSpan span,
         const Identifier &name,
-        const gc_ref_vector<TemplateArgument> templateArgs,
+        const gc_ref_vector<TemplateArgument> &templateArgs,
         ast::CompoundExpr &body
     ) : ClassDefinition{span, name, body},
         templateArguments_{templateArgs},
@@ -1492,9 +1508,6 @@ public:
 
     void populateClassType() {
         auto &ct = upcast<type::ClassType>(definedType_);
-        //TODO: the assert below would seem to indicate that we can split ClassDefinition into two types:
-        //one for generic classes and one for complete classes.  From the class meant for generic types, we would have to return
-        //new instances of the class meant for complete types from deepCopyExpandTemplate()
 
         for (auto &&variable : this->body().scope().variables()) {
             ct.addField(variable.get().name(), variable.get().type());
@@ -1514,13 +1527,13 @@ public:
         visitor.visitedCompleteClassDefinition(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         //Only once inside an expanded template, a generic class not generic anymore.
         auto &completeClassDef = *new CompleteClassDefinition(
             sourceSpan_,
             name(),
             templateArguments_,
-            upcast<CompoundExpr>(body().deepCopyExpandTemplate(templateArgs)));
+            upcast<CompoundExpr>(body().deepCopyExpandTemplate(expansionContext)));
 
         return completeClassDef;
     }
@@ -1536,6 +1549,14 @@ class GenericClassDefinition : public ClassDefinition {
             names.push_back(parameter.name().text());
         }
         return names;
+    }
+private:
+    explicit GenericClassDefinition(const GenericClassDefinition &copyFrom)
+        : ClassDefinition(copyFrom),
+          templateParameters_{deepCopyVector(copyFrom.templateParameters_)},
+          definedType_{copyFrom.definedType_}
+    {
+
     }
 
 public:
@@ -1563,13 +1584,29 @@ public:
         visitor.visitedGenericClassDefinition(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
+        switch(expansionContext.expansionKind) {
+            case ExpansionKind::AnonymousTemplate: {
+                auto &completeClassDef = *new CompleteClassDefinition(
+                    sourceSpan_,
+                    name(),
+                    expansionContext.args,
+                    upcast<CompoundExpr>(body().deepCopyExpandTemplate(expansionContext)));
+
+                upcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
+                return completeClassDef;
+            }
+            case ExpansionKind::NamedTemplate:
+                return *new GenericClassDefinition(*this);
+            default:
+                ASSERT_FAIL("Unhandled ExpansionKind")
+        }
         //Only once inside an expanded template, a generic class is not generic anymore so construct CompleteClassDefinition
         auto &completeClassDef = *new CompleteClassDefinition(
             sourceSpan_,
             name(),
-            templateArgs,
-            upcast<CompoundExpr>(body().deepCopyExpandTemplate(templateArgs)));
+            expansionContext.args,
+            upcast<CompoundExpr>(body().deepCopyExpandTemplate(expansionContext)));
 
         upcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
 
@@ -1620,8 +1657,8 @@ public:
         visitor.visitedDotExpr(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return *new DotExpr(sourceSpan_, dotSourceSpan_, lValue_.deepCopyExpandTemplate(templateArgs), memberName_);
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
+        return *new DotExpr(sourceSpan_, dotSourceSpan_, lValue_.deepCopyExpandTemplate(expansionContext), memberName_);
     }
 };
 
@@ -1646,8 +1683,8 @@ public:
         visitor.visitedAssertExprStmt(*this);
     }
 
-    ExprStmt &deepCopyExpandTemplate(const TemplateArgVector &templateArgs) const override {
-        return *new AssertExprStmt(sourceSpan_, condition_->deepCopyExpandTemplate(templateArgs));
+    ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
+        return *new AssertExprStmt(sourceSpan_, condition_->deepCopyExpandTemplate(expansionContext));
     }
 };
 
@@ -1686,7 +1723,6 @@ class AnodeWorld : public gc {
     gc_unordered_map<UniqueId, GenericClassDefinition*> genericClassIndex_;
     gc_unordered_map<UniqueId, AnonymousTemplateExprStmt*> templateIndex_;
     gc_unordered_set<ast::AnonymousTemplateExprStmt*> expandingTemplates_;
-    gc_ref_vector<ast::ResolutionDeferredTypeRef> genericTypeReferences_;
 public:
     NO_COPY_NO_ASSIGN(AnodeWorld)
     AnodeWorld() { }
@@ -1723,15 +1759,6 @@ public:
     void removeExpandingTemplate(ast::AnonymousTemplateExprStmt &templ) {
         expandingTemplates_.erase(&templ);
     }
-
-    void addGenericTypeReferences(ast::ResolutionDeferredTypeRef &typeRef) {
-        genericTypeReferences_.emplace_back(typeRef);
-    }
-
-    gc_ref_vector<ast::ResolutionDeferredTypeRef> genericTypeReferences() {
-        return genericTypeReferences_;
-    }
-
 };
 
 }}}

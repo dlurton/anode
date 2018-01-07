@@ -45,6 +45,8 @@ public:
 
     void visitingNamedTemplateExprStmt(ast::NamedTemplateExprStmt &templ) override {
         world_.addTemplate(templ);
+        //Children of NamedTemplateExprStmt are not normally visited...
+        templ.body().accept(*this);
     }
 
     void visitingGenericClassDefinition(ast::GenericClassDefinition &genericClassDefinition) override {
@@ -55,26 +57,8 @@ public:
         //Children of anonymous template not normally visited...
         anonymousTemplateExprStmt.body().accept(*this);
     }
-//    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
-//        if(typeRef.hasTemplateArguments()) {
-//            world_->requestGenericTypeExpansion(typeRef);
-//        }
-//    }
 };
-//
-//class AnonymousTemplateExpanderPass : public ErrorContextAstVisitor {
-//    // ast::Module *module_ = nullptr;
-//public:
-//
-//    AnonymousTemplateExpanderPass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) {
-//
-//    }
-//
-//    void visitingModule(ast::Module &) override {
-//        //FIXME:  this need not be a visitor however getPreTemplateExpansionPasses needs to be refactored
-//        //to allow something other than a visitor to execute between passes.
-//    }
-//};
+
 
 bool runPasses(
     const gc_ref_vector<ast::AstVisitor> &visitors,
@@ -99,6 +83,8 @@ bool runPasses(
 
 gc_ref_vector<ast::AstVisitor> getPreTemplateExpansionPassses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStream &es) {
     gc_ref_vector<ast::AstVisitor> passes;
+
+    passes.emplace_back(*new TemplateWorldRecorderPass(es, world));
 
     //Symbol resolution works recursively, examining the current scope first and then
     //searching each parent until the symbol is found.
@@ -126,8 +112,6 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
     // I can tell because it's impossible to know all the information needed at parse time.
 
     gc_ref_vector<ast::AstVisitor> passes;
-    passes.emplace_back(*new TemplateWorldRecorderPass(es, world));
-    if(runPasses(passes, module, es)) return;
 
     passes = getPreTemplateExpansionPassses(world, module, es);
     if(runPasses(passes, module, es)) return;

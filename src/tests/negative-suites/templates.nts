@@ -10,13 +10,6 @@ expand UndefinedTemplate()
 ?SymbolNotDefined, 4, 8
 
 #############################################################################
-# nested templates
-template TOuter {
-    template TInner { }
-}
-?CannotNestTemplates, 5, 5
-
-#############################################################################
 # too few template arguments
 template TTemplate<T, TT> { }
 expand TTemplate<int>

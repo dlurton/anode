@@ -7,6 +7,7 @@ namespace anode { namespace front { namespace parser {
 /** Static token is the name I have chosen to indicate tokens that do not ever change. i.e. operators
  * and keywords, etc.  Literal values, identifiers, etc would be dynamic. */
 std::vector<std::vector<std::pair<string_t, TokenKind>>> StaticTokenLookup;
+std::unordered_map<std::string, TokenKind> KeywordLookup;
 
 void registerStaticToken(string_t text, TokenKind tokenKind) {
     StaticTokenLookup.resize(MAX_CHAR, std::vector<std::pair<string_t, TokenKind>>());
@@ -15,9 +16,25 @@ void registerStaticToken(string_t text, TokenKind tokenKind) {
 }
 
 void InitStaticTokenLookup() {
-    if(StaticTokenLookup.size() > 0) { 
+
+    if(StaticTokenLookup.size() > 0) {
         return;
     }
+
+    KeywordLookup.emplace("true", TokenKind::KW_TRUE);
+    KeywordLookup.emplace("false", TokenKind::KW_FALSE);
+    KeywordLookup.emplace("while", TokenKind::KW_WHILE);
+    KeywordLookup.emplace("if", TokenKind::KW_IF);
+    KeywordLookup.emplace("else", TokenKind::KW_ELSE);
+    KeywordLookup.emplace("func", TokenKind::KW_FUNC);
+    KeywordLookup.emplace("cast", TokenKind::KW_CAST);
+    KeywordLookup.emplace("new", TokenKind::KW_NEW);
+    KeywordLookup.emplace("class", TokenKind::KW_CLASS);
+    KeywordLookup.emplace("assert", TokenKind::KW_ASSERT);
+    KeywordLookup.emplace("alias", TokenKind::KW_ALIAS);
+    KeywordLookup.emplace("expand", TokenKind::KW_EXPAND);
+    KeywordLookup.emplace("template", TokenKind::KW_TEMPLATE);
+    KeywordLookup.emplace("namespace", TokenKind::KW_NAMESPACE);
 
     //For tokens that start with the same character(s), the longer one must be registered first!
     registerStaticToken("++", TokenKind::OP_INC);
@@ -29,20 +46,6 @@ void InitStaticTokenLookup() {
     registerStaticToken(">=", TokenKind::OP_GTE);
     registerStaticToken("<=", TokenKind::OP_LTE);
     registerStaticToken("(?", TokenKind::OP_COND);
-    registerStaticToken("true", TokenKind::KW_TRUE);
-    registerStaticToken("false", TokenKind::KW_FALSE);
-    registerStaticToken("while", TokenKind::KW_WHILE);
-    registerStaticToken("if", TokenKind::KW_IF);
-    registerStaticToken("else", TokenKind::KW_ELSE);
-    registerStaticToken("func", TokenKind::KW_FUNC);
-    registerStaticToken("cast", TokenKind::KW_CAST);
-    registerStaticToken("new", TokenKind::KW_NEW);
-    registerStaticToken("class", TokenKind::KW_CLASS);
-    registerStaticToken("assert", TokenKind::KW_ASSERT);
-    registerStaticToken("alias", TokenKind::KW_ALIAS);
-    registerStaticToken("expand", TokenKind::KW_EXPAND);
-    registerStaticToken("template", TokenKind::KW_TEMPLATE);
-    registerStaticToken("namespace", TokenKind::KW_NAMESPACE);
     registerStaticToken(";", TokenKind::END_OF_STATEMENT);
     registerStaticToken("!", TokenKind::OP_NOT);
     registerStaticToken("+", TokenKind::OP_ADD);
@@ -97,13 +100,17 @@ Token &AnodeLexer::extractLiteralNumber() {
     }
 }
 
-Token &AnodeLexer::extractIdentifier() {
+Token &AnodeLexer::extractIdentifierOrKeyword() {
     std::string id;
     id += reader_.next();
     char_t c = reader_.peek();
     while((isLetter(c) || isDigit(c) || c == '_') && !reader_.eof()) {
         id += reader_.next();
         c = reader_.peek();
+    }
+    auto found = KeywordLookup.find(id);
+    if(found != KeywordLookup.end()) {
+        return newToken(found->second, id);
     }
     return newToken(TokenKind::ID, id);
 }
@@ -129,7 +136,7 @@ Token &AnodeLexer::extractToken() {
 
     //Extract an identifier
     if(isLetter(c) || c == '_') {
-        return extractIdentifier();
+        return extractIdentifierOrKeyword();
     }
 
     //Extract a number

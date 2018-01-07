@@ -1,55 +1,30 @@
-template <TItem> {
-    class Node {
-    }
-}
+class Node<TItem> { }
 a:Node<int>
 b:Node<float>
 b = a #incompatible types
-?InvalidImplicitCastInBinaryExpr, 7, 3
+?InvalidImplicitCastInBinaryExpr, 4, 3
 
 #############################################################################
 # too few generic arguments
-template <T, TT> {
-    class C { }
-}
+class C<T, TT> { }
 c:C<int>
-?IncorrectNumberOfGenericArguments, 7, 3
+?IncorrectNumberOfGenericArguments, 5, 3
 
 #############################################################################
 # too many generic arguments
-template <T, TT> {
-    class C { }
-}
+class C<T, TT> { }
 c:C<int, float, bool>
-?IncorrectNumberOfGenericArguments, 7, 3
+?IncorrectNumberOfGenericArguments, 5, 3
 
 #############################################################################
 # assignment of variable with generic type with a value of the same generic type but different type arguments
-template <T> {
-    class Temp { }
-}
+class Temp<T> { }
 tempInt:Temp<int>
 tempFloat:Temp<float> = tempInt
-?InvalidImplicitCastInBinaryExpr, 8, 23
+?InvalidImplicitCastInBinaryExpr, 6, 23
 
 #############################################################################
 # can't reference non-generic classes as if they were generic
 class S { }
 a:S<int>
 ?TypeIsNotGenericButIsReferencedWithGenericArgs, 5, 3
-
-#############################################################################
-# variables cannot exist in anonymous templates
-template <T> i:int
-?OnlyClassesAndFunctionsAllowedInAnonymousTemplates, 4, 14
-
-#############################################################################
-# namespaces cannot exist in anonymous templates
-template <T> namespace foo class bar { i:int }
-?OnlyClassesAndFunctionsAllowedInAnonymousTemplates, 4, 14
-
-#############################################################################
-# expressions cannot exist in anonymous templates
-template <T> 1 + 1
-?OnlyClassesAndFunctionsAllowedInAnonymousTemplates, 4, 14
-

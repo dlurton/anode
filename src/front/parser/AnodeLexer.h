@@ -145,7 +145,7 @@ private:
     }
 
     Token &extractToken();
-    Token &extractIdentifier();
+    Token &extractIdentifierOrKeyword();
     Token &extractLiteralNumber();
 };
 

@@ -1,0 +1,64 @@
+
+# nested template with no arguments
+{
+    template outer {
+        template inner {
+            func innerFunc:int() 563
+        }
+        expand inner
+    }
+    expand outer
+    assert(563 == innerFunc())
+}
+
+# nested template, inner template has arguments.
+{
+    template outer {
+        template inner<T> {
+            func innerFunc:T(n:T) n
+        }
+        namespace ints expand inner<int>
+        namespace floats expand inner<float>
+    }
+    expand outer
+    assert(555 == ints::innerFunc(555))
+    assert(55.5 == floats::innerFunc(55.5))
+}
+
+# nested template, outer has argument that is used by inner
+{
+    template outer<TOuter> {
+        template inner {
+            func innerFunc:TOuter(n:TOuter) n
+        }
+        expand inner
+    }
+    namespace expand_int expand outer<int>
+    namespace expand_float expand outer<float>
+    assert(444 == expand_int::innerFunc(444))
+    assert(44.4 == expand_float::innerFunc(44.4))
+}
+
+# nested template, both templates have arguments, and arguments do not shadow
+{
+    template outer<TOuter> {
+        template inner<TInner> {
+            func innerFunc:TOuter(n:TInner) n
+        }
+        expand inner<TOuter>
+    }
+    expand outer<int>
+    assert(444 == innerFunc(444))
+}
+
+# nested template, both templates have arguments, inner argument shadows
+{
+    template outer<T> {
+        template inner<T> {
+            func innerFunc:T(n:T) n
+        }
+        expand inner<T>
+    }
+    expand outer<int>
+    assert(444 == innerFunc(444))
+}

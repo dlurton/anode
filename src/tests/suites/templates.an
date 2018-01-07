@@ -136,9 +136,8 @@
     assert(1024 == c.getWidgetId())
     assert(10240 == c.getWidgetIdTimes10())
 }
+# namespaces declared within templates are relative to the namespaces in which they are expanded
 {
-    # namespaces declared within templates are relative to the namespaces in which they are expanded
-
     template SomeTemplate {
         namespace Foo someValue:int
     }
@@ -149,4 +148,35 @@
     ns2::Foo::someValue = 16
     assert(ns1::Foo::someValue == 15)
     assert(ns2::Foo::someValue == 16)
+}
+
+# templates can exist within classes
+{
+    class SomeClass {
+        template SomeTemplate {
+            func someFunc:int() 5729
+        }
+        expand SomeTemplate
+    }
+    s: SomeClass = new SomeClass()
+    assert(5729 == s.someFunc())
+}
+
+# templates can exist within functions
+{
+    func someFunc:int() {
+        template return1069 1069
+        expand return1069
+    }
+
+    assert(1069 == someFunc())
+}
+
+# templates expansions as expressions
+# note:  This seems like unusual syntax that may need refinement.
+{
+    template foo {
+        1234
+    }
+    assert(1234 == expand foo)
 }

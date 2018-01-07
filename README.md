@@ -139,28 +139,29 @@ will give a complete and up-to-date picture of supported syntax and features, ho
   be used as arguments for templates.  The snippet below gives the 
  `FooDocumentItem` and `BarDocumentItem` classes the `documentItemId` field and `assignDocumentItemId()` method.
 ```
-    template CommonDocumentItemMembers() { 
+    template CommonDocumentItemMembers { 
         documentItemId:int
         func assignDocumentItemId() {
             ...generate unique documentItemId...
         }
     }
     class FooDocumentItem {
-        expand CommonDocumentItemMembers()
+        expand CommonDocumentItemMembers
     }
     class BarDocumentItem {
-        expand CommonDocumentItemMembers()
+        expand CommonDocumentItemMembers
     }
 ```
-- Templates can be used to create variations of the same class:
+- Templates can be used to create variations of the same class.   Also note that templates consisting of only a single 
+expression do not need to be wrapped in `{}`.
 ```
-   template SomeTemplate(TArg) {
-        class SomeClass {
-            someValue:TArg
-        }
+    template SomeTemplate<TArg> 
+    class SomeClass {
+        someValue:TArg
     }
-    namespace SomeNamespaceInt expand SomeTemplate(int)
-    namespace SomeNamespaceFloat expand SomeTemplate(float)
+
+    namespace SomeNamespaceInt expand SomeTemplate<int>
+    namespace SomeNamespaceFloat expand SomeTemplate<float>
     
     a:SomeNamespaceInt::SomeClass = ...
     b:SomeNamespaceFloat::SomeClass = ...
@@ -169,21 +170,21 @@ will give a complete and up-to-date picture of supported syntax and features, ho
  ```
  - Or of the same function: (note that once function overloading is completed, the expansion sites may exist in the same namespace)
 ```
-    template AbsoluteValue(TNumber) {
+    template AbsoluteValue<TNumber> {
         func abs(n:TNumber) (? n > 0 ; n; 0 - n;) 
     }
-    namespace math::int_funcs expand AbsoluteValue(int)
-    namespace math::float_funcs expand AbsoluteValue(float)
+    namespace math::int_funcs expand AbsoluteValue<int>
+    namespace math::float_funcs expand AbsoluteValue<float>
 ```
  - Generics! Generic functions are based on the template feature.  Classes that are placed within an anonymous template
  can be referenced along with their type arguments similar to C++, Java or C#.
  ``` 
-     template (TItem) {
-         class Node {
-             item:TItem
-             next:Node
-         }
-     } 
+     template <TItem>
+     class Node {
+         item:TItem
+         next:Node
+     }
+     
      
      n1:Node<int> = new Node<int>()
      n1.next = new Node<int>()

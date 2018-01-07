@@ -112,8 +112,8 @@ public:
                 for(int i = 0; i < (int)templateArgTypes.size(); ++i) {
                     argVector.emplace_back(*new ast::TemplateArgument(argNames[i].get().name(), argTypeRefs[i]));
                 }
-
-                auto &completedClass = upcast<ast::ClassDefinition>(genericClass.deepCopyExpandTemplate(argVector));
+                ast::TemplateExpansionContext context{ast::ExpansionKind::AnonymousTemplate, argVector};
+                auto &completedClass = upcast<ast::ClassDefinition>(genericClass.deepCopyExpandTemplate(context));
                 genericType->addExpandedClass(templateArgTypes, upcast<type::ClassType>(completedClass.definedType()));
 
 
@@ -129,9 +129,6 @@ public:
                     compoundExpr.scope().addSymbol(
                         *new scope::TypeSymbol(templateArg.parameterName().text(), templateArg.typeRef().type()));
                 }
-//
-//                compoundExpr.scope().setParent(currentScope());
-//                completedClass.body().scope().setParent(compoundExpr.scope());
 
                 module_.body().append(compoundExpr);
                 auto passes = getPreTemplateExpansionPassses(world_, module_, errorStream_);

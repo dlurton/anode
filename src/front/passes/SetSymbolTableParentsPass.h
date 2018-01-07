@@ -16,6 +16,7 @@ public:
     void visitingModule(ast::Module &module) override {
         module.scope().setParent(world_.globalScope());
     }
+
     void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
         funcDeclStmt.parameterScope().setParent(topScope());
         ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);

@@ -1,0 +1,58 @@
+# generic classes can be expanded within templates
+{
+    class SomeNode<T> {
+        n: T
+    }
+    template SomeTemplate {
+        someInstance: SomeNode<int>
+        someInstance = new SomeNode<int>()
+        someInstance.n = 5775
+    }
+    expand SomeTemplate
+    assert(5775 == someInstance.n)
+}
+
+# generic classes can be expanded within templates and template arguments propgated to generic arguments.
+{
+    class SomeNode<T> {
+        n: T
+    }
+    template SomeTemplate<SomeT> {
+        someInstance: SomeNode<SomeT>
+        someInstance = new SomeNode<SomeT>()
+    }
+    namespace ints expand SomeTemplate<int>
+    namespace floats expand SomeTemplate<float>
+    ints::someInstance.n = 157
+    floats::someInstance.n = 44.5
+    assert(157 == ints::someInstance.n)
+    assert(44.5 == floats::someInstance.n)
+}
+
+(# TODO:
+# templates may create generic classes...
+# note:  the type of Node<>.left is determined by the template argument while the type of .right is determined by the generic argument
+# used in the type reference.
+{
+    template SomeTemplate<TLeft>
+    class Node<TRight> {
+        left: TLeft
+        right: TRight
+    }
+
+    namespace n1 expand SomeTemplate<int>
+    namespace n2 expand SomeTemplate<float>
+
+    i1: n1::Node<float> = new n1::Node<float>()
+    i1.left = 12
+    i1.right = 1.2
+    assert(12 == i1.left)
+    assert(1.2 == i2.right)
+
+    i2: n2::Node<int> = new n2::Node<int>()
+    i2.left = 2.3
+    i2.right = 23
+    assert(2.3 = i2.left)
+    assert(23 == i2.right)
+}
+#)

@@ -14,12 +14,10 @@ namespace anode { namespace front { namespace parser {
 
 
 class AnodeParser : public PrattParser<ast::ExprStmt> {
+    typedef gc_ref_vector<ast::TemplateParameter> TemplateParameterVector;
+    gc_ref_deque<TemplateParameterVector> templateParameterStack_;
 
-    gc_ref_vector<ast::TemplateParameter> templateParameters_;
     std::stack<scope::StorageKind> storageKindStack_;
-
-    bool parsingTemplate_ = false;
-    bool parsingAnonymousTemplate_ = false;
 
     inline static ast::Identifier makeIdentifier(Token &t) {
         return ast::Identifier(t.span(), t.text());
@@ -76,15 +74,15 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         return nullptr;
     }
 
-    ast::Identifier parseIdentifier() {
+    ast::Identifier consumeIdentifier() {
         return makeIdentifier(consume(TokenKind::ID, "identifier"));
     }
 
     ast::MultiPartIdentifier parseQualifiedIdentifier() {
         std::vector<ast::Identifier> parts;
-        parts.emplace_back(parseIdentifier());
+        parts.emplace_back(consumeIdentifier());
         while(consumeOptional(TokenKind::OP_NAMESPACE)) {
-            parts.emplace_back(parseIdentifier());
+            parts.emplace_back(consumeIdentifier());
         }
 
         return ast::MultiPartIdentifier(parts);
@@ -95,7 +93,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         std::vector<ast::Identifier> parts;
         parts.emplace_back(makeIdentifier(first));
         while(consumeOptional(TokenKind::OP_NAMESPACE)) {
-            parts.emplace_back(parseIdentifier());
+            parts.emplace_back(consumeIdentifier());
         }
 
         return ast::MultiPartIdentifier(parts);
@@ -301,7 +299,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     }
 
     ast::ExprStmt &parseFuncDef(Token &funcKeyword) {
-        auto identifier = parseIdentifier();
+        auto identifier = consumeIdentifier();
         consumeColon();
         ast::ResolutionDeferredTypeRef &returnTypeRef = parseTypeRef();
         consumeOpenParen();
@@ -312,7 +310,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         //If parameter list is not empty
         if(!closeParen) {
             do {
-                auto name = parseIdentifier();
+                auto name = consumeIdentifier();
                 consumeColon();
                 ast::ResolutionDeferredTypeRef &parameterTypeRef = parseTypeRef();
                 parameters.emplace_back(
@@ -340,8 +338,13 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         );
     }
 
-    ast::ExprStmt &parseClassDef(Token &classKeyword) {
-        auto className = parseIdentifier();
+    ast::ExprStmt &parseClassDefinition(Token &classKeyword) {
+        auto className = consumeIdentifier();
+        TemplateParameterVector genericClassParameters = parseTemplateParameters(TemplateParameterRequirement::Optional);
+
+        if(!genericClassParameters.empty()) {
+            templateParameterStack_.push_back(genericClassParameters);
+        }
 
         storageKindStack_.push(scope::StorageKind::Instance);
 
@@ -357,19 +360,33 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         }
 
         storageKindStack_.pop();
-        if(!parsingAnonymousTemplate_) {
-            return *new ast::CompleteClassDefinition(
+
+        ast::ClassDefinition *classDefinition;
+        if(genericClassParameters.empty()) {
+            classDefinition =  new ast::CompleteClassDefinition(
                 makeSourceSpan(classKeyword.span(), classBody.sourceSpan()),
                 className,
                 *compoundExpr
             );
         } else {
-            return *new ast::GenericClassDefinition(
+            classDefinition = new ast::GenericClassDefinition(
                 makeSourceSpan(classKeyword.span(), classBody.sourceSpan()),
                 className,
-                deepCopyVector(templateParameters_),
+                deepCopyVector(templateParameterStack_.back().get()),
                 *compoundExpr
             );
+        }
+
+        if(genericClassParameters.empty()) {
+            return *classDefinition;
+        } else {
+            templateParameterStack_.pop_back();
+            //Construct anonymous template here as if we had parsed:
+            //template <...> class SomeClass { ... }
+            gc_ref_vector<ast::ExprStmt> templateBodyExprs;
+            templateBodyExprs.emplace_back(*classDefinition);
+            ast::ExpressionList &bodyExprList = *new ast::ExpressionList(classDefinition->sourceSpan(), templateBodyExprs);
+            return *new ast::AnonymousTemplateExprStmt(classDefinition->sourceSpan(), genericClassParameters, bodyExprList);
         }
     }
 
@@ -394,40 +411,19 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     }
 
     ast::ExprStmt &parseTemplate(Token &templateKeyword) {
-        if(parsingTemplate_) {
-            errorStream_.error(error::ErrorKind::CannotNestTemplates, templateKeyword.span(), "Cannot nest templates");
-            throw ParseAbortedException();
-        }
-        parsingTemplate_ = true;
+        ast::Identifier templateName = consumeIdentifier();
 
-        ast::Identifier *optionalId = consumeOptionalIdentifier();
+        gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters(TemplateParameterRequirement::Optional);
 
-        // When parsingAnonymousTemplate_ == true && !template_parameters.empty(), parseClassDef(...) will instantiate
-        // GenericClassDefinitions instead of CompleteClassDefinitions
-        parsingAnonymousTemplate_ = optionalId == nullptr;
-
-        gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters(
-            parsingAnonymousTemplate_ ? TemplateParameterRequirement::Required : TemplateParameterRequirement::Optional);
-
-        templateParameters_ = parameters;
+        templateParameterStack_.emplace_back(parameters);
         auto &&body = upcast<ast::ExpressionList>(parseExpressionList());
-        templateParameters_.clear();
+        templateParameterStack_.pop_back();
 
-        parsingTemplate_ = false;
-        parsingAnonymousTemplate_ = false;
-
-        if(optionalId != nullptr) {
-            return *new ast::NamedTemplateExprStmt(
-                makeSourceSpan(templateKeyword.span(), body.sourceSpan()),
-                *optionalId,
-                parameters,
-                body);
-        } else {
-            return *new ast::AnonymousTemplateExprStmt(
-                makeSourceSpan(templateKeyword.span(), body.sourceSpan()),
-                parameters,
-                body);
-        }
+        return *new ast::NamedTemplateExprStmt(
+            makeSourceSpan(templateKeyword.span(), body.sourceSpan()),
+            templateName,
+            parameters,
+            body);
     }
 
     enum class TemplateParameterRequirement {
@@ -447,7 +443,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         }
         if(!consumeOptional(TokenKind::OP_GT)) {
             do {
-                auto identifier = parseIdentifier();
+                auto identifier = consumeIdentifier();
                 parameters.emplace_back(*new ast::TemplateParameter(identifier.span(), identifier));
             } while(consume(TokenKind::COMMA, TokenKind::OP_GT, "',' or '>'").kind() == TokenKind::COMMA);
         }
@@ -475,7 +471,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     }
 
     ast::ExprStmt &parseDotExpr(ast::ExprStmt &lValue, Token &operatorToken) {
-        auto memberName = parseIdentifier();
+        auto memberName = consumeIdentifier();
 
         if(Token *openParen = consumeOptional(TokenKind::OPEN_PAREN)) {
             auto argsAndCloseParen = parseFuncCallArguments();
@@ -524,7 +520,7 @@ public:
         registerGenericParselet(TokenKind::KW_IF, std::bind(&AnodeParser::parseIfExpr, this, _1));
         registerGenericParselet(TokenKind::KW_WHILE, std::bind(&AnodeParser::parseWhile, this, _1));
         registerGenericParselet(TokenKind::KW_FUNC, std::bind(&AnodeParser::parseFuncDef, this, _1));
-        registerGenericParselet(TokenKind::KW_CLASS, std::bind(&AnodeParser::parseClassDef, this, _1));
+        registerGenericParselet(TokenKind::KW_CLASS, std::bind(&AnodeParser::parseClassDefinition, this, _1));
         registerGenericParselet(TokenKind::KW_ASSERT, std::bind(&AnodeParser::parseAssert, this, _1));
         registerGenericParselet(TokenKind::KW_NAMESPACE, std::bind(&AnodeParser::parseNamespace, this, _1));
         registerGenericParselet(TokenKind::KW_TEMPLATE, std::bind(&AnodeParser::parseTemplate, this, _1));

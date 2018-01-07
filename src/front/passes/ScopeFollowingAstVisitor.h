@@ -76,7 +76,11 @@ public:
 
             scope::SymbolTable &newScope = *new scope::SymbolTable(scope::StorageKind::Global, nsName.text());
             auto &newNs = *new scope::NamespaceSymbol(newScope);
+
+            //setting these scopes symbol table parentage here feels suboptimal but doing this within SetSymbolTableParentsPass is
+            //a lot more work than this single line of code and this gets the job done, so...
             newNs.symbolTable().setParent(*current);
+
             current->addSymbol(newNs);
             current = &newNs.symbolTable();
         }

@@ -76,15 +76,14 @@ public:
             return;
         }
 
-        //TODO:  refactor TemplateExpansionExprStmt to store this as a field.
         gc_ref_vector<ast::TemplateArgument> templateArgs;
 
         for(unsigned int i = 0; i < tParams.size(); ++i) {
             expansion.templateParameterScope().addSymbol(*new scope::TypeSymbol(tParams[i].get().name().text(), tArgs[i].get().type()));
             templateArgs.emplace_back(*new ast::TemplateArgument(tParams[i].get().name(), tArgs[i].get()));
         }
-
-        expansion.setExpandedTemplate(&templ.body().deepCopyExpandTemplate(templateArgs));
+        ast::TemplateExpansionContext context{ast::ExpansionKind::NamedTemplate, templateArgs};
+        expansion.setExpandedTemplate(&templ.body().deepCopyExpandTemplate(context));
 
         auto visitors = getPreTemplateExpansionPassses(world_, module_, errorStream_);
         runPasses(visitors,  *expansion.expandedTemplate(), errorStream_, expansion.templateParameterScope());

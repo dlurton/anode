@@ -75,7 +75,7 @@ TEST_CASE("simple tokens") {
 }
 
 TEST_CASE("identifiers") {
-    auto tokens = extractAllTokens("a abcdef zxyw_lmnop a123 _abc abc_ ");
+    auto tokens = extractAllTokens("a abcdef zxyw_lmnop a123 _abc abc_ expand_int ifwhatever");
     int i = 0;
     Token *token = tokens[i++];
     REQUIRE(token->text() == "a");
@@ -99,6 +99,14 @@ TEST_CASE("identifiers") {
 
     token = tokens[i++];
     REQUIRE(token->text() == "abc_");
+    REQUIRE(token->kind() == TokenKind::ID);
+
+    token = tokens[i++];
+    REQUIRE(token->text() == "expand_int");
+    REQUIRE(token->kind() == TokenKind::ID);
+
+    token = tokens[i++];
+    REQUIRE(token->text() == "ifwhatever");
     REQUIRE(token->kind() == TokenKind::ID);
 
 

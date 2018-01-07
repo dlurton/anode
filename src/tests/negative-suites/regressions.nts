@@ -4,3 +4,4 @@
 template TFoo<T> { }
 expand TFoo<T>
 ?SymbolNotDefined, 5, 13
+
