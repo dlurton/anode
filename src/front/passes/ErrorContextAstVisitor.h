@@ -8,7 +8,7 @@
 
 namespace anode { namespace front { namespace passes {
 
-class   ErrorContextAstVisitor : public ast::AstVisitor {
+class ErrorContextAstVisitor : public ast::AstVisitor {
 protected:
     error::ErrorStream &errorStream_;
 

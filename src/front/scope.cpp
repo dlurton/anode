@@ -13,7 +13,8 @@ SymbolBase::SymbolBase(const SymbolBase &other)
     :   symbolId_{GetNextUniqueId()},  //Clones however must be allocated a different SymbolId.
         isExternal_{other.isExternal_},
         storageKind_{other.storageKind_},
-        fullyQualifiedName_{other.fullyQualifiedName_}
+        fullyQualifiedName_{other.fullyQualifiedName_},
+        mySymbolTable_{other.mySymbolTable_}
 {
 
 }

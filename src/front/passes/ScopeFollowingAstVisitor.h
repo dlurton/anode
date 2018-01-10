@@ -5,7 +5,6 @@
 namespace anode { namespace front  { namespace passes {
 
 
-
 class ScopeFollowingAstVisitor : public ErrorContextAstVisitor {
 
     //We use this only as a stack but it has to be a deque so we can iterate over its contents.
@@ -67,7 +66,7 @@ public:
 
         namespaceExpr.setScope(*current);
     }
-
+private:
     scope::SymbolTable *descendIntoNamespace(scope::SymbolTable *current, const ast::Identifier &nsName) {
         ASSERT(current);
         auto found = current->findSymbolInCurrentScope(nsName.text());
@@ -94,7 +93,7 @@ public:
         }
         return current;
     }
-
+public:
     void visitedNamespaceExpr(ast::NamespaceExpr &namespaceExpr) override {
         ASSERT(&namespaceExpr.scope() == &symbolTableStack_.back().get());
         for(int i = 0; i < namespaceExpr.name().size(); ++i) {

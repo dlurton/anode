@@ -35,9 +35,6 @@ namespace anode { namespace source {
         SourceSpan(std::string sourceName, SourceLocation start, SourceLocation end)
             : name_(sourceName), start_(start), end_(end) { }
 
-        SourceSpan(const SourceSpan &copyFrom)
-            : name_(copyFrom.name_), start_(copyFrom.start_), end_(copyFrom.end_) { }
-
         std::string name() const { return name_;}
         SourceLocation start() const { return start_; }
         SourceLocation end() const { return end_; }

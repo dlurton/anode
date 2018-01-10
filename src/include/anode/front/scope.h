@@ -9,7 +9,7 @@
 
 namespace anode { namespace front { namespace scope {
 
-/** Indicates type of storage for this variable. */
+/** Indicates type of storage for variables defined within for a symbol table. */
 enum class StorageKind : unsigned char {
     NotSet,
     Global,
@@ -18,7 +18,6 @@ enum class StorageKind : unsigned char {
     Instance,
     TemplateParameter
 };
-
 
 class Symbol;
 class VariableSymbol;
@@ -46,7 +45,9 @@ class SymbolTable : public gc {
 
 public:
     NO_COPY_NO_ASSIGN(SymbolTable)
-    explicit SymbolTable(StorageKind storageKind, const std::string &name) : storageKind_(storageKind), name_{name} {}
+    explicit SymbolTable(StorageKind storageKind, const std::string &name) : storageKind_(storageKind), name_{name} {
+        ASSERT(name.length() > 0)
+    }
 
     SymbolTable *parent() {
         return parent_;
@@ -114,6 +115,7 @@ class SymbolBase : public Symbol {
     bool isExternal_ = false;
     StorageKind storageKind_ = StorageKind::NotSet;
     std::string fullyQualifiedName_;
+    SymbolTable *mySymbolTable_ = nullptr;
 protected:
     SymbolBase();
     /** "Cloning" constructor */
@@ -133,12 +135,32 @@ public:
 
     bool isFullyQualified() override { return !fullyQualifiedName_.empty(); }
 
-    void fullyQualify(SymbolTable *symbolTable) override {
-        ASSERT(fullyQualifiedName_.empty() &&
-               "Attempting to do fully qualify a symbol that's already been fully qualified is probably a bug.");
+    SymbolTable &symbolTable() {
+        ASSERT(mySymbolTable_)
+        return *mySymbolTable_;
+    }
+
+    void fullyQualify(SymbolTable *mySymbolTable) override {
+        ASSERT(!mySymbolTable_ && "I don't think we want to change the symbol table of a symbol.")
+        mySymbolTable_ = mySymbolTable;
 
         if (fullyQualifiedName_.empty())
-            fullyQualifiedName_ = symbolTable->fullName() + ScopeSeparator + name();
+            fullyQualifiedName_ = mySymbolTable_->fullName() + ScopeSeparator + name();
+    }
+
+    /**
+     * For symbols that reside directly in namespaces, returns a single SymbolTable for the symbol's namespace and one for
+     * each of its parents.
+     */
+    gc_ref_vector<SymbolTable> getNamespacesAndParents() {
+        SymbolTable *current = mySymbolTable_;
+        gc_ref_vector<SymbolTable> results;
+        while(current != nullptr) {
+            results.emplace_back(*current);
+            current = current->parent();
+        }
+        std::reverse(results.begin(), results.end());
+        return results;
     }
 
     std::string fullyQualifiedName() override {
@@ -272,8 +294,6 @@ public:
     NO_COPY_NO_ASSIGN(NamespaceSymbol)
 
     explicit NamespaceSymbol(SymbolTable &symbolTable) : symbolTable_{symbolTable} { }
-//    NamespaceSymbol(const NamespaceSymbol &) = delete;
-//    NamespaceSymbol &operator=(const NamespaceSymbol &) = delete;
 
     std::string name() const override { return symbolTable_.name(); }
 
@@ -284,7 +304,7 @@ public:
     SymbolTable &symbolTable() { return symbolTable_; }
 
     Symbol &cloneForExport() override {
-        //TODO: it's quite possible that we will need to clone sybmolTable_ here... (though I hope not! that could get expensive)
+        //it's quite possible that we will need to clone sybmolTable_ here...
         return *new NamespaceSymbol(symbolTable_);
     }
 };

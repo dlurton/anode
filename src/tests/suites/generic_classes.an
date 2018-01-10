@@ -85,8 +85,6 @@ class Item<TArg> {
     assert(n1.someValue == 4747)
 }
 
-
-(# TODO:
 # a generic class may access variables defined within the same scope
 # demonstrates that symbol table parentage is set up correctly.
 {
@@ -99,4 +97,3 @@ class Item<TArg> {
     n1: foo::Node<int> = new foo::Node<int>()
     assert(2883 == n1.getbar())
 }
-#)

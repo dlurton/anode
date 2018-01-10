@@ -89,6 +89,7 @@ public:
                 } else {
                     auto &&symbol = *new scope::TypeSymbol(cd->name().text(), cd->definedType());
                     currentScope().addSymbol(symbol);
+                    cd->setSymbol(symbol);
                 }
             }
         }

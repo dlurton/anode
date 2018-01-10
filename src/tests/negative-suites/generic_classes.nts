@@ -28,3 +28,10 @@ tempFloat:Temp<float> = tempInt
 class S { }
 a:S<int>
 ?TypeIsNotGenericButIsReferencedWithGenericArgs, 5, 3
+
+#############################################################################
+# resolved symbol is not a type
+not_type: int = 10
+class Temp<T> { }
+tempInt:Temp<not_type>
+?SymbolIsNotAType, 6, 14

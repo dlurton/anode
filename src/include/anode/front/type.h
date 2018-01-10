@@ -7,7 +7,6 @@
 #include "common/string.h"
 
 
-
 namespace anode { namespace front { namespace scope {
 class Symbol;
     class FunctionSymbol;
@@ -146,31 +145,6 @@ public:
 
     bool isSameType(const type::Type *otherType) const override {
         assertResolved();
-
-        //FIXME:  I'm not entirely certain that any of this is actually needed?
-//        //If the other type is a Resolution deferred generic type
-//        if(auto otherResolutionDeferredTypeRef = dynamic_cast<type::ResolutionDeferredType*>(otherType)) {
-//            //If the "
-//            if(!actualType_->isSameType(otherResolutionDeferredTypeRef->actualType_)) return false;
-//            // and if this type is also a
-//            if (!typeArguments_.empty() && !otherResolutionDeferredTypeRef->typeArguments_.empty()) {
-//                if(!typeArguments_.size() != otherResolutionDeferredTypeRef->typeArguments_.size()) return false;
-//
-//                for(int i = 0; i < typeArguments_.size(); ++i) {
-//                    auto &thisTypeArg = typeArguments_[i].get();
-//                    auto &otherTypeArg = otherResolutionDeferredTypeRef->typeArguments_[i].get();
-//                    if(!thisTypeArg.isSameType(otherTypeArg)) return false;
-//                }
-//
-//                // This type and all type arguments match so this is the same type as the other.
-//                return true;
-//            }
-//            //The other type is a reference to a completed generic type but this one isn't--not the same type.
-//            return false;
-//        }
-//        //Non-generic type             Non-generic type
-
-
         return actualType()->isSameType(otherType);
     }
 

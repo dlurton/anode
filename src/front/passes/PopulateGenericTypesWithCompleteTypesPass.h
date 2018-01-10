@@ -59,22 +59,9 @@ public:
 
     }
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
+
         if(typeRef.hasTemplateArguments()) {
-
-            //Look up type the generic type:
-            auto maybeTypeSymbol = findQualifiedSymbol(topScope(), typeRef.name(), errorStream_);
-            if(maybeTypeSymbol == nullptr) {
-                //Error message handled by findQualifiedSymbol(...)
-                return;
-            }
-
-            auto typeSymbol = dynamic_cast<scope::TypeSymbol*>(maybeTypeSymbol);
-            if(!typeSymbol) {
-                ASSERT_FAIL("TODO:  resolved symbol is not a type");
-                return;
-            }
-
-            auto genericType = dynamic_cast<type::GenericType*>(typeSymbol->type().actualType());
+            auto genericType = dynamic_cast<type::GenericType*>(typeRef.type().actualType());
             if(!genericType) {
                 errorStream_.error(
                     error::ErrorKind::TypeIsNotGenericButIsReferencedWithGenericArgs,
@@ -119,20 +106,23 @@ public:
 
                 gc_ref_vector<ast::ExprStmt> compoundExprBody;
                 compoundExprBody.emplace_back(completedClass);
-                auto &compoundExpr = *new ast::CompoundExpr(
+                auto expandedTemplateWrapper = new ast::CompoundExpr(
                     completedClass.sourceSpan(),
                     scope::StorageKind::TemplateParameter,
                     compoundExprBody,
-                    typeSymbol->fullyQualifiedName() + scope::ScopeSeparator + "ImplicitExpansion");
+                    genericClass.symbol()->fullyQualifiedName() + scope::ScopeSeparator + "ImplicitExpansion");
 
                 for(ast::TemplateArgument &templateArg : argVector) {
-                    compoundExpr.scope().addSymbol(
+                    expandedTemplateWrapper->scope().addSymbol(
                         *new scope::TypeSymbol(templateArg.parameterName().text(), templateArg.typeRef().type()));
                 }
+                ast::ExprStmt *expandedTemplate = expandedTemplateWrapper;
 
-                module_.body().append(compoundExpr);
+                expandedTemplateWrapper->scope().setParent(genericClass.symbol()->symbolTable());
+
+                module_.body().append(*expandedTemplate);
                 auto passes = getPreTemplateExpansionPassses(world_, module_, errorStream_);
-                runPasses(passes, compoundExpr, errorStream_, currentScope());
+                runPasses(passes, *expandedTemplate, errorStream_, currentScope());
                 if(errorStream_.errorCount() == 0) {
                     ResolveTypesPass pass{errorStream_};
                     completedClass.accept(pass);

@@ -150,10 +150,11 @@ extern unsigned long astNodesDestroyedCount;
 
 
 class Identifier {
-    const source::SourceSpan span_;
-    const std::string text_;
+    source::SourceSpan span_;
+    std::string text_;
 
 public:
+    Identifier(const Identifier &) = default;
     Identifier(source::SourceSpan span, const std::string &text)
         : span_(span), text_(text) { }
 
@@ -165,8 +166,8 @@ public:
 
 /** Represents a multi-part identifier, i.e. "system::io::filesystem" */
 class MultiPartIdentifier {
-    source::SourceSpan span_;
-    std::vector<Identifier> parts_;
+    const source::SourceSpan span_;
+    const std::vector<Identifier> parts_;
 
     inline static source::SourceSpan spanFromIdVector(const std::vector<Identifier> &parts) {
         const source::SourceSpan &firstSpan = parts.front().span();
@@ -181,7 +182,7 @@ class MultiPartIdentifier {
     }
 
 public:
-    MultiPartIdentifier(std::vector<Identifier> &parts) : span_{spanFromIdVector(parts)}, parts_{parts} {
+    MultiPartIdentifier(const std::vector<Identifier> &parts) : span_{spanFromIdVector(parts)}, parts_{parts} {
         ASSERT(parts_.size() >= 1);
     }
     MultiPartIdentifier(const Identifier part) : span_{part.span()}, parts_{idVectorFromId(part)} {
@@ -528,8 +529,8 @@ public:
             //Copy expressions_ because expressions can be added while visiting children
             //(adding items to vector invalidates iterator)
             gc_ref_vector<ExprStmt> exprs = expressions_;
-            for (auto stmt : exprs) {
-                stmt.get().accept(visitor);
+            for (ExprStmt &stmt : exprs) {
+                stmt.accept(visitor);
             }
         }
         visitor.visitedCompoundExpr(*this);
@@ -1421,6 +1422,8 @@ class NamespaceExpr : public VoidExprStmt {
     ExpressionList &body_;
     scope::SymbolTable *scope_;
 public:
+    NO_COPY_NO_ASSIGN(NamespaceExpr)
+
     NamespaceExpr(const source::SourceSpan &sourceSpan, const MultiPartIdentifier &qualifiedName, ExpressionList &body)
         : VoidExprStmt(sourceSpan),
           qualifiedName_{qualifiedName}, body_{body} { }
@@ -1542,6 +1545,7 @@ public:
 class GenericClassDefinition : public ClassDefinition {
     gc_ref_vector<ast::TemplateParameter> templateParameters_;
     type::GenericType *definedType_;
+    scope::TypeSymbol *symbol_ = nullptr;
 
     inline static std::vector<std::string> getTemplateParameterNames(const gc_ref_vector<TemplateParameter> &parameters) {
         std::vector<std::string> names;
@@ -1573,9 +1577,13 @@ public:
     /** The type of the class being defined. */
     type::Type &definedType() const override { return *definedType_; }
 
+    scope::TypeSymbol *symbol() { ASSERT(symbol_); return symbol_; }
+    void setSymbol(scope::TypeSymbol &s) { symbol_ = &s; }
+
     const gc_ref_vector<TemplateParameter> &templateParameters() {
         return templateParameters_;
     }
+
     void accept(AstVisitor &visitor) override {
         visitor.visitingGenericClassDefinition(*this);
         if (visitor.shouldVisitChildren()) {
@@ -1719,7 +1727,7 @@ public:
  * FIXME: this class really needs a better name.
  */
 class AnodeWorld : public gc {
-    scope::SymbolTable globalScope_{scope::StorageKind::Global, ""};
+    scope::SymbolTable globalScope_{scope::StorageKind::Global, "::"};
     gc_unordered_map<UniqueId, GenericClassDefinition*> genericClassIndex_;
     gc_unordered_map<UniqueId, AnonymousTemplateExprStmt*> templateIndex_;
     gc_unordered_set<ast::AnonymousTemplateExprStmt*> expandingTemplates_;
