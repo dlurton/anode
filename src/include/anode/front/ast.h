@@ -234,6 +234,7 @@ class AstNode : public Object {
 public:
     //NO_COPY_NO_ASSIGN(AstNode)
     AstNode();
+    AstNode(const AstNode &) : AstNode(){ }
 
     virtual ~AstNode() {
         astNodesDestroyedCount++;
@@ -470,7 +471,7 @@ public:
             //Copy expressions_ because expressions can be added while visiting children
             //(adding items to vector invalidates iterator)
             gc_ref_vector<ExprStmt> exprs = expressions_;
-            for (auto stmt : exprs) {
+            for (auto &&stmt : exprs) {
                 stmt.get().accept(visitor);
             }
         }
@@ -1558,7 +1559,7 @@ private:
     explicit GenericClassDefinition(const GenericClassDefinition &copyFrom)
         : ClassDefinition(copyFrom),
           templateParameters_{deepCopyVector(copyFrom.templateParameters_)},
-          definedType_{copyFrom.definedType_}
+          definedType_{new type::GenericType(nodeId(), name().text(), getTemplateParameterNames(templateParameters_))}
     {
 
     }
@@ -1747,6 +1748,7 @@ public:
     }
 
     void addGenericClassDefinition(GenericClassDefinition &genericClass) {
+        ASSERT(genericClassIndex_.find(genericClass.nodeId()) == genericClassIndex_.end())
         genericClassIndex_.emplace(genericClass.nodeId(), &genericClass);
     }
 
@@ -1757,6 +1759,7 @@ public:
     }
 
     void addExpandingTemplate(ast::AnonymousTemplateExprStmt &templ) {
+        ASSERT(expandingTemplates_.find(&templ) == expandingTemplates_.end())
         expandingTemplates_.insert(&templ);
     }
 

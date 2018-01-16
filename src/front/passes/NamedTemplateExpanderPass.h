@@ -56,6 +56,7 @@ public:
                 expansion.sourceSpan(),
                 "Cannot expand template '%s' -- circular template expansion detected",
                 expansion.templateName().front().text().c_str());
+            return;
         }
         world_.addExpandingTemplate(templ);
 

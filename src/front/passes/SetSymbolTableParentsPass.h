@@ -27,8 +27,6 @@ public:
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
-        //That currentScope() instead of topScope() is important because the scopes of expanded templates always need to
-        //be parented to the outermost inner most scope not marked with scope::StorageKind::TemplateParameter.
         if(!expansion.templateParameterScope().parent()) {
             expansion.templateParameterScope().setParent(topScope());
         }

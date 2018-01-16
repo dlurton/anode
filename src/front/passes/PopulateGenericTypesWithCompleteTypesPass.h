@@ -53,11 +53,14 @@ public:
 class ExpandClassesWithinAnonymousTemplates : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
     ast::Module &module_;
+
+
 public:
     ExpandClassesWithinAnonymousTemplates(error::ErrorStream &errorStream, ast::Module &module, ast::AnodeWorld &world)
         : ScopeFollowingAstVisitor(errorStream), world_{world}, module_{module} {
 
     }
+
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
 
         if(typeRef.hasTemplateArguments()) {
@@ -122,7 +125,7 @@ public:
 
                 module_.body().append(*expandedTemplate);
                 auto passes = getPreTemplateExpansionPassses(world_, module_, errorStream_);
-                runPasses(passes, *expandedTemplate, errorStream_, currentScope());
+                runPasses(passes, *expandedTemplate, errorStream_, expandedTemplateWrapper->scope());
                 if(errorStream_.errorCount() == 0) {
                     ResolveTypesPass pass{errorStream_};
                     completedClass.accept(pass);

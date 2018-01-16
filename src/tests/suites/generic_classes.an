@@ -97,3 +97,16 @@ class Item<TArg> {
     n1: foo::Node<int> = new foo::Node<int>()
     assert(2883 == n1.getbar())
 }
+
+
+(#
+    TODO: circularly referenced generic types
+
+    class Parent<TItem> {
+        child: Child<TItem>
+    }
+
+    class Child<TItem> {
+        parent: Parent<TItem>
+    }
+#)

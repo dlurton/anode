@@ -15,7 +15,7 @@ endif()
 
 message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-ggdb -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-ggdb -O0 -D_GLIBCXX_DEBUG") #-D_GLIBCXX_DEBUG causes clang to include debug info for stdlib. )
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(LINK_LLVM_DYLIB yes)
