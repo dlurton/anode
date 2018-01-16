@@ -1,6 +1,4 @@
-##############################################################
-# Build anode
-##############################################################
+
 set(FRONT_SRC_FILES
         ${ANODE_INCLUDE_DIR}/common
         ${ANODE_INCLUDE_DIR}/front
@@ -19,7 +17,30 @@ set(FRONT_SRC_FILES
         parser/char.h
         parser/AnodeParser.cpp
         SourceReader.h
-        parse.cpp scope.cpp unique_id.cpp ../include/anode/front/unique_id.h ../include/anode/common/enum.h passes/symbol_search.cpp passes/symbol_search.h passes/PopulateSymbolTablesPass.h passes/ScopeFollowingAstVisitor.h passes/ErrorContextAstVisitor.h passes/SetSymbolTableParentsPass.h passes/ResolveSymbolsPass.h passes/ResolveTypesPass.h passes/CastExprSemanticPass.h passes/ResolveDotExprMemberPass.h passes/BinaryExprSemanticsPass.h passes/FuncCallSemanticsPass.h passes/NamedTemplateExpanderPass.h passes/run_passes.h passes/PopulateGenericTypesWithCompleteTypesPass.h passes/ConvertGenericTypeRefsToCompletePass.h passes/AnonymousTemplateSemanticPass.h)
+        parse.cpp
+        scope.cpp
+        unique_id.cpp
+        ${ANODE_INCLUDE_DIR}/front/unique_id.h
+        ${ANODE_INCLUDE_DIR}/common/enum.h
+        passes/symbol_search.cpp
+        passes/symbol_search.h
+        passes/PopulateSymbolTablesPass.h
+        passes/ScopeFollowingAstVisitor.h
+        passes/ErrorContextAstVisitor.h
+        passes/SetSymbolTableParentsPass.h
+        passes/ResolveSymbolsPass.h
+        passes/ResolveTypesPass.h
+        passes/CastExprSemanticPass.h
+        passes/ResolveDotExprMemberPass.h
+        passes/BinaryExprSemanticsPass.h
+        passes/FuncCallSemanticsPass.h
+        passes/NamedTemplateExpanderPass.h
+        passes/run_passes.h
+        passes/PopulateGenericTypesWithCompleteTypesPass.h
+        passes/ConvertGenericTypeRefsToCompletePass.h
+        passes/AnonymousTemplateSemanticPass.h
+        passes/ExpandGenericTypeReferencesPass.h)
+
 
 
 add_library(anode-front ${FRONT_SRC_FILES})

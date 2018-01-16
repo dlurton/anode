@@ -16,6 +16,7 @@
 
 #include "run_passes.h"
 #include "AnonymousTemplateSemanticPass.h"
+#include "ExpandGenericTypeReferencesPass.h"
 
 namespace anode { namespace front  { namespace passes {
 
@@ -122,7 +123,7 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
     //will know to the type::Type after this phase
     passes.emplace_back(*new ResolveTypesPass(es));
 
-    passes.emplace_back(*new ExpandClassesWithinAnonymousTemplates(es, module, world));
+    passes.emplace_back(*new ExpandGenericTypeReferencesPass(es, module, world));
 
     passes.emplace_back(*new PopulateGenericTypesWithCompleteTypesPass(es));
 
