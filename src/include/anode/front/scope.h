@@ -27,7 +27,41 @@ class AliasSymbol;
 
 const std::string ScopeSeparator = "::";
 
+
+
 class SymbolTable : public gc {
+
+public:
+    virtual SymbolTable *parent() const = 0;
+    virtual ~SymbolTable() { }
+
+    virtual void setParent(SymbolTable &parent) = 0;
+
+    virtual std::string name() const = 0;
+
+    virtual std::string fullName() = 0;
+
+    virtual StorageKind storageKind() const = 0;
+    virtual void setStorageKind(StorageKind kind) = 0;
+
+    /** Finds the named symbol in the current scope */
+    virtual Symbol *findSymbolInCurrentScope(const std::string &name) const = 0;
+
+    /** Finds the named symbol in the current scope or any parent. */
+    virtual Symbol *findSymbolInCurrentScopeOrParents(const std::string &name) const = 0;
+
+    virtual void addSymbol(Symbol &symbol) = 0;
+
+    virtual gc_ref_vector<VariableSymbol> variables() = 0;
+
+    virtual gc_ref_vector<TypeSymbol> types() = 0;
+
+    virtual gc_ref_vector<FunctionSymbol> functions() const = 0;
+
+    virtual gc_ref_vector<Symbol> symbols() const = 0;
+};
+
+class ScopeSymbolTable : public SymbolTable {
 
     SymbolTable *parent_ = nullptr;
     gc_ref_unordered_map<std::string, scope::Symbol> symbols_;
@@ -36,61 +70,62 @@ class SymbolTable : public gc {
     std::string name_;
 
     void appendName(std::string &appendTo) {
-        if (parent_) {
-            parent_->appendName(appendTo);
+        if (auto parentScope = dynamic_cast<ScopeSymbolTable*>(parent_)) {
+            parentScope->appendName(appendTo);
             appendTo.append(ScopeSeparator);
         }
         appendTo.append(name());
     }
 
 public:
-    NO_COPY_NO_ASSIGN(SymbolTable)
-    explicit SymbolTable(StorageKind storageKind, const std::string &name) : storageKind_(storageKind), name_{name} {
+    NO_COPY_NO_ASSIGN(ScopeSymbolTable)
+    explicit ScopeSymbolTable(StorageKind storageKind, const std::string &name)
+        : SymbolTable(), storageKind_(storageKind), name_{name} {
         ASSERT(name.length() > 0)
     }
 
-    SymbolTable *parent() {
+    SymbolTable *parent() const override {
         return parent_;
     }
 
-    void setParent(SymbolTable &parent) {
+    void setParent(SymbolTable &parent) override {
         ASSERT(&parent != this && "Hello? Are you trying to cause an infinite loop?");
         parent_ = &parent;
     }
 
-    std::string name() const {
+    std::string name() const override {
         return name_;
     }
 
-    std::string fullName() {
+    std::string fullName() override{
         std::string fn;
         appendName(fn);
         return fn;
     }
 
-    StorageKind storageKind() const {
+    StorageKind storageKind() const override {
         return storageKind_;
     }
 
-    void setStorageKind(StorageKind kind) {
+    void setStorageKind(StorageKind kind) override {
         storageKind_ = kind;
     }
 
     /** Finds the named symbol in the current scope */
-    Symbol *findSymbolInCurrentScope(const std::string &name) const;
+    Symbol *findSymbolInCurrentScope(const std::string &name) const override;
 
     /** Finds the named symbol in the current scope or any parent. */
-    Symbol *findSymbolInCurrentScopeOrParents(const std::string &name) const;
+    Symbol *findSymbolInCurrentScopeOrParents(const std::string &name) const override;
 
-    void addSymbol(Symbol &symbol);
+    void addSymbol(Symbol &symbol) override;
 
-    gc_ref_vector<VariableSymbol> variables();
+    gc_ref_vector<VariableSymbol> variables() override;
 
-    gc_ref_vector<TypeSymbol> types();
+    gc_ref_vector<TypeSymbol> types() override;
 
-    gc_ref_vector<FunctionSymbol> functions() const;
+    gc_ref_vector<FunctionSymbol> functions() const override;
 
-    gc_ref_vector<Symbol> symbols() const;
+    gc_ref_vector<Symbol> symbols() const override;
 };
 
 class Symbol : public Object {

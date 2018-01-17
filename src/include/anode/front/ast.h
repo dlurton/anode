@@ -491,7 +491,7 @@ public:
 /** Contains a series of expressions within a lexical scope, i.e. those contained within { and }.
  * TODO: inherit from ExpressionList? */
 class CompoundExpr : public ExprStmt {
-    scope::SymbolTable scope_;
+    scope::ScopeSymbolTable scope_;
     gc_ref_vector<ExprStmt> expressions_;
 public:
     CompoundExpr(
@@ -555,7 +555,7 @@ class AnonymousTemplateExprStmt : public VoidExprStmt {
 
 protected:
     gc_ref_vector<ast::TemplateParameter> parameters_;
-    ast::ExpressionList &body_;
+    ast::ExprStmt &body_;
 
     gc_ref_vector <TemplateParameter> deepCopyTemplateParameters() const {
         gc_ref_vector<TemplateParameter> copiedParameters;
@@ -570,20 +570,19 @@ public:
     AnonymousTemplateExprStmt(
         const source::SourceSpan &sourceSpan,
         const gc_ref_vector<ast::TemplateParameter> &parameters,
-        ast::ExpressionList &body)
+        ast::ExprStmt &body)
         : VoidExprStmt(sourceSpan),
           parameters_{parameters},
           body_{body} {}
 
     gc_ref_vector<ast::TemplateParameter> &parameters() { return parameters_; }
 
-    ExpressionList &body() { return body_; }
+    ExprStmt &body() { return body_; }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<TemplateParameter> copiedParameters = deepCopyTemplateParameters();
         auto &copiedBody = body_.deepCopyExpandTemplate(expansionContext);
-        return *new AnonymousTemplateExprStmt(sourceSpan_, copiedParameters,
-                                     upcast<ExpressionList>(copiedBody));
+        return *new AnonymousTemplateExprStmt(sourceSpan_, copiedParameters, copiedBody);
     }
 
     void accept(AstVisitor &visitor) override {
@@ -639,7 +638,7 @@ class TemplateExpansionExprStmt : public ExprStmt {
     //TODO:  convert below to vector of TemplateArgument*
     gc_ref_vector<ast::TypeRef> typeArguments_;
     ast::ExprStmt *expandedTemplate_ = nullptr;
-    scope::SymbolTable templateParameterScope_;
+    scope::ScopeSymbolTable templateParameterScope_;
 
 public:
     TemplateExpansionExprStmt(
@@ -1249,7 +1248,7 @@ type::FunctionType &createFunctionType(type::Type &returnType, const gc_ref_vect
 class FuncDefStmt : public VoidExprStmt {
     const Identifier name_;
     scope::FunctionSymbol *symbol_= nullptr;
-    scope::SymbolTable parameterScope_;
+    scope::ScopeSymbolTable parameterScope_;
     TypeRef &returnTypeRef_;
     gc_ref_vector<ParameterDef> parameters_;
     ExprStmt* body_;
@@ -1728,7 +1727,7 @@ public:
  * FIXME: this class really needs a better name.
  */
 class AnodeWorld : public gc {
-    scope::SymbolTable globalScope_{scope::StorageKind::Global, "::"};
+    scope::ScopeSymbolTable globalScope_{scope::StorageKind::Global, "::"};
     gc_unordered_map<UniqueId, GenericClassDefinition*> genericClassIndex_;
     gc_unordered_map<UniqueId, AnonymousTemplateExprStmt*> templateIndex_;
     gc_unordered_set<ast::AnonymousTemplateExprStmt*> expandingTemplates_;

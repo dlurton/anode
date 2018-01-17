@@ -141,7 +141,6 @@ void runAllPasses(ast::AnodeWorld &world, ast::Module &module, error::ErrorStrea
     passes.emplace_back(*new BinaryExprSemanticsPass(es));
 
     //Finally, on to some semantics checking:
-    passes.emplace_back(*new AnonymousTemplatesSemanticPass(es));
     passes.emplace_back(*new CastExprSemanticPass(es));
     passes.emplace_back(*new FuncCallSemanticsPass(es));
 

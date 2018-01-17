@@ -25,7 +25,7 @@ SymbolBase::SymbolBase()
 
 }
 
-Symbol *SymbolTable::findSymbolInCurrentScope(const std::string &name) const {
+Symbol *ScopeSymbolTable::findSymbolInCurrentScope(const std::string &name) const {
     auto found = symbols_.find(name);
     if (found == symbols_.end()) {
         return nullptr;
@@ -33,20 +33,20 @@ Symbol *SymbolTable::findSymbolInCurrentScope(const std::string &name) const {
     return &found->second.get();
 }
 
-Symbol *SymbolTable::findSymbolInCurrentScopeOrParents(const std::string &name) const {
+Symbol *ScopeSymbolTable::findSymbolInCurrentScopeOrParents(const std::string &name) const {
     SymbolTable const *current = this;
     while(current) {
         Symbol* found = current->findSymbolInCurrentScope(name);
         if(found) {
             return found;
         }
-        current = current->parent_;
+        current = current->parent();
     }
 
     return nullptr;
 }
 
-void SymbolTable::addSymbol(Symbol &symbol) {
+void ScopeSymbolTable::addSymbol(Symbol &symbol) {
     ASSERT(storageKind_ != StorageKind::NotSet);
     ASSERT(!symbol.name().empty());
 #ifdef ANODE_DEBUG
@@ -65,7 +65,7 @@ void SymbolTable::addSymbol(Symbol &symbol) {
     orderedSymbols_.emplace_back(symbol);
 }
 
-gc_ref_vector<VariableSymbol> SymbolTable::variables() {
+gc_ref_vector<VariableSymbol> ScopeSymbolTable::variables() {
     gc_ref_vector<VariableSymbol> variables;
     for (auto symbol : orderedSymbols_) {
         auto variable = dynamic_cast<VariableSymbol*>(&symbol.get());
@@ -76,7 +76,7 @@ gc_ref_vector<VariableSymbol> SymbolTable::variables() {
     return variables;
 }
 
-gc_ref_vector<TypeSymbol> SymbolTable::types() {
+gc_ref_vector<TypeSymbol> ScopeSymbolTable::types() {
     gc_ref_vector<TypeSymbol> classes;
     for (auto symbol : orderedSymbols_) {
         auto type = dynamic_cast<scope::TypeSymbol*>(&symbol.get());
@@ -87,7 +87,7 @@ gc_ref_vector<TypeSymbol> SymbolTable::types() {
     return classes;
 }
 
-gc_ref_vector<FunctionSymbol> SymbolTable::functions() const {
+gc_ref_vector<FunctionSymbol> ScopeSymbolTable::functions() const {
     gc_ref_vector<FunctionSymbol> symbols;
     for (auto symbol : orderedSymbols_) {
         auto function = dynamic_cast<FunctionSymbol*>(&symbol.get());
@@ -99,7 +99,7 @@ gc_ref_vector<FunctionSymbol> SymbolTable::functions() const {
     return symbols;
 }
 
-gc_ref_vector<Symbol> SymbolTable::symbols() const {
+gc_ref_vector<Symbol> ScopeSymbolTable::symbols() const {
     return orderedSymbols_;
 }
 

@@ -38,7 +38,6 @@ set(FRONT_SRC_FILES
         passes/run_passes.h
         passes/PopulateGenericTypesWithCompleteTypesPass.h
         passes/ConvertGenericTypeRefsToCompletePass.h
-        passes/AnonymousTemplateSemanticPass.h
         passes/ExpandGenericTypeReferencesPass.h)
 
 

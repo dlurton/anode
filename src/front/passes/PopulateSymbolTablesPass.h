@@ -80,18 +80,13 @@ public:
     }
 
     void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &templ) override {
-
-        //Grab top-level classes within the scope of the template.
-        for (auto exprStmt : templ.body().expressions()) {
-            if (auto cd = dynamic_cast<ast::GenericClassDefinition *>(&exprStmt.get())) {
-                if (currentScope().findSymbolInCurrentScope(cd->name().text())) {
-                    symbolPreviouslyDefinedError(cd->name());
-                } else {
-                    auto &&symbol = *new scope::TypeSymbol(cd->name().text(), cd->definedType());
-                    currentScope().addSymbol(symbol);
-                    cd->setSymbol(symbol);
-                }
-            }
+        auto cd = upcast<ast::GenericClassDefinition>(&templ.body());
+        if (currentScope().findSymbolInCurrentScope(cd->name().text())) {
+            symbolPreviouslyDefinedError(cd->name());
+        } else {
+            auto &&symbol = *new scope::TypeSymbol(cd->name().text(), cd->definedType());
+            currentScope().addSymbol(symbol);
+            cd->setSymbol(symbol);
         }
     }
 

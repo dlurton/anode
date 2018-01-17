@@ -383,10 +383,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
             templateParameterStack_.pop_back();
             //Construct anonymous template here as if we had parsed:
             //template <...> class SomeClass { ... }
-            gc_ref_vector<ast::ExprStmt> templateBodyExprs;
-            templateBodyExprs.emplace_back(*classDefinition);
-            ast::ExpressionList &bodyExprList = *new ast::ExpressionList(classDefinition->sourceSpan(), templateBodyExprs);
-            return *new ast::AnonymousTemplateExprStmt(classDefinition->sourceSpan(), genericClassParameters, bodyExprList);
+            return *new ast::AnonymousTemplateExprStmt(classDefinition->sourceSpan(), genericClassParameters, *classDefinition);
         }
     }
 

@@ -73,7 +73,7 @@ private:
         //No symbol matching the current part was found... create a new namespace in the current scope and descend into it.
         if(found == nullptr) {
 
-            scope::SymbolTable &newScope = *new scope::SymbolTable(scope::StorageKind::Global, nsName.text());
+            scope::SymbolTable &newScope = *new scope::ScopeSymbolTable(scope::StorageKind::Global, nsName.text());
             auto &newNs = *new scope::NamespaceSymbol(newScope);
 
             //setting these scopes symbol table parentage here feels suboptimal but doing this within SetSymbolTableParentsPass is
