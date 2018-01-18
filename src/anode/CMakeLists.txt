@@ -11,8 +11,7 @@ set(ANODE_SOURCE_FILES main.cpp
         ${ANODE_INCLUDE_DIR}/front/parse.h
         ${ANODE_INCLUDE_DIR}/common/stacktrace.h cxxopts.h ../include/anode/front/ErrorKind.h)
 
-find_library(LIB_UUID uuid REQUIRED)
 add_executable(anode ${ANODE_SOURCE_FILES})
 
-target_link_libraries(anode anode-back anode-front anode-execute ${LIB_LINENOISE} ${LLVM_LIBS} ${LIB_GC} ${LIB_UUID})
+target_link_libraries(anode anode-back anode-front anode-execute ${LIB_LINENOISE} ${LLVM_LIBS} ${LIB_GC})
 

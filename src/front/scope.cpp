@@ -1,7 +1,6 @@
 
 #include "front/unique_id.h"
 
-#include <uuid/uuid.h>
 #include <string>
 #include <front/scope.h>
 #include <atomic>
