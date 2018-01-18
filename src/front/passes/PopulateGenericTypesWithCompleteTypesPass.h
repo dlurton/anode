@@ -45,7 +45,7 @@ public:
 
         PopulateGenericTypesSubPass pass{errorStream_, typeArguments};
         pass.pushScope(expansion.templateParameterScope());
-        expansion.expandedTemplate()->accept(pass);
+        expansion.expandedTemplate()->acceptVisitor(pass);
     }
 };
 

@@ -56,6 +56,9 @@ class AstVisitor : public gc {
 public:
     virtual bool shouldVisitChildren() { return true; }
 
+    virtual void beforeAccept(AstNode &) { }
+    virtual void afterAccept(AstNode &) { }
+
     //////////// Statements
     virtual void visitingParameterDef(ParameterDef &) { }
     virtual void visitedParameterDef(ParameterDef &) { }
@@ -231,6 +234,11 @@ public:
 /** Base class for all nodes */
 class AstNode : public Object {
     UniqueId nodeId_;
+    AstNode *parent_ = nullptr;
+protected:
+
+    /** This method should *never* be invoked directly--only thru acceptVisitor(). */
+    virtual void accept(AstVisitor &visitor) = 0;
 public:
     //NO_COPY_NO_ASSIGN(AstNode)
     AstNode();
@@ -240,9 +248,22 @@ public:
         astNodesDestroyedCount++;
     }
 
-    UniqueId nodeId() { return nodeId_; }
+    UniqueId nodeId() const { return nodeId_; }
 
-    virtual void accept(AstVisitor &visitor) = 0;
+    AstNode &parent() const {
+        ASSERT(parent_);
+        return *parent_;
+    };
+
+    void setParent(AstNode &parent) {
+        parent_ = &parent;
+    }
+
+    void acceptVisitor(AstVisitor &visitor) {
+        visitor.beforeAccept(*this);
+        accept(visitor);
+        visitor.afterAccept(*this);
+    }
 };
 
 /** A statement any kind of non-terminal that may appear within a CompoundStatement (i.e. between { and }), or
@@ -351,7 +372,7 @@ public:
 
     void accept(AstVisitor &visitor) override {
         for(ResolutionDeferredTypeRef &ta : templateArgs_) {
-            ta.accept(visitor);
+            ta.acceptVisitor(visitor);
         }
         visitor.visitedResolutionDeferredTypeRef(*this);
     }
@@ -472,7 +493,7 @@ public:
             //(adding items to vector invalidates iterator)
             gc_ref_vector<ExprStmt> exprs = expressions_;
             for (auto &&stmt : exprs) {
-                stmt.get().accept(visitor);
+                stmt.get().acceptVisitor(visitor);
             }
         }
         visitor.visitedExpressionList(*this);
@@ -531,7 +552,7 @@ public:
             //(adding items to vector invalidates iterator)
             gc_ref_vector<ExprStmt> exprs = expressions_;
             for (ExprStmt &stmt : exprs) {
-                stmt.accept(visitor);
+                stmt.acceptVisitor(visitor);
             }
         }
         visitor.visitedCompoundExpr(*this);
@@ -588,8 +609,10 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingAnonymousTemplateExprStmt(*this);
 
-        for(TemplateParameter &p : parameters_) {
-            p.accept(visitor);
+        if(visitor.shouldVisitChildren()) {
+            for(TemplateParameter &p : parameters_) {
+                p.acceptVisitor(visitor);
+            }
         }
 
         //Note that we do *not* visit body_ here.
@@ -623,8 +646,10 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingNamedTemplateExprStmt(*this);
 
-        for(TemplateParameter &p : parameters_) {
-            p.accept(visitor);
+        if(visitor.shouldVisitChildren()) {
+            for(TemplateParameter &p : parameters_) {
+                p.acceptVisitor(visitor);
+            }
         }
 
         //Note that we do *not* visit body_ here.
@@ -673,11 +698,11 @@ public:
     void accept(AstVisitor &visitor) override {
         if(visitor.shouldVisitChildren()) {
             for(TypeRef &arg : typeArguments_) {
-                arg.accept(visitor);
+                arg.acceptVisitor(visitor);
             }
             visitor.visitingTemplateExpansionExprStmt(*this);
             if(expandedTemplate_) {
-                expandedTemplate_->accept(visitor);
+                expandedTemplate_->acceptVisitor(visitor);
             }
         } else {
             visitor.visitingTemplateExpansionExprStmt(*this);
@@ -788,7 +813,7 @@ public:
         visitor.visitingUnaryExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            valueExpr_->accept(visitor);
+            valueExpr_->acceptVisitor(visitor);
         }
         visitor.visitedUnaryExpr(*this);
     }
@@ -921,8 +946,8 @@ public:
         visitor.visitingBinaryExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            lValue_->accept(visitor);
-            rValue_->accept(visitor);
+            lValue_->acceptVisitor(visitor);
+            rValue_->acceptVisitor(visitor);
         }
         visitor.visitedBinaryExpr(*this);
     }
@@ -1009,7 +1034,7 @@ public:
         visitor.visitingVariableDeclExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            typeRef_.accept(visitor);
+            typeRef_.acceptVisitor(visitor);
         }
 
         visitor.visitedVariableDeclExpr(*this);
@@ -1062,8 +1087,8 @@ public:
         visitor.visitingCastExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            toType_.accept(visitor);
-            valueExpr_.accept(visitor);
+            toType_.acceptVisitor(visitor);
+            valueExpr_.acceptVisitor(visitor);
         }
 
         visitor.visitedCastExpr(*this);
@@ -1094,7 +1119,7 @@ public:
         visitor.visitingNewExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            typeRef_.accept(visitor);
+            typeRef_.acceptVisitor(visitor);
         }
 
         visitor.visitedNewExpr(*this);
@@ -1148,10 +1173,10 @@ public:
         visitor.visitingIfExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            condition_->accept(visitor);
-            thenExpr_->accept(visitor);
+            condition_->acceptVisitor(visitor);
+            thenExpr_->acceptVisitor(visitor);
             if(elseExpr_)
-                elseExpr_->accept(visitor);
+                elseExpr_->acceptVisitor(visitor);
         }
 
         visitor.visitedIfExpr(*this);
@@ -1195,8 +1220,8 @@ public:
         visitor.visitingWhileExpr(*this);
 
         if(visitor.shouldVisitChildren()) {
-            condition_->accept(visitor);
-            body_.accept(visitor);
+            condition_->acceptVisitor(visitor);
+            body_.acceptVisitor(visitor);
         }
 
         visitor.visitedWhileExpr(*this);
@@ -1233,7 +1258,7 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingParameterDef(*this);
         if(visitor.shouldVisitChildren()) {
-            typeRef_.accept(visitor);
+            typeRef_.acceptVisitor(visitor);
         }
         visitor.visitedParameterDef(*this);
     }
@@ -1296,11 +1321,11 @@ public:
     virtual void accept(AstVisitor &visitor) override {
         visitor.visitingFuncDefStmt(*this);
         if(visitor.shouldVisitChildren()) {
-            returnTypeRef_.accept(visitor);
+            returnTypeRef_.acceptVisitor(visitor);
             for(const auto p : parameters_) {
-                p.get().accept(visitor);
+                p.get().acceptVisitor(visitor);
             }
-            body_->accept(visitor);
+            body_->acceptVisitor(visitor);
         }
         visitor.visitedFuncDeclStmt(*this);
     }
@@ -1392,12 +1417,12 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingFuncCallExpr(*this);
         if(visitor.shouldVisitChildren()) {
-            funcExpr_.accept(visitor);
+            funcExpr_.acceptVisitor(visitor);
             if(instanceExpr_) {
-                instanceExpr_->accept(visitor);
+                instanceExpr_->acceptVisitor(visitor);
             }
             for (auto argument : arguments_) {
-                argument.get().accept(visitor);
+                argument.get().acceptVisitor(visitor);
             }
         }
         visitor.visitedFuncCallExpr(*this);
@@ -1443,7 +1468,7 @@ public:
 
     void accept(AstVisitor &visitor) override {
         visitor.visitingNamespaceExpr(*this);
-        body_.accept(visitor);
+        body_.acceptVisitor(visitor);
         visitor.visitedNamespaceExpr(*this);
     }
 
@@ -1525,7 +1550,7 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingCompleteClassDefinition(*this);
         if (visitor.shouldVisitChildren()) {
-            body().accept(visitor);
+            body().acceptVisitor(visitor);
         }
         visitor.visitedCompleteClassDefinition(*this);
     }
@@ -1586,9 +1611,11 @@ public:
 
     void accept(AstVisitor &visitor) override {
         visitor.visitingGenericClassDefinition(*this);
-        if (visitor.shouldVisitChildren()) {
-            body().accept(visitor);
+
+        if(visitor.shouldVisitChildren()){
+            body().acceptVisitor(visitor);
         }
+
         visitor.visitedGenericClassDefinition(*this);
     }
 
@@ -1621,7 +1648,6 @@ public:
         return completeClassDef;
     }
 };
-
 
 class DotExpr : public ExprStmt {
     source::SourceSpan dotSourceSpan_;
@@ -1660,7 +1686,7 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingDotExpr(*this);
         if (visitor.shouldVisitChildren()) {
-            lValue_.accept(visitor);
+            lValue_.acceptVisitor(visitor);
         }
         visitor.visitedDotExpr(*this);
     }
@@ -1686,7 +1712,7 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingAssertExprStmt(*this);
         if(visitor.shouldVisitChildren()) {
-            condition_->accept(visitor);
+            condition_->acceptVisitor(visitor);
         }
         visitor.visitedAssertExprStmt(*this);
     }
@@ -1695,7 +1721,6 @@ public:
         return *new AssertExprStmt(sourceSpan_, condition_->deepCopyExpandTemplate(expansionContext));
     }
 };
-
 
 class Module : public AstNode {
     std::string name_;
@@ -1715,7 +1740,7 @@ public:
     void accept(AstVisitor &visitor) override {
         visitor.visitingModule(*this);
         if(visitor.shouldVisitChildren()) {
-            body_.accept(visitor);
+            body_.acceptVisitor(visitor);
         }
         visitor.visitedModule(*this);
     }

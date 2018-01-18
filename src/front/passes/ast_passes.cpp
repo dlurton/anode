@@ -15,7 +15,6 @@
 #include "SetSymbolTableParentsPass.h"
 
 #include "run_passes.h"
-#include "AnonymousTemplateSemanticPass.h"
 #include "ExpandGenericTypeReferencesPass.h"
 
 namespace anode { namespace front  { namespace passes {
@@ -46,17 +45,19 @@ public:
 
     void visitingNamedTemplateExprStmt(ast::NamedTemplateExprStmt &templ) override {
         world_.addTemplate(templ);
-        //Children of NamedTemplateExprStmt are not normally visited...
-        templ.body().accept(*this);
+        //body not normally visited
+        templ.body().acceptVisitor(*this);
     }
 
     void visitingGenericClassDefinition(ast::GenericClassDefinition &genericClassDefinition) override {
         world_.addGenericClassDefinition(genericClassDefinition);
+        //body not normally visited
+        genericClassDefinition.body();
     }
 
     void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &anonymousTemplateExprStmt) override {
-        //Children of anonymous template not normally visited...
-        anonymousTemplateExprStmt.body().accept(*this);
+        //Body of anonymous template not normally visited...
+        anonymousTemplateExprStmt.body().acceptVisitor(*this);
     }
 };
 
@@ -72,7 +73,7 @@ bool runPasses(
         if(auto sfav = dynamic_cast<ScopeFollowingAstVisitor*>(&pass)) {
             sfav->pushScope(*startingSymbolTable);
         }
-        node.accept(pass);
+        node.acceptVisitor(pass);
         //If an error occurs during any pass, stop executing passes immediately because
         //some passes depend on the success of previous passes.
         if(es.errorCount() > 0) {

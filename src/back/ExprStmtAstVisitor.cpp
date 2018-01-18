@@ -562,7 +562,7 @@ private:
 
 llvm::Value *emitExpr(ast::ExprStmt &exprStmt, CompileContext &cc) {
     ExprStmtAstVisitor visitor{cc};
-    exprStmt.accept(visitor);
+    exprStmt.acceptVisitor(visitor);
 
     return visitor.llvmValue();
 }

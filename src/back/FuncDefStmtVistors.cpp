@@ -135,10 +135,10 @@ public:
 
 void emitFuncDefs(front::ast::Module *module, CompileContext &cc) {
     DeclareFuncsAstVisitor declaringVisitor{cc};
-    module->accept(declaringVisitor);
+    module->acceptVisitor(declaringVisitor);
 
     DefineFuncsAstVisitor definingVisitor{cc};
-    module->accept(definingVisitor);
+    module->acceptVisitor(definingVisitor);
 }
 
 }}

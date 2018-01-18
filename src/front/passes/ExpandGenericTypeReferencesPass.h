@@ -5,9 +5,41 @@
 #include "ErrorContextAstVisitor.h"
 #include "run_passes.h"
 #include "ResolveTypesPass.h"
+#include "front/visualize.h"
 
 namespace anode { namespace front  { namespace passes {
 
+class LineageCalculatingPass : public ast::AstVisitor {
+private:
+    gc_deque<ast::AstNode*> nodeStack_;
+public:
+    virtual void beforeAccept(ast::AstNode &node) override {
+        if(nodeStack_.size() > 0) {
+            node.setParent(*nodeStack_.back());
+        }
+        nodeStack_.push_back(&node);
+    }
+    virtual void afterAccept(ast::AstNode &node) override {
+        ASSERT(nodeStack_.back() == &node);
+        nodeStack_.pop_back();
+    }
+
+
+    void visitingNamedTemplateExprStmt(ast::NamedTemplateExprStmt &templ) override {
+        //body not normally visited
+        templ.body().acceptVisitor(*this);
+    }
+
+    void visitingGenericClassDefinition(ast::GenericClassDefinition &genericClassDefinition) override {
+        //body not normally visited
+        genericClassDefinition.body();
+    }
+
+    void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &anonymousTemplateExprStmt) override {
+        //Body of anonymous template not normally visited...
+        anonymousTemplateExprStmt.body().acceptVisitor(*this);
+    }
+};
 
 class ExpandGenericTypeReferencesPass : public ScopeFollowingAstVisitor {
     ast::AnodeWorld &world_;
@@ -19,8 +51,12 @@ public:
 
     }
 
-    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
+    void visitingModule(ast::Module &module) override {
+        LineageCalculatingPass lineageCalculatingPass;
+        module.acceptVisitor(lineageCalculatingPass);
+    }
 
+    void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
         if(typeRef.hasTemplateArguments()) {
             auto genericType = dynamic_cast<type::GenericType*>(typeRef.type().actualType());
             if(!genericType) {
@@ -82,11 +118,13 @@ public:
                 expandedTemplateWrapper->scope().setParent(genericClass.symbol()->symbolTable());
 
                 module_.body().append(*expandedTemplate);
+                visualize::prettyPrint(module_);
+
                 auto passes = getPreTemplateExpansionPassses(world_, module_, errorStream_);
                 runPasses(passes, *expandedTemplate, errorStream_, expandedTemplateWrapper->scope());
                 if(errorStream_.errorCount() == 0) {
                     ResolveTypesPass pass{errorStream_};
-                    completedClass.accept(pass);
+                    completedClass.acceptVisitor(pass);
                 }
             }
         }

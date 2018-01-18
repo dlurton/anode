@@ -67,7 +67,7 @@ public:
 
 inline void emitGlobals(front::ast::Module *module, CompileContext &cc) {
     GlobalVariableAstVisitor visitor{cc};
-    module->accept(visitor);
+    module->acceptVisitor(visitor);
 }
 
 

@@ -10,7 +10,6 @@ using namespace anode::front::ast;
 
 class PrettyPrinterVisitor : public AstVisitor {
     IndentWriter writer_;
-
 public:
     explicit PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
@@ -210,7 +209,7 @@ public:
         writer_.writeln("AnonymousTemplateExprStmt");
         writer_.incIndent();
         //children of anonymous templates are not normally visited...
-        exprStmt.body().accept(*this);
+        exprStmt.body().acceptVisitor(*this);
     }
 
     void visitedAnonymousTemplateExprStmt(AnonymousTemplateExprStmt &) override {
@@ -220,7 +219,7 @@ public:
     void visitingNamedTemplateExprStmt(NamedTemplateExprStmt &templ) override {
         writer_.writeln("NamedTemplateExprStmt: " + templ.name().text());
         writer_.incIndent();
-        templ.body().accept(*this);
+        templ.body().acceptVisitor(*this);
     }
 
     void visitedNamedTemplateExprStmt(NamedTemplateExprStmt &) override {
@@ -259,7 +258,7 @@ public:
 void prettyPrint(AstNode &module) {
     std::cerr<< "AST:\n";
     PrettyPrinterVisitor visitor{ std::cerr };
-    module.accept(visitor);
+    module.acceptVisitor(visitor);
     std::cerr << "\n";
 }
 

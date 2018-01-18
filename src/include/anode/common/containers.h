@@ -13,6 +13,10 @@
 
 namespace anode {
 
+
+template<typename T>
+class gc_deque : public std::deque<T, gc_allocator<T>> { };
+
 template<typename T>
 class gc_ref_deque : public std::deque<std::reference_wrapper<T>, gc_allocator<std::reference_wrapper<T>>> { };
 
