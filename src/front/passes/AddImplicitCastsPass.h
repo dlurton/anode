@@ -12,19 +12,19 @@ public:
 
     // Note:  due to it being a more natural place for it, implicit casts for function call arguments are done in FuncCallSemanticsPass
 
-    void visitedBinaryExpr(ast::BinaryExpr &binaryExpr) override {
+    void visitedBinaryExpr(ast::BinaryExprStmt &binaryExpr) override {
         if (binaryExpr.binaryExprKind() == ast::BinaryExprKind::Logical) {
 
             if (!binaryExpr.lValue().exprType().isSameType(&type::ScalarType::Bool)) {
 
-                ast::CastExpr &rValue = ast::CastExpr::createImplicit(binaryExpr.lValue(), type::ScalarType::Bool);
+                ast::CastExprStmtStmt &rValue = ast::CastExprStmtStmt::createImplicit(binaryExpr.lValue(), type::ScalarType::Bool);
                 binaryExpr.setLValue(rValue);
 
             }
 
             if (!binaryExpr.rValue().exprType().isSameType(&type::ScalarType::Bool)) {
 
-                ast::CastExpr &lValue = ast::CastExpr::createImplicit(binaryExpr.rValue(), type::ScalarType::Bool);
+                ast::CastExprStmtStmt &lValue = ast::CastExprStmtStmt::createImplicit(binaryExpr.rValue(), type::ScalarType::Bool);
                 binaryExpr.setRValue(lValue);
 
             }
@@ -34,13 +34,13 @@ public:
             if (binaryExpr.lValue().exprType().canImplicitCastTo(binaryExpr.rValue().exprType())
                 && binaryExpr.operation() != ast::BinaryOperationKind::Assign) {
 
-                ast::CastExpr &lValue = ast::CastExpr::createImplicit(binaryExpr.lValue(), binaryExpr.rValue().exprType());
+                ast::CastExprStmtStmt &lValue = ast::CastExprStmtStmt::createImplicit(binaryExpr.lValue(), binaryExpr.rValue().exprType());
                 binaryExpr.setLValue(lValue);
 
             } //otherwise, if we can do the reverse, we should...
             else if (binaryExpr.rValue().exprType().canImplicitCastTo(binaryExpr.lValue().exprType())) {
 
-                ast::CastExpr &rValue = ast::CastExpr::createImplicit(binaryExpr.rValue(), binaryExpr.lValue().exprType());
+                ast::CastExprStmtStmt &rValue = ast::CastExprStmtStmt::createImplicit(binaryExpr.rValue(), binaryExpr.lValue().exprType());
                 binaryExpr.setRValue(rValue);
 
             } else { // No implicit cast available...
@@ -63,7 +63,7 @@ public:
         if(!ifExpr.condition().exprType().isSameType(&type::ScalarType::Bool)) {
             if (ifExpr.condition().exprType().canImplicitCastTo(&type::ScalarType::Bool)) {
 
-                ifExpr.setCondition(ast::CastExpr::createImplicit(ifExpr.condition(), type::ScalarType::Bool));
+                ifExpr.setCondition(ast::CastExprStmtStmt::createImplicit(ifExpr.condition(), type::ScalarType::Bool));
 
             } else {
                 errorStream_.error(
@@ -80,12 +80,12 @@ public:
             //If we can implicitly cast the lvalue to same type as the rvalue, we should...
             if(ifExpr.elseExpr()->exprType().canImplicitCastTo(ifExpr.thenExpr().exprType())) {
 
-                ifExpr.setElseExpr(ast::CastExpr::createImplicit(*ifExpr.elseExpr(), ifExpr.thenExpr().exprType()));
+                ifExpr.setElseExpr(ast::CastExprStmtStmt::createImplicit(*ifExpr.elseExpr(), ifExpr.thenExpr().exprType()));
 
             } //otherwise, if we can to the reverse, we should...
             else if (ifExpr.thenExpr().exprType().canImplicitCastTo(ifExpr.elseExpr()->exprType())) {
 
-                ifExpr.setThenExpr(ast::CastExpr::createImplicit(ifExpr.thenExpr(), ifExpr.elseExpr()->exprType()));
+                ifExpr.setThenExpr(ast::CastExprStmtStmt::createImplicit(ifExpr.thenExpr(), ifExpr.elseExpr()->exprType()));
 
             }
             else { // No implicit cast available...
@@ -99,12 +99,12 @@ public:
         }
     }
 
-    void visitingWhileExpr(ast::WhileExpr &whileExpr) override {
+    void beforeVisit(ast::WhileExprStmt &whileExpr) override {
         //Can we deduplicate this code? (duplicate is in AddImplicitCastsVisitor::visitedIfExpr)
         if(!whileExpr.condition().exprType().isSameType(&type::ScalarType::Bool)) {
             if (whileExpr.condition().exprType().canImplicitCastTo(&type::ScalarType::Bool)) {
 
-                whileExpr.setCondition(ast::CastExpr::createImplicit(whileExpr.condition(), type::ScalarType::Bool));
+                whileExpr.setCondition(ast::CastExprStmtStmt::createImplicit(whileExpr.condition(), type::ScalarType::Bool));
 
             } else {
                 errorStream_.error(
@@ -116,7 +116,7 @@ public:
         }
     }
 
-    void visitedFuncDeclStmt(ast::FuncDefStmt &funcDef) override {
+    void visitedFuncDeclStmt(ast::FuncDefExprStmt &funcDef) override {
         if(funcDef.returnType().isSameType(&type::ScalarType::Void)) return;
 
         if(!funcDef.returnType().isSameType(funcDef.body().exprType())) {
@@ -128,7 +128,7 @@ public:
                     funcDef.body().exprType().nameForDisplay().c_str(),
                     funcDef.returnType().nameForDisplay().c_str());
             } else {
-                funcDef.setBody(ast::CastExpr::createImplicit(funcDef.body(), funcDef.returnType()));
+                funcDef.setBody(ast::CastExprStmtStmt::createImplicit(funcDef.body(), funcDef.returnType()));
             }
         }
     }
@@ -138,7 +138,7 @@ public:
         if(!assertExprStmt.condition().exprType().isSameType(&type::ScalarType::Bool)) {
             if (assertExprStmt.condition().exprType().canImplicitCastTo(&type::ScalarType::Bool)) {
 
-                assertExprStmt.setCondition(ast::CastExpr::createImplicit(assertExprStmt.condition(), type::ScalarType::Bool));
+                assertExprStmt.setCondition(ast::CastExprStmtStmt::createImplicit(assertExprStmt.condition(), type::ScalarType::Bool));
 
             } else {
                 errorStream_.error(

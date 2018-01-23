@@ -16,7 +16,7 @@ public:
             identifier.text().c_str());
     }
 
-    void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
+    void beforeVisit(ast::CompleteClassDefExprStmt &cd) override {
 
         // Classes that are defined within expanded templates do not get their own symbols
         // Only the generic version of them do. During symbol resolution, the symbol of the GenericType is
@@ -26,7 +26,7 @@ public:
 
             if (auto definedClassType = dynamic_cast<type::ClassType *>(&definedType)) {
                 if (definedClassType->genericType() != nullptr) {
-                    ScopeFollowingAstVisitor::visitingCompleteClassDefinition(cd);
+                    ScopeFollowingAstVisitor::beforeVisit(cd);
                     return;
                 }
             }
@@ -38,10 +38,10 @@ public:
                 currentScope().addSymbol(classSymbol);
             }
         }
-        ScopeFollowingAstVisitor::visitingCompleteClassDefinition(cd);
+        ScopeFollowingAstVisitor::beforeVisit(cd);
     }
 
-    void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
+    void beforeVisit(ast::FuncDefExprStmt &funcDeclStmt) override {
         if(currentScope().findSymbolInCurrentScope(funcDeclStmt.name().text())) {
             symbolPreviouslyDefinedError(funcDeclStmt.name());
         } else {
@@ -64,11 +64,11 @@ public:
                 }
             }
         }
-        ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
+        ScopeFollowingAstVisitor::beforeVisit(funcDeclStmt);
     }
 
-    void visitingVariableDeclExpr(ast::VariableDeclExpr &expr) override {
-        ASSERT(expr.name().size() == 1 && "TODO:  semantic error when variable declarations have more than 1 part or refactor VariableDeclExpr and VariableRefExpr.");
+    void beforeVisit(ast::VariableDeclExpr &expr) override {
+        ASSERT(expr.name().size() == 1 && "TODO:  semantic error when variable declarations have more than 1 part or refactor VariableDeclExpr and VariableRefExprStmt.");
 
         if(currentScope().findSymbolInCurrentScope(expr.name().front().text())) {
             symbolPreviouslyDefinedError(expr.name().front());
@@ -80,7 +80,7 @@ public:
     }
 
     void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &templ) override {
-        auto cd = upcast<ast::GenericClassDefinition>(&templ.body());
+        auto cd = upcast<ast::GenericClassDefExprStmt>(&templ.body());
         if (currentScope().findSymbolInCurrentScope(cd->name().text())) {
             symbolPreviouslyDefinedError(cd->name());
         } else {

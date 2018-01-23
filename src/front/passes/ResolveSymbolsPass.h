@@ -12,14 +12,14 @@ class ResolveSymbolsPass : public ScopeFollowingAstVisitor {
 public:
     explicit ResolveSymbolsPass(error::ErrorStream &errorStream_) : ScopeFollowingAstVisitor(errorStream_) {}
 
-    void visitingVariableDeclExpr(ast::VariableDeclExpr &expr) override {
+    void beforeVisit(ast::VariableDeclExpr &expr) override {
         ASSERT(expr.symbol() && "Symbol must be resolved before this point.");
         if (expr.symbol()->storageKind() == scope::StorageKind::Local) {
             definedSymbols_.emplace(expr.symbol());
         }
     }
 
-    void visitVariableRefExpr(ast::VariableRefExpr &expr) override {
+    void visitVariableRefExpr(ast::VariableRefExprStmt &expr) override {
         if (expr.symbol()) return;
 
         scope::Symbol *found = findQualifiedSymbol(topScope(), expr.name(), errorStream_);

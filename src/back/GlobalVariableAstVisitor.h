@@ -41,7 +41,7 @@ class GlobalVariableAstVisitor : public CompileAstVisitor {
 public:
     explicit GlobalVariableAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) { }
 
-    void visitingVariableDeclExpr(front::ast::VariableDeclExpr &varDef) override {
+    void beforeVisit(front::ast::VariableDeclExpr &varDef) override {
         if(varDef.symbol()->storageKind() == front::scope::StorageKind::Global) {
             auto variableSymbol = dynamic_cast<front::scope::VariableSymbol*>(varDef.symbol());
             ASSERT(variableSymbol)

@@ -24,7 +24,7 @@ class CompileContext {
     llvm::Function *mallocFunc_ = nullptr;
     std::unordered_map<std::string, llvm::Value*> stringConstants_;
 
-    std::stack<front::ast::FuncDefStmt*> funcDefStack_;
+    std::stack<front::ast::FuncDefExprStmt*> funcDefStack_;
 public:
     NO_COPY_NO_ASSIGN(CompileContext)
 
@@ -134,12 +134,12 @@ public:
         return found;
     }
 
-    front::ast::FuncDefStmt* currentFuncDefStmt() {
+    front::ast::FuncDefExprStmt* currentFuncDefStmt() {
         ASSERT(!funcDefStack_.empty())
         return funcDefStack_.top();
     }
 
-    void pushFuncDefStmt(front::ast::FuncDefStmt *funcDefStmt) {
+    void pushFuncDefStmt(front::ast::FuncDefExprStmt *funcDefStmt) {
         funcDefStack_.push(funcDefStmt);
     }
 

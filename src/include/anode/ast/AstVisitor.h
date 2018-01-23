@@ -4,31 +4,31 @@ namespace anode { namespace front { namespace ast {
 
 class AstNode;
 class ExprStmt;
-class CompoundExpr;
-class ExpressionList;
+class CompoundExprStmt;
+class ExpressionListStmt;
 class ParameterDef;
-class FuncDefStmt;
-class FuncCallExpr;
+class FuncDefExprStmt;
+class FuncCallExprStmt;
 class ClassDefinition;
-class GenericClassDefinition;
-class CompleteClassDefinition;
-class MethodRefExpr;
+class GenericClassDefExprStmt;
+class CompleteClassDefExprStmt;
+class MethodRefExprStmt;
 class IfExprStmt;
-class WhileExpr;
-class LiteralBoolExpr;
-class LiteralInt32Expr;
-class LiteralFloatExpr;
-class UnaryExpr;
-class BinaryExpr;
-class DotExpr;
+class WhileExprStmt;
+class LiteralBoolExprStmt;
+class LiteralInt32ExprStmt;
+class LiteralFloatExprStmt;
+class UnaryExprStmt;
+class BinaryExprStmt;
+class DotExprStmt;
 class VariableDeclExpr;
-class VariableRefExpr;
-class CastExpr;
-class NewExpr;
+class VariableRefExprStmt;
+class CastExprStmtStmt;
+class NewExprStmt;
 class ResolutionDeferredTypeRef;
 class KnownTypeRef;
 class AssertExprStmt;
-class NamespaceExpr;
+class NamespaceExprStmt;
 class TemplateParameter;
 class AnonymousTemplateExprStmt;
 class NamedTemplateExprStmt;
@@ -44,73 +44,67 @@ public:
     virtual void afterAccept(AstNode &) { }
     
     //////////// Statements
-    virtual void visitingParameterDef(ParameterDef &) { }
+    virtual void beforeVisit(ParameterDef &) { }
     virtual void visitedParameterDef(ParameterDef &) { }
     
-    virtual void visitingFuncDefStmt(FuncDefStmt &) { }
-    virtual void visitedFuncDeclStmt(FuncDefStmt &) { }
+    virtual void beforeVisit(FuncDefExprStmt &) { }
+    virtual void visitedFuncDeclStmt(FuncDefExprStmt &) { }
     
-    virtual void visitingFuncCallExpr(FuncCallExpr &) {  }
-    virtual void visitedFuncCallExpr(FuncCallExpr &) { }
+    virtual void beforeVisit(FuncCallExprStmt &) {  }
+    virtual void visitedFuncCallExprStmt(FuncCallExprStmt &) { }
     
-    //    virtual void visitingClassDefinition(ClassDefinition &) { }
-    //    virtual void visitedClassDefinition(ClassDefinition &) { }
+    virtual void beforeVisit(GenericClassDefExprStmt &) { }
+    virtual void visitedGenericClassDefExprStmt(GenericClassDefExprStmt &) { }
     
-    virtual void visitingGenericClassDefinition(GenericClassDefinition &) { }
-    virtual void visitedGenericClassDefinition(GenericClassDefinition &) { }
-    
-    virtual void visitingCompleteClassDefinition(CompleteClassDefinition &) { }
-    virtual void visitedCompleteClassDefinition(CompleteClassDefinition &) { }
-    
-    //    virtual void visitingReturnStmt(ReturnStmt &) { }
-    //    virtual void visitedReturnStmt(ReturnStmt &) { }
+    virtual void beforeVisit(CompleteClassDefExprStmt &) { }
+    virtual void visitedCompleteClassDefExprStmt(CompleteClassDefExprStmt &) { }
     
     //////////// Expressions
-    virtual void visitingAssertExprStmt(AssertExprStmt &) { }
+    virtual void beforeVisit(AssertExprStmt &) { }
     virtual void visitedAssertExprStmt(AssertExprStmt &) { }
     
-    virtual void visitingVariableDeclExpr(VariableDeclExpr &) { }
+    virtual void beforeVisit(VariableDeclExpr &) { }
     virtual void visitedVariableDeclExpr(VariableDeclExpr &) { }
     
-    virtual void visitingIfExpr(IfExprStmt &) { }
+    virtual void beforeVisit(IfExprStmt &) { }
     virtual void visitedIfExpr(IfExprStmt &) { }
     
-    virtual void visitingWhileExpr(WhileExpr &) { }
-    virtual void visitedWhileExpr(WhileExpr &) { }
+    virtual void beforeVisit(WhileExprStmt &) { }
+    virtual void visitedWhileExpr(WhileExprStmt &) { }
     
-    virtual void visitingBinaryExpr(BinaryExpr &) { }
-    virtual void visitedBinaryExpr(BinaryExpr &) { }
+    virtual void beforeVisit(BinaryExprStmt &) { }
+    virtual void visitedBinaryExpr(BinaryExprStmt &) { }
     
-    virtual void visitingUnaryExpr(UnaryExpr &) { }
-    virtual void visitedUnaryExpr(UnaryExpr &) { }
+    virtual void visitingUnaryExpr(UnaryExprStmt &) { }
+    virtual void visitedUnaryExpr(UnaryExprStmt &) { }
     
-    virtual void visitLiteralBoolExpr(LiteralBoolExpr &) { }
+    virtual void visitLiteralBoolExpr(LiteralBoolExprStmt &) { }
     
-    virtual void visitLiteralInt32Expr(LiteralInt32Expr &) { }
+    virtual void visitLiteralInt32Expr(LiteralInt32ExprStmt &) { }
     
-    virtual void visitLiteralFloatExpr(LiteralFloatExpr &) { }
+    virtual void visitLiteralFloatExpr(LiteralFloatExprStmt &) { }
     
-    virtual void visitVariableRefExpr(VariableRefExpr &) { }
+    virtual void visitVariableRefExpr(VariableRefExprStmt &) { }
     
-    virtual void visitMethodRefExpr(MethodRefExpr &) { }
+    virtual void visitMethodRefExpr(MethodRefExprStmt &) { }
     
-    virtual void visitingCastExpr(CastExpr &) { }
-    virtual void visitedCastExpr(CastExpr &) { }
+    virtual void visitingCastExprStmt(CastExprStmtStmt &) { }
+    virtual void visitedCastExprStmt(CastExprStmtStmt &) { }
     
-    virtual void visitingNewExpr(NewExpr &) { }
-    virtual void visitedNewExpr(NewExpr &) { }
+    virtual void visitingNewExpr(NewExprStmt &) { }
+    virtual void visitedNewExpr(NewExprStmt &) { }
     
-    virtual void visitingDotExpr(DotExpr &) { }
-    virtual void visitedDotExpr(DotExpr &) { }
+    virtual void visitingDotExpr(DotExprStmt &) { }
+    virtual void visitedDotExpr(DotExprStmt &) { }
     
-    virtual void visitingCompoundExpr(CompoundExpr &) { }
-    virtual void visitedCompoundExpr(CompoundExpr &) { }
+    virtual void visitingCompoundExpr(CompoundExprStmt &) { }
+    virtual void visitedCompoundExpr(CompoundExprStmt &) { }
     
-    virtual void visitingExpressionList(ExpressionList &) { }
-    virtual void visitedExpressionList(ExpressionList &) { }
+    virtual void visitingExpressionList(ExpressionListStmt &) { }
+    virtual void visitedExpressionList(ExpressionListStmt &) { }
     
-    virtual void visitingNamespaceExpr(NamespaceExpr &) { }
-    virtual void visitedNamespaceExpr(NamespaceExpr &) { }
+    virtual void visitingNamespaceExpr(NamespaceExprStmt &) { }
+    virtual void visitedNamespaceExpr(NamespaceExprStmt &) { }
     
     virtual void visitingNamedTemplateExprStmt(NamedTemplateExprStmt &) { }
     virtual void visitedNamedTemplateExprStmt(NamedTemplateExprStmt &) { }

@@ -70,7 +70,7 @@ ast::ExprStmt &AnodeParser::parseBinaryExpr(ast::ExprStmt &lValue, Token &operat
     switch(operatorToken.kind()) {
         case TokenKind::OP_ASSIGN: {
             opKind = ast::BinaryOperationKind::Assign;
-            ast::VariableRefExpr *varRef = dynamic_cast<ast::VariableRefExpr*>(&lValue);
+            ast::VariableRefExprStmt *varRef = dynamic_cast<ast::VariableRefExprStmt*>(&lValue);
             if(varRef != nullptr) {
                 varRef->setVariableAccess(ast::VariableAccess::Write);
             }
@@ -99,7 +99,7 @@ ast::ExprStmt &AnodeParser::parseBinaryExpr(ast::ExprStmt &lValue, Token &operat
 
     ast::ExprStmt &rValue = parseExpr(precedence);
 
-    return *new ast::BinaryExpr(
+    return *new ast::BinaryExprStmt(
         makeSourceSpan(lValue.sourceSpan(), rValue.sourceSpan()),
         lValue,
         opKind,

@@ -20,14 +20,14 @@
 namespace anode { namespace front  { namespace passes {
 
 class PrepareClassesVisitor : public ast::AstVisitor {
-    void visitingCompleteClassDefinition(ast::CompleteClassDefinition &cd) override {
+    void beforeVisit(ast::CompleteClassDefExprStmt &cd) override {
         cd.populateClassType();
     }
 };
 
 class MarkDotExprWritesPass : public ast::AstVisitor {
-    void visitedBinaryExpr(ast::BinaryExpr &binaryExpr) override {
-        auto dotExpr = dynamic_cast<ast::DotExpr *>(&binaryExpr.lValue());
+    void visitedBinaryExpr(ast::BinaryExprStmt &binaryExpr) override {
+        auto dotExpr = dynamic_cast<ast::DotExprStmt *>(&binaryExpr.lValue());
         if (dotExpr && binaryExpr.operation() == ast::BinaryOperationKind::Assign) {
             dotExpr->setIsWrite(true);
         }
@@ -49,7 +49,7 @@ public:
         templ.body().acceptVisitor(*this);
     }
 
-    void visitingGenericClassDefinition(ast::GenericClassDefinition &genericClassDefinition) override {
+    virtual void beforeVisit(ast::GenericClassDefExprStmt &genericClassDefinition) override {
         world_.addGenericClassDefinition(genericClassDefinition);
         //body not normally visited
         genericClassDefinition.body();

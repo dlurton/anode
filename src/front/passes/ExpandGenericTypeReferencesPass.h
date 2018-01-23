@@ -30,7 +30,7 @@ public:
         templ.body().acceptVisitor(*this);
     }
 
-    void visitingGenericClassDefinition(ast::GenericClassDefinition &genericClassDefinition) override {
+    void beforeVisit(ast::GenericClassDefExprStmt &genericClassDefinition) override {
         //body not normally visited
         genericClassDefinition.body();
     }
@@ -99,7 +99,7 @@ public:
 
                 gc_ref_vector<ast::ExprStmt> compoundExprBody;
                 compoundExprBody.emplace_back(completedClass);
-                auto expandedTemplateWrapper = new ast::CompoundExpr(
+                auto expandedTemplateWrapper = new ast::CompoundExprStmt(
                     completedClass.sourceSpan(),
                     scope::StorageKind::TemplateParameter,
                     compoundExprBody,

@@ -115,15 +115,15 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
     }
 
     ast::ExprStmt &parseLiteralInt32(Token &token) {
-        return *new ast::LiteralInt32Expr(token.span(), token.intValue());
+        return *new ast::LiteralInt32ExprStmt(token.span(), token.intValue());
     }
 
     ast::ExprStmt &parseLiteralFloat(Token &token) {
-        return *new ast::LiteralFloatExpr(token.span(), token.floatValue());
+        return *new ast::LiteralFloatExprStmt(token.span(), token.floatValue());
     }
 
     ast::ExprStmt &parseLiteralBool(Token &token) {
-        return *new ast::LiteralBoolExpr(token.span(), token.boolValue());
+        return *new ast::LiteralBoolExprStmt(token.span(), token.boolValue());
     }
 
     ast::ExprStmt &parseVariableRef(Token &firstPart) {
@@ -136,7 +136,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
                 typeRef);
 
         }
-        return *new ast::VariableRefExpr(firstPart.span(), identifier);
+        return *new ast::VariableRefExprStmt(firstPart.span(), identifier);
     }
 
     ast::ExprStmt &parseParensExpr(Token &) {
@@ -157,7 +157,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
         ast::ExprStmt &valueExpr = parseExpr();
 
-        return *new ast::UnaryExpr(
+        return *new ast::UnaryExprStmt(
             makeSourceSpan(operatorToken.span(), valueExpr.sourceSpan()),
             valueExpr,
             operationKind,
@@ -181,11 +181,11 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         Token *openCurly = consumeOptional(TokenKind::OPEN_CURLY);
         if (openCurly) {
             Token &closeCurly = parseUntilCloseCurly(stmts);
-            return *new ast::ExpressionList(makeSourceSpan(openCurly->span(), closeCurly.span()), stmts);
+            return *new ast::ExpressionListStmt(makeSourceSpan(openCurly->span(), closeCurly.span()), stmts);
         } else {
             ast::ExprStmt &expr = parseExpr();
             stmts.emplace_back(expr);
-            return *new ast::ExpressionList(expr.sourceSpan(), stmts);
+            return *new ast::ExpressionListStmt(expr.sourceSpan(), stmts);
         }
     }
 
@@ -193,7 +193,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         gc_ref_vector<ast::ExprStmt> stmts;
         Token &closeCurly = parseUntilCloseCurly(stmts);
 
-        return *new ast::CompoundExpr(makeSourceSpan(openCurly.span(), closeCurly.span()), storageKindStack_.top(), stmts,
+        return *new ast::CompoundExprStmt(makeSourceSpan(openCurly.span(), closeCurly.span()), storageKindStack_.top(), stmts,
                                       openCurly.span().toString());
     }
 
@@ -205,7 +205,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         ast::ExprStmt &valueExpr = parseExpr();
         Token &closeParen = consumeCloseParen();
 
-        return *new ast::CastExpr(
+        return *new ast::CastExprStmtStmt(
             makeSourceSpan(castKeyword.span(), closeParen.span()),
             typeRef,
             valueExpr,
@@ -217,7 +217,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         consumeOpenParen();
         Token &closeParen = consumeCloseParen();
 
-        return *new ast::NewExpr(
+        return *new ast::NewExprStmt(
             makeSourceSpan(newKeyword.span(), closeParen.span()),
             typeRef);
     }
@@ -263,7 +263,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         consumeCloseParen();
         ast::ExprStmt &bodyExpr = parseExpr();
 
-        return *new ast::WhileExpr(
+        return *new ast::WhileExprStmt(
             makeSourceSpan(whileKeyword.span(), bodyExpr.sourceSpan()),
             condExpr,
             bodyExpr
@@ -289,7 +289,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         auto argsAndCloseParen = parseFuncCallArguments();
 
 
-        return *new ast::FuncCallExpr(
+        return *new ast::FuncCallExprStmt(
             makeSourceSpan(funcExpr.sourceSpan(), argsAndCloseParen.second.get().span()),
             nullptr, //No instanceExpr
             openParen.span(),
@@ -329,7 +329,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         ast::ExprStmt &funcBody = parseExpr();
         storageKindStack_.pop();
 
-        return *new ast::FuncDefStmt(
+        return *new ast::FuncDefExprStmt(
             makeSourceSpan(funcKeyword.span(), funcBody.sourceSpan()),
             ast::Identifier(identifier.span(), identifier.text()),
             returnTypeRef,
@@ -350,11 +350,11 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
         ast::ExprStmt &classBody = parseExpr();
 
-        auto *compoundExpr = dynamic_cast<ast::CompoundExpr*>(&classBody);
+        auto *compoundExpr = dynamic_cast<ast::CompoundExprStmt*>(&classBody);
         if(!compoundExpr) {
             gc_ref_vector<ast::ExprStmt> stmts;
             stmts.emplace_back(classBody);
-            compoundExpr = new ast::CompoundExpr(classBody.sourceSpan(), scope::StorageKind::Instance, stmts, className.text());
+            compoundExpr = new ast::CompoundExprStmt(classBody.sourceSpan(), scope::StorageKind::Instance, stmts, className.text());
         } else {
             compoundExpr->scope().setStorageKind(scope::StorageKind::Instance);
         }
@@ -363,13 +363,13 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
         ast::ClassDefinition *classDefinition;
         if(genericClassParameters.empty()) {
-            classDefinition =  new ast::CompleteClassDefinition(
+            classDefinition =  new ast::CompleteClassDefExprStmt(
                 makeSourceSpan(classKeyword.span(), classBody.sourceSpan()),
                 className,
                 *compoundExpr
             );
         } else {
-            classDefinition = new ast::GenericClassDefinition(
+            classDefinition = new ast::GenericClassDefExprStmt(
                 makeSourceSpan(classKeyword.span(), classBody.sourceSpan()),
                 className,
                 deepCopyVector(templateParameterStack_.back().get()),
@@ -399,8 +399,8 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt &parseNamespace(Token &namespaceKeyword) {
         ast::MultiPartIdentifier namespaceId = parseQualifiedIdentifier();
-        auto &body = upcast<ast::ExpressionList>(parseExpressionList());
-        return *new ast::NamespaceExpr(
+        auto &body = upcast<ast::ExpressionListStmt>(parseExpressionList());
+        return *new ast::NamespaceExprStmt(
             makeSourceSpan(namespaceKeyword.span(), body.sourceSpan()),
             namespaceId,
             body
@@ -413,7 +413,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters(TemplateParameterRequirement::Optional);
 
         templateParameterStack_.emplace_back(parameters);
-        auto &&body = upcast<ast::ExpressionList>(parseExpressionList());
+        auto &&body = upcast<ast::ExpressionListStmt>(parseExpressionList());
         templateParameterStack_.pop_back();
 
         return *new ast::NamedTemplateExprStmt(
@@ -473,16 +473,16 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         if(Token *openParen = consumeOptional(TokenKind::OPEN_PAREN)) {
             auto argsAndCloseParen = parseFuncCallArguments();
 
-            return *new ast::FuncCallExpr(
+            return *new ast::FuncCallExprStmt(
                 makeSourceSpan(lValue.sourceSpan(), argsAndCloseParen.second.get().span()),
                 &lValue,
                 openParen->span(),
-                *new ast::MethodRefExpr(memberName),
+                *new ast::MethodRefExprStmt(memberName),
                 argsAndCloseParen.first
             );
         }
 
-        return *new ast::DotExpr(
+        return *new ast::DotExprStmt(
             makeSourceSpan(lValue.sourceSpan(), memberName.span()),
             operatorToken.span(),
             lValue,
@@ -549,7 +549,7 @@ public:
             exprs.emplace_back(parseExpr());
         }
 
-        ast::CompoundExpr &body = *new ast::CompoundExpr(source::SourceSpan::Any, scope::StorageKind::Global, exprs, lexer_.inputName());
+        ast::CompoundExprStmt &body = *new ast::CompoundExprStmt(source::SourceSpan::Any, scope::StorageKind::Global, exprs, lexer_.inputName());
 
         ASSERT(storageKindStack_.size() == 1);
         storageKindStack_.pop();

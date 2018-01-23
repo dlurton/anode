@@ -7,7 +7,7 @@ class BinaryExprSemanticsPass : public ErrorContextAstVisitor {
 public:
     explicit BinaryExprSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
-    void visitedBinaryExpr(ast::BinaryExpr &binaryExpr) override {
+    void visitedBinaryExpr(ast::BinaryExprStmt &binaryExpr) override {
         if(binaryExpr.isComparison()) {
             return;
         }

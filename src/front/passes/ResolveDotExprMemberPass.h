@@ -11,7 +11,7 @@ class ResolveDotExprMemberPass : public ast::AstVisitor {
 public:
     explicit ResolveDotExprMemberPass(error::ErrorStream &errorStream) : errorStream_{errorStream} { }
 
-    void visitedDotExpr(ast::DotExpr &expr) override {
+    void visitedDotExpr(ast::DotExprStmt &expr) override {
         if(!expr.lValue().exprType().isClass()) {
             errorStream_.error(
                 error::ErrorKind::LeftOfDotNotClass,
@@ -34,8 +34,8 @@ public:
         expr.setField(field);
     }
 
-    void visitedFuncCallExpr(ast::FuncCallExpr &expr) override {
-        auto methodRef = dynamic_cast<ast::MethodRefExpr*>(&expr.funcExpr());
+    void visitedFuncCallExprStmt(ast::FuncCallExprStmt &expr) override {
+        auto methodRef = dynamic_cast<ast::MethodRefExprStmt*>(&expr.funcExpr());
         if(methodRef && expr.instanceExpr()) {
             type::Type *instanceType = expr.instanceExpr()->exprType().actualType();
             type::ClassMethod *method = nullptr;

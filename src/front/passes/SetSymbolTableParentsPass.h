@@ -19,11 +19,11 @@ public:
         }
     }
 
-    void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
+    void beforeVisit(ast::FuncDefExprStmt &funcDeclStmt) override {
         if(!funcDeclStmt.parameterScope().parent()) {
             funcDeclStmt.parameterScope().setParent(topScope());
         }
-        ScopeFollowingAstVisitor::visitingFuncDefStmt(funcDeclStmt);
+        ScopeFollowingAstVisitor::beforeVisit(funcDeclStmt);
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {
@@ -33,7 +33,7 @@ public:
         ScopeFollowingAstVisitor::visitingTemplateExpansionExprStmt(expansion);
     }
 
-    void visitingCompoundExpr(ast::CompoundExpr &expr) override {
+    void visitingCompoundExpr(ast::CompoundExprStmt &expr) override {
         //The first entry on the stack would be the global scope which has no parent
         if(scopeDepth() && !expr.scope().parent()) {
             expr.scope().setParent(topScope());

@@ -125,7 +125,7 @@ namespace anode {
                                                         std::move(Resolver)));
             }
 
-//            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDefStmt> FnAST) {
+//            llvm::Error addFunctionAST(std::unique_ptr<ast::FuncDefExprStmt> FnAST) {
 //                // Create a CompileCallback - this is the re-entry point into the compiler
 //                // for functions that haven't been compiled yet.
 //                auto CCInfo = CompileCallbackMgr->getCompileCallback();
@@ -144,7 +144,7 @@ namespace anode {
 //kk
 //                // Move ownership of FnAST to a shared pointer - C++11 lambdas don't support
 //                // capture-by-move, which is be required for unique_ptr.k
-//                auto SharedFnAST = std::shared_ptr<ast::FuncDefStmt>(std::move(FnAST));
+//                auto SharedFnAST = std::shared_ptr<ast::FuncDefExprStmt>(std::move(FnAST));
 //
 //                // Set the action to compile our AST. This lambda will be run if/when
 //                // execution hits the compile callback (via the stub).

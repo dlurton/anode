@@ -10,7 +10,7 @@ class FuncCallSemanticsPass : public ErrorContextAstVisitor {
 public:
     explicit FuncCallSemanticsPass(error::ErrorStream &errorStream_) : ErrorContextAstVisitor(errorStream_) { }
 
-    void visitedFuncCallExpr(ast::FuncCallExpr &funcCallExpr) override {
+    void visitedFuncCallExprStmt(ast::FuncCallExprStmt &funcCallExpr) override {
         if(!funcCallExpr.funcExpr().exprType().isFunction()) {
             errorStream_.error(
                 error::ErrorKind::ExpressionIsNotFunction,
@@ -49,7 +49,7 @@ public:
                         argument.exprType().nameForDisplay().c_str(),
                         parameterType.nameForDisplay().c_str());
                 } else {
-                    auto &implicitCast = ast::CastExpr::createImplicit(argument, parameterType);
+                    auto &implicitCast = ast::CastExprStmtStmt::createImplicit(argument, parameterType);
                     funcCallExpr.replaceArgument(i, implicitCast);
                 }
             }

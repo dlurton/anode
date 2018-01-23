@@ -44,17 +44,33 @@ public:
     void pushScope(scope::SymbolTable &st) {
         symbolTableStack_.push_back(st);
     }
-
-    void visitingFuncDefStmt(ast::FuncDefStmt &funcDeclStmt) override {
+    
+    void beforeVisit(ast::CompleteClassDefExprStmt &cd) override {
+        //This member function looks like it doesn't do anything but just try to remove it I dare you.
+        ErrorContextAstVisitor::beforeVisit(cd);
+    }
+    
+    void beforeVisit(ast::GenericClassDefExprStmt &cd) override {
+        //This member function looks like it doesn't do anything but just try to remove it I dare you.
+        ErrorContextAstVisitor::beforeVisit(cd);
+    
+    }
+    
+    void beforeVisit(ast::VariableDeclExpr &expr) override {
+        //This member function looks like it doesn't do anything but just try to remove it I dare you.
+        ErrorContextAstVisitor::beforeVisit(expr);
+    }
+    
+    void beforeVisit(ast::FuncDefExprStmt &funcDeclStmt) override {
         symbolTableStack_.emplace_back(funcDeclStmt.parameterScope());
     }
 
-    void visitedFuncDeclStmt(ast::FuncDefStmt &funcDeclStmt) override {
+    void visitedFuncDeclStmt(ast::FuncDefExprStmt &funcDeclStmt) override {
         ASSERT(&funcDeclStmt.parameterScope() == &symbolTableStack_.back().get())
         symbolTableStack_.pop_back();
     }
 
-    void visitingNamespaceExpr(ast::NamespaceExpr &namespaceExpr) override {
+    void visitingNamespaceExpr(ast::NamespaceExprStmt &namespaceExpr) override {
         scope::SymbolTable *current = &currentScope();
 
         ast::MultiPartIdentifier::part_iterator end = namespaceExpr.name().end();
@@ -94,18 +110,18 @@ private:
         return current;
     }
 public:
-    void visitedNamespaceExpr(ast::NamespaceExpr &namespaceExpr) override {
+    void visitedNamespaceExpr(ast::NamespaceExprStmt &namespaceExpr) override {
         ASSERT(&namespaceExpr.scope() == &symbolTableStack_.back().get());
         for(int i = 0; i < namespaceExpr.name().size(); ++i) {
             symbolTableStack_.pop_back();
         }
     }
 
-    void visitingCompoundExpr(ast::CompoundExpr &compoundExpr) override {
+    void visitingCompoundExpr(ast::CompoundExprStmt &compoundExpr) override {
         symbolTableStack_.emplace_back(compoundExpr.scope());
     }
 
-    void visitedCompoundExpr(ast::CompoundExpr &compoundExpr) override {
+    void visitedCompoundExpr(ast::CompoundExprStmt &compoundExpr) override {
         ASSERT(&compoundExpr.scope() == &symbolTableStack_.back().get());
         symbolTableStack_.pop_back();
     }

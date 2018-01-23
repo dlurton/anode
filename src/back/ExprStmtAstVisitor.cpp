@@ -36,12 +36,12 @@ public:
         return llvmValue_;
     }
 
-    void visitingCompleteClassDefinition(ast::CompleteClassDefinition &) override {
+    void beforeVisit(ast::CompleteClassDefExprStmt &) override {
         //this is handled in another visitor
         setValue(nullptr);
     }
 
-    void visitingFuncDefStmt(ast::FuncDefStmt &) override {
+    void beforeVisit(ast::FuncDefExprStmt &) override {
         //this is handled in another visitor
         setValue(nullptr);
     }
@@ -56,7 +56,7 @@ public:
         setValue(nullptr);
     }
 
-    void visitMethodRefExpr(ast::MethodRefExpr &methodRefExpr) override {
+    void visitMethodRefExpr(ast::MethodRefExprStmt &methodRefExpr) override {
         setValue(cc().getMappedValue(methodRefExpr.symbol()));
     }
 
@@ -64,7 +64,7 @@ public:
         setValue(emitExpr(*expansion.expandedTemplate(), cc()));
     }
 
-    void visitedFuncCallExpr(ast::FuncCallExpr &expr) override {
+    void visitedFuncCallExprStmt(ast::FuncCallExprStmt &expr) override {
 
         std::vector<llvm::Value *> args;
 
@@ -85,7 +85,7 @@ public:
         setValue(result);
     }
 
-    void visitedCastExpr(ast::CastExpr &expr) override {
+    void visitedCastExprStmt(ast::CastExprStmtStmt &expr) override {
         llvm::Value *value = emitExpr(expr.valueExpr(), cc());
 
         ASSERT(expr.exprType().isPrimitive());
@@ -141,7 +141,7 @@ public:
         setValue(castedValue);
     }
 
-    void visitingNewExpr(ast::NewExpr &expr) override {
+    void visitingNewExpr(ast::NewExprStmt &expr) override {
         auto structType = cc().typeMap().toLlvmType(expr.exprType())->getPointerElementType();
         uint64_t size = cc().llvmModule().getDataLayout().getTypeAllocSize(structType);
 
@@ -164,7 +164,7 @@ public:
                 break;
             }
             case scope::StorageKind::Local: {
-                ASSERT(expr.name().size() == 1 && "TODO: semantic error or refactor VariableDeclExpr and VariableRefExpr so they don't both have to use MultiPartIdentifier");
+                ASSERT(expr.name().size() == 1 && "TODO: semantic error or refactor VariableDeclExpr and VariableRefExprStmt so they don't both have to use MultiPartIdentifier");
                 llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.exprType());
                 llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().front().text());
                 cc().mapSymbolToValue(*expr.symbol(), localVariable);
@@ -176,7 +176,7 @@ public:
         visitVariableRefExpr(expr);
     }
 
-    void visitVariableRefExpr(ast::VariableRefExpr &expr) override {
+    void visitVariableRefExpr(ast::VariableRefExprStmt &expr) override {
         llvm::Value *pointer;
 
         if (expr.symbol()->storageKind() == scope::StorageKind::Instance) {
@@ -222,7 +222,7 @@ private:
 
 protected:
 
-    void visitedDotExpr(ast::DotExpr &expr) override {
+    void visitedDotExpr(ast::DotExprStmt &expr) override {
         llvm::Value *instance = emitExpr(expr.lValue(), cc());
 
         auto classType = dynamic_cast<type::ClassType *>(expr.lValue().exprType().actualType());
@@ -239,19 +239,19 @@ protected:
         setValue(ptrOrValue);
     }
 
-    void visitLiteralInt32Expr(ast::LiteralInt32Expr &expr) override {
+    void visitLiteralInt32Expr(ast::LiteralInt32ExprStmt &expr) override {
         setValue(getLiteralIntLlvmValue(expr.value()));
     }
 
-    void visitLiteralFloatExpr(ast::LiteralFloatExpr &expr) override {
+    void visitLiteralFloatExpr(ast::LiteralFloatExprStmt &expr) override {
         setValue(llvm::ConstantFP::get(cc().llvmContext(), llvm::APFloat(expr.value())));
     }
 
-    void visitLiteralBoolExpr(ast::LiteralBoolExpr &expr) override {
+    void visitLiteralBoolExpr(ast::LiteralBoolExprStmt &expr) override {
         setValue(llvm::ConstantInt::get(cc().llvmContext(), llvm::APInt(1, (uint64_t) expr.value(), true)));
     }
 
-    void visitingBinaryExpr(ast::BinaryExpr &expr) override {
+    void beforeVisit(ast::BinaryExprStmt &expr) override {
         switch (expr.binaryExprKind()) {
             case ast::BinaryExprKind::Logical:
                 emitBinaryLogical(expr);
@@ -265,7 +265,7 @@ protected:
     }
 
 private:
-    void emitBinaryArithmetic(ast::BinaryExpr &expr) {
+    void emitBinaryArithmetic(ast::BinaryExprStmt &expr) {
         ASSERT(expr.lValue().exprType().isSameType(expr.rValue().exprType()) && "data types must match");
 
         llvm::Value *rValue = emitExpr(expr.rValue(), cc());
@@ -372,7 +372,7 @@ private:
         setValue(resultValue);
     }
 
-    void emitBinaryLogical(ast::BinaryExpr &expr) {
+    void emitBinaryLogical(ast::BinaryExprStmt &expr) {
         //Prepare the basic blocks
         llvm::BasicBlock *lValueBlock = cc().irBuilder().GetInsertBlock();
         llvm::Function *currentFunc = lValueBlock->getParent();
@@ -414,7 +414,7 @@ private:
     }
 
 protected:
-    void visitingIfExpr(ast::IfExprStmt &ifExpr) override {
+    void beforeVisit(ast::IfExprStmt &ifExpr) override {
         //This function is modeled after: https://llvm.org/docs/tutorial/LangImpl08.html (ctrl-f for "IfExprAST::codegen")
         //Emit the condition
         llvm::Value *condValue = emitExpr(ifExpr.condition(), cc());
@@ -464,7 +464,7 @@ protected:
         }
     }
 
-    void visitingWhileExpr(ast::WhileExpr &whileExpr) override {
+    void beforeVisit(ast::WhileExprStmt &whileExpr) override {
 
         //Prepare the BasicBlocks
         llvm::Function *currentFunc = cc().irBuilder().GetInsertBlock()->getParent();
@@ -510,15 +510,15 @@ private:
 
     }
 
-    void visitingCompoundExpr(ast::CompoundExpr &compoundExpr) override {
+    void visitingCompoundExpr(ast::CompoundExprStmt &compoundExpr) override {
         visitExpressions(compoundExpr.expressions());
     }
 
-    void visitingExpressionList(ast::ExpressionList &expressionList) override {
+    void visitingExpressionList(ast::ExpressionListStmt &expressionList) override {
         visitExpressions(expressionList.expressions());
     }
 
-    void visitingAssertExprStmt(ast::AssertExprStmt &assert) override {
+    void beforeVisit(ast::AssertExprStmt &assert) override {
         //Emit the condition
         llvm::Value *condValue = emitExpr(assert.condition(), cc());
 

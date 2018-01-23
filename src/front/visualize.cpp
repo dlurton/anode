@@ -13,14 +13,14 @@ class PrettyPrinterVisitor : public AstVisitor {
 public:
     explicit PrettyPrinterVisitor(std::ostream &out) : writer_(out, "  ") { }
 
-    void visitingCompoundExpr(CompoundExpr &expr) override {
-        writer_.write(string::format("CompoundExpr: (%s) ", expr.scope().name().c_str()));
+    void visitingCompoundExpr(CompoundExprStmt &expr) override {
+        writer_.write(string::format("CompoundExprStmt: (%s) ", expr.scope().name().c_str()));
         writeScopeVariables(expr.scope());
         writer_.writeln();
         writer_.incIndent();
     }
 
-    void visitedCompoundExpr(CompoundExpr &) override {
+    void visitedCompoundExpr(CompoundExprStmt &) override {
         writer_.decIndent();
     }
 
@@ -48,46 +48,46 @@ public:
         }
     }
 
-    void visitingBinaryExpr(BinaryExpr &expr) override {
-        writer_.writeln("BinaryExpr: " + to_string(expr.operation()));
+    void beforeVisit(BinaryExprStmt &expr) override {
+        writer_.writeln("BinaryExprStmt: " + to_string(expr.operation()));
         writer_.incIndent();
     }
 
-    void visitedBinaryExpr(BinaryExpr &) override {
+    void visitedBinaryExpr(BinaryExprStmt &) override {
         writer_.decIndent();
     }
 
-    void visitingUnaryExpr(UnaryExpr &expr) override {
-        writer_.writeln("UnaryExpr: " + to_string(expr.operation()) + ", " + expr.exprType().nameForDisplay());
+    void visitingUnaryExpr(UnaryExprStmt &expr) override {
+        writer_.writeln("UnaryExprStmt: " + to_string(expr.operation()) + ", " + expr.exprType().nameForDisplay());
         writer_.incIndent();
     }
 
-    void visitedUnaryExpr(UnaryExpr &) override {
+    void visitedUnaryExpr(UnaryExprStmt &) override {
         writer_.decIndent();
     }
 
-    void visitingDotExpr(DotExpr &expr) override {
-        writer_.writeln("DotExpr: " + expr.memberName().text());
+    void visitingDotExpr(DotExprStmt &expr) override {
+        writer_.writeln("DotExprStmt: " + expr.memberName().text());
         writer_.incIndent();
     }
 
-    void visitedDotExpr(DotExpr &) override {
+    void visitedDotExpr(DotExprStmt &) override {
         writer_.decIndent();
     }
 
-    void visitLiteralBoolExpr(LiteralBoolExpr &expr) override {
-        writer_.writeln("LiteralBoolExpr: %s", expr.value() ? "true" : "false");
+    void visitLiteralBoolExpr(LiteralBoolExprStmt &expr) override {
+        writer_.writeln("LiteralBoolExprStmt: %s", expr.value() ? "true" : "false");
     }
 
-    void visitLiteralInt32Expr(LiteralInt32Expr &expr) override {
-        writer_.writeln("LiteralInt32Expr: " + std::to_string(expr.value()));
+    void visitLiteralInt32Expr(LiteralInt32ExprStmt &expr) override {
+        writer_.writeln("LiteralInt32ExprStmt: " + std::to_string(expr.value()));
     }
 
-    void visitLiteralFloatExpr(LiteralFloatExpr &expr) override {
+    void visitLiteralFloatExpr(LiteralFloatExprStmt &expr) override {
         writer_.writeln("LiteralFloat: " + std::to_string(expr.value()));
     }
 
-    void visitingVariableDeclExpr(VariableDeclExpr &expr) override {
+    void beforeVisit(VariableDeclExpr &expr) override {
         writer_.writeln("VariableDeclExpr: (%s:%s)", expr.name().qualifedName().c_str(),
                         expr.typeRef().name().qualifedName().c_str());
         writer_.incIndent();
@@ -97,11 +97,11 @@ public:
         writer_.decIndent();
 
     }
-    void visitVariableRefExpr(VariableRefExpr &expr) override {
-        writer_.writeln("VariableRefExpr: " + expr.name().qualifedName());
+    void visitVariableRefExpr(VariableRefExprStmt &expr) override {
+        writer_.writeln("VariableRefExprStmt: " + expr.name().qualifedName());
     }
 
-    void visitingIfExpr(IfExprStmt &) override {
+    void beforeVisit(IfExprStmt &) override {
         writer_.writeln("IfExprStmt:");
         writer_.incIndent();
     }
@@ -110,17 +110,17 @@ public:
         writer_.decIndent();
     }
 
-    void visitingWhileExpr(WhileExpr &) override {
-        writer_.writeln("WhileExpr:");
+    void beforeVisit(WhileExprStmt &) override {
+        writer_.writeln("WhileExprStmt:");
         writer_.incIndent();
     }
 
-    void visitedWhileExpr(WhileExpr &) override {
+    void visitedWhileExpr(WhileExprStmt &) override {
         writer_.decIndent();
     }
 
 
-    void visitingAssertExprStmt(AssertExprStmt &) override {
+    void beforeVisit(AssertExprStmt &) override {
         writer_.writeln("AssertExprStmt:");
         writer_.incIndent();
     }
@@ -129,32 +129,32 @@ public:
         writer_.decIndent();
     }
 
-    void visitingCastExpr(CastExpr &expr) override {
-        writer_.writeln("CastExpr(%s):",
+    void visitingCastExprStmt(CastExprStmtStmt &expr) override {
+        writer_.writeln("CastExprStmtStmt(%s):",
                         expr.castKind() == CastKind::Implicit ? "implicit" : "explicit");
 
         writer_.incIndent();
     }
 
-    void visitingNewExpr(NewExpr &expr) override {
-        writer_.writeln("NewExpr(%s):", expr.typeRef().name().qualifedName().c_str());
+    void visitingNewExpr(NewExprStmt &expr) override {
+        writer_.writeln("NewExprStmt(%s):", expr.typeRef().name().qualifedName().c_str());
 
         writer_.incIndent();
     }
 
-    void visitedCastExpr(CastExpr &) override {
+    void visitedCastExprStmt(CastExprStmtStmt &) override {
         writer_.decIndent();
     }
 
-    void visitingParameterDef(ParameterDef &pd) override {
+    void beforeVisit(ParameterDef &pd) override {
         writer_.write("ParameterDef: ");
         writer_.write(pd.name().text());
         writer_.write(':');
         writer_.writeln(pd.typeRef().name().qualifedName().c_str());
     }
 
-    void visitingFuncDefStmt(FuncDefStmt &func) override {
-        writer_.writeln("FuncDefStmt: " + func.name().text());
+    void beforeVisit(FuncDefExprStmt &func) override {
+        writer_.writeln("FuncDefExprStmt: " + func.name().text());
 //                auto parameters = func.parameters();
 //                for(auto p : parameters) {
 //                    if(p != parameters.front()) {
@@ -165,43 +165,42 @@ public:
         writer_.incIndent();
     }
 
-    void visitingFuncCallExpr(FuncCallExpr &) override {
-        writer_.writeln("FuncCallExpr:");
+    void beforeVisit(FuncCallExprStmt &) override {
+        writer_.writeln("FuncCallExprStmt:");
         writer_.incIndent();
     }
 
-    void visitedFuncCallExpr(FuncCallExpr &) override {
+    void visitedFuncCallExprStmt(FuncCallExprStmt &) override {
         writer_.decIndent();
     }
 
-    void visitedFuncDeclStmt(FuncDefStmt &) override {
+    void visitedFuncDeclStmt(FuncDefExprStmt &) override {
         writer_.decIndent();
     }
 
-    void visitingCompleteClassDefinition(CompleteClassDefinition &cd) override {
+    void beforeVisit(CompleteClassDefExprStmt &cd) override {
         writer_.writeln("ClassDefinition: " + cd.name().text());
         writer_.incIndent();
     }
 
-    void visitedCompleteClassDefinition(CompleteClassDefinition &) override {
+    void visitedCompleteClassDefExprStmt(CompleteClassDefExprStmt &) override {
         writer_.decIndent();
     }
 
-    void visitingGenericClassDefinition(GenericClassDefinition &cd) override {
-        writer_.writeln("GenericClassDefinition: " + cd.name().text());
+    void beforeVisit(GenericClassDefExprStmt &cd) override {
+        writer_.writeln("GenericClassDefExprStmt: " + cd.name().text());
         writer_.incIndent();
     }
 
-    void visitedGenericClassDefinition(GenericClassDefinition &) override {
+    void visitedGenericClassDefExprStmt(GenericClassDefExprStmt &) override {
         writer_.decIndent();
     }
-    
 
-    void visitingExpressionList(ExpressionList &) override {
-        writer_.writeln("ExpressionList");
+    void visitingExpressionList(ExpressionListStmt &) override {
+        writer_.writeln("ExpressionListStmt");
         writer_.incIndent();
     }
-    void visitedExpressionList(ExpressionList &) override {
+    void visitedExpressionList(ExpressionListStmt &) override {
         writer_.decIndent();
     }
 
@@ -236,12 +235,12 @@ public:
         writer_.decIndent();
     }
 
-    void visitingNamespaceExpr(ast::NamespaceExpr &namespaceExpr) override {
-        writer_.writeln("NamespaceExpr: " + namespaceExpr.name().qualifedName());
+    void visitingNamespaceExpr(ast::NamespaceExprStmt &namespaceExpr) override {
+        writer_.writeln("NamespaceExprStmt: " + namespaceExpr.name().qualifedName());
         writer_.incIndent();
     }
 
-    void visitedNamespaceExpr(ast::NamespaceExpr &) override {
+    void visitedNamespaceExpr(ast::NamespaceExprStmt &) override {
         writer_.decIndent();
     }
 
