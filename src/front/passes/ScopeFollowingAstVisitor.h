@@ -50,9 +50,9 @@ public:
         ErrorContextAstVisitor::beforeVisit(cd);
     }
     
-    void beforeVisit(ast::GenericClassDefExprStmt &cd) override {
+    void visitingGenericClassDefExprStmt(ast::GenericClassDefExprStmt &cd) override {
         //This member function looks like it doesn't do anything but just try to remove it I dare you.
-        ErrorContextAstVisitor::beforeVisit(cd);
+        ErrorContextAstVisitor::visitingGenericClassDefExprStmt(cd);
     
     }
     
@@ -61,7 +61,7 @@ public:
         ErrorContextAstVisitor::beforeVisit(expr);
     }
     
-    void beforeVisit(ast::FuncDefExprStmt &funcDeclStmt) override {
+    void visitingFuncDefExprStmt(ast::FuncDefExprStmt &funcDeclStmt) override {
         symbolTableStack_.emplace_back(funcDeclStmt.parameterScope());
     }
 

@@ -120,7 +120,7 @@ public:
     }
 
 
-    void beforeVisit(AssertExprStmt &) override {
+    void visitingAssertExprStmt(AssertExprStmt &) override {
         writer_.writeln("AssertExprStmt:");
         writer_.incIndent();
     }
@@ -146,14 +146,14 @@ public:
         writer_.decIndent();
     }
 
-    void beforeVisit(ParameterDef &pd) override {
+    void visitingParameterDef(ParameterDef &pd) override {
         writer_.write("ParameterDef: ");
         writer_.write(pd.name().text());
         writer_.write(':');
         writer_.writeln(pd.typeRef().name().qualifedName().c_str());
     }
 
-    void beforeVisit(FuncDefExprStmt &func) override {
+    void visitingFuncDefExprStmt(FuncDefExprStmt &func) override {
         writer_.writeln("FuncDefExprStmt: " + func.name().text());
 //                auto parameters = func.parameters();
 //                for(auto p : parameters) {
@@ -165,8 +165,8 @@ public:
         writer_.incIndent();
     }
 
-    void beforeVisit(FuncCallExprStmt &) override {
-        writer_.writeln("FuncCallExprStmt:");
+    void vistingFuncCallExprStmt(FuncCallExprStmt &) override {
+        writer_.writeln("FuncCallExprStmt");
         writer_.incIndent();
     }
 
@@ -187,7 +187,7 @@ public:
         writer_.decIndent();
     }
 
-    void beforeVisit(GenericClassDefExprStmt &cd) override {
+    void visitingGenericClassDefExprStmt(GenericClassDefExprStmt &cd) override {
         writer_.writeln("GenericClassDefExprStmt: " + cd.name().text());
         writer_.incIndent();
     }

@@ -1116,7 +1116,7 @@ public:
     void setSymbol(scope::VariableSymbol &symbol) { symbol_ = &symbol; }
 
     void accept(AstVisitor &visitor) override {
-        visitor.beforeVisit(*this);
+        visitor.visitingParameterDef(*this);
         if(visitor.shouldVisitChildren()) {
             typeRef_.acceptVisitor(visitor);
         }
@@ -1179,7 +1179,7 @@ public:
     }
 
     virtual void accept(AstVisitor &visitor) override {
-        visitor.beforeVisit(*this);
+        visitor.visitingFuncDefExprStmt(*this);
         if(visitor.shouldVisitChildren()) {
             returnTypeRef_.acceptVisitor(visitor);
             for(const auto p : parameters_) {
@@ -1275,7 +1275,7 @@ public:
     size_t argCount() { return arguments_.size(); }
 
     void accept(AstVisitor &visitor) override {
-        visitor.beforeVisit(*this);
+        visitor.vistingFuncCallExprStmt(*this);
         if(visitor.shouldVisitChildren()) {
             funcExpr_.acceptVisitor(visitor);
             if(instanceExpr_) {
@@ -1470,7 +1470,7 @@ public:
     }
 
     void accept(AstVisitor &visitor) override {
-        visitor.beforeVisit(*this);
+        visitor.visitingGenericClassDefExprStmt(*this);
 
         if(visitor.shouldVisitChildren()){
             body().acceptVisitor(visitor);
@@ -1570,7 +1570,7 @@ public:
     void setCondition(ast::ExprStmt &condition) { condition_ = &condition; }
 
     void accept(AstVisitor &visitor) override {
-        visitor.beforeVisit(*this);
+        visitor.visitingAssertExprStmt(*this);
         if(visitor.shouldVisitChildren()) {
             condition_->acceptVisitor(visitor);
         }

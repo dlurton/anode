@@ -49,7 +49,7 @@ public:
         templ.body().acceptVisitor(*this);
     }
 
-    virtual void beforeVisit(ast::GenericClassDefExprStmt &genericClassDefinition) override {
+    virtual void visitingGenericClassDefExprStmt(ast::GenericClassDefExprStmt &genericClassDefinition) override {
         world_.addGenericClassDefinition(genericClassDefinition);
         //body not normally visited
         genericClassDefinition.body();

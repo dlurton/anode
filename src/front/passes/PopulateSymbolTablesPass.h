@@ -41,7 +41,7 @@ public:
         ScopeFollowingAstVisitor::beforeVisit(cd);
     }
 
-    void beforeVisit(ast::FuncDefExprStmt &funcDeclStmt) override {
+    void visitingFuncDefExprStmt(ast::FuncDefExprStmt &funcDeclStmt) override {
         if(currentScope().findSymbolInCurrentScope(funcDeclStmt.name().text())) {
             symbolPreviouslyDefinedError(funcDeclStmt.name());
         } else {
@@ -64,7 +64,7 @@ public:
                 }
             }
         }
-        ScopeFollowingAstVisitor::beforeVisit(funcDeclStmt);
+        ScopeFollowingAstVisitor::visitingFuncDefExprStmt(funcDeclStmt);
     }
 
     void beforeVisit(ast::VariableDeclExpr &expr) override {

@@ -44,23 +44,23 @@ public:
     virtual void afterAccept(AstNode &) { }
     
     //////////// Statements
-    virtual void beforeVisit(ParameterDef &) { }
+    virtual void visitingParameterDef(ParameterDef &) { }
     virtual void visitedParameterDef(ParameterDef &) { }
     
-    virtual void beforeVisit(FuncDefExprStmt &) { }
+    virtual void visitingFuncDefExprStmt(FuncDefExprStmt &) { }
     virtual void visitedFuncDeclStmt(FuncDefExprStmt &) { }
     
-    virtual void beforeVisit(FuncCallExprStmt &) {  }
+    virtual void vistingFuncCallExprStmt(FuncCallExprStmt &) {  }
     virtual void visitedFuncCallExprStmt(FuncCallExprStmt &) { }
     
-    virtual void beforeVisit(GenericClassDefExprStmt &) { }
+    virtual void visitingGenericClassDefExprStmt(GenericClassDefExprStmt &) { }
     virtual void visitedGenericClassDefExprStmt(GenericClassDefExprStmt &) { }
     
     virtual void beforeVisit(CompleteClassDefExprStmt &) { }
     virtual void visitedCompleteClassDefExprStmt(CompleteClassDefExprStmt &) { }
     
     //////////// Expressions
-    virtual void beforeVisit(AssertExprStmt &) { }
+    virtual void visitingAssertExprStmt(AssertExprStmt &) { }
     virtual void visitedAssertExprStmt(AssertExprStmt &) { }
     
     virtual void beforeVisit(VariableDeclExpr &) { }

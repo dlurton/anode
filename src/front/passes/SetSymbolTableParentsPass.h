@@ -19,11 +19,11 @@ public:
         }
     }
 
-    void beforeVisit(ast::FuncDefExprStmt &funcDeclStmt) override {
+    void visitingFuncDefExprStmt(ast::FuncDefExprStmt &funcDeclStmt) override {
         if(!funcDeclStmt.parameterScope().parent()) {
             funcDeclStmt.parameterScope().setParent(topScope());
         }
-        ScopeFollowingAstVisitor::beforeVisit(funcDeclStmt);
+        ScopeFollowingAstVisitor::visitingFuncDefExprStmt(funcDeclStmt);
     }
 
     void visitingTemplateExpansionExprStmt(ast::TemplateExpansionExprStmt &expansion) override {

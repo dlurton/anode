@@ -59,7 +59,7 @@ public:
         }
     }
 
-    void beforeVisit(ast::FuncDefExprStmt &funcDef) override {
+    void visitingFuncDefExprStmt(ast::FuncDefExprStmt &funcDef) override {
         declareFunction(*funcDef.symbol());
     }
 };
@@ -80,7 +80,7 @@ class DefineFuncsAstVisitor : public CompileAstVisitor {
 public:
     explicit DefineFuncsAstVisitor(CompileContext &cc) : CompileAstVisitor(cc) {}
 
-    void beforeVisit(ast::FuncDefExprStmt &funcDef) override {
+    void visitingFuncDefExprStmt(ast::FuncDefExprStmt &funcDef) override {
         //Save the state of the IRBuilder so it can be restored later
         auto oldBasicBlock = cc().irBuilder().GetInsertBlock();
         auto oldInsertPoint = cc().irBuilder().GetInsertPoint();

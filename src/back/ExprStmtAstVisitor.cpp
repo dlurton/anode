@@ -41,7 +41,7 @@ public:
         setValue(nullptr);
     }
 
-    void beforeVisit(ast::FuncDefExprStmt &) override {
+    void visitingFuncDefExprStmt(ast::FuncDefExprStmt &) override {
         //this is handled in another visitor
         setValue(nullptr);
     }
@@ -518,7 +518,7 @@ private:
         visitExpressions(expressionList.expressions());
     }
 
-    void beforeVisit(ast::AssertExprStmt &assert) override {
+    void visitingAssertExprStmt(ast::AssertExprStmt &assert) override {
         //Emit the condition
         llvm::Value *condValue = emitExpr(assert.condition(), cc());
 
