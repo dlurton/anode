@@ -3,7 +3,7 @@
 
 
 #include "front/ErrorStream.h"
-#include "front/ast.h"
+#include "ast/ast.h"
 
 namespace anode { namespace front  { namespace passes {
 

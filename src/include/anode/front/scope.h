@@ -29,6 +29,7 @@ const std::string ScopeSeparator = "::";
 
 
 
+
 class SymbolTable : public gc {
 
 public:
@@ -63,11 +64,11 @@ public:
 
 class ScopeSymbolTable : public SymbolTable {
 
-    SymbolTable *parent_ = nullptr;
     gc_ref_unordered_map<std::string, scope::Symbol> symbols_;
     gc_ref_vector<scope::Symbol> orderedSymbols_;
     StorageKind storageKind_;
     std::string name_;
+    SymbolTable *parent_ = nullptr;
 
     void appendName(std::string &appendTo) {
         if (auto parentScope = dynamic_cast<ScopeSymbolTable*>(parent_)) {
@@ -81,6 +82,11 @@ public:
     NO_COPY_NO_ASSIGN(ScopeSymbolTable)
     explicit ScopeSymbolTable(StorageKind storageKind, const std::string &name)
         : SymbolTable(), storageKind_(storageKind), name_{name} {
+        ASSERT(name.length() > 0)
+    }
+    
+    explicit ScopeSymbolTable(StorageKind storageKind, const std::string &name, SymbolTable *parent)
+        : SymbolTable(), storageKind_(storageKind), name_{name}, parent_{parent} {
         ASSERT(name.length() > 0)
     }
 
@@ -126,6 +132,88 @@ public:
     gc_ref_vector<FunctionSymbol> functions() const override;
 
     gc_ref_vector<Symbol> symbols() const override;
+};
+
+class DelegatingSymbolTable : public SymbolTable {
+
+    SymbolTable *targetSymbolTable_;
+    SymbolTable *parent_;
+public:
+
+    DelegatingSymbolTable(SymbolTable *targetSymbolTable)
+            : targetSymbolTable_{targetSymbolTable} {
+        
+    }
+
+
+    SymbolTable *target() const {
+        return targetSymbolTable_;
+    }
+
+    SymbolTable *parent() const override {
+        return parent_;
+    }
+
+    void setParent(SymbolTable &parent) override {
+        ASSERT(&parent != this && "Hello? Are you trying to cause an infinite loop?");
+        parent_ = &parent;
+    }
+
+    std::string name() const override {
+        return targetSymbolTable_->name();
+    }
+
+    std::string fullName() override{
+        return targetSymbolTable_->fullName();
+    }
+
+    StorageKind storageKind() const override {
+        return targetSymbolTable_->storageKind();
+    }
+
+    void setStorageKind(StorageKind ) override {
+        ASSERT_FAIL("Can't mutate DelegatingSymbolTable instances (probably should refactor so DelegatingSymbolTable doesn't need to implement mutators.")
+        //targetSymbolTable_->setStorageKind(kind);
+    }
+
+    void addSymbol(Symbol &) override {
+        ASSERT_FAIL("Can't mutate DelegatingSymbolTable instances (probably should refactor so DelegatingSymbolTable doesn't need to implement mutators.")
+    }
+
+    /** Finds the named symbol in the current scope */
+    Symbol *findSymbolInCurrentScope(const std::string &name) const override {
+        return targetSymbolTable_->findSymbolInCurrentScope(name);
+    }
+
+    /**
+     * Finds the named symbol in the current scope or any parent or parents of the {@ ref DelegatingSymolTable} and
+     * *not* the target symbol table.  This is in fact the whole point of this class.  We are essentially creating a s
+     * sopce with the same symbols as another scope, but with different parents.
+     */
+    Symbol *findSymbolInCurrentScopeOrParents(const std::string &name) const override {
+        Symbol *found = targetSymbolTable_->findSymbolInCurrentScope(name);
+        if(found != nullptr) {
+            return found;
+        } else {
+            return parent_->findSymbolInCurrentScopeOrParents(name);
+        }
+    }
+
+    gc_ref_vector<VariableSymbol> variables() override {
+        return targetSymbolTable_->variables();
+    }
+
+    gc_ref_vector<TypeSymbol> types() override {
+        return targetSymbolTable_->types();
+    }
+
+    gc_ref_vector<FunctionSymbol> functions() const override {
+        return targetSymbolTable_->functions();
+    }
+
+    gc_ref_vector<Symbol> symbols() const override {
+        return targetSymbolTable_->symbols();
+    }
 };
 
 class Symbol : public Object {
@@ -344,5 +432,44 @@ public:
     }
 };
 
+struct ScopeInfo {
+    const std::string scopeName;
+    const StorageKind storageKind;
+    ScopeInfo(std::string scopeName, StorageKind storageKind) : scopeName{scopeName}, storageKind{storageKind} { }
+};
+
+class ScopedNode {
+public:
+    virtual ScopeInfo scopeInfo() = 0;
+};
+
+class ScopeManager : gc {
+    NO_COPY_NO_ASSIGN(ScopeManager);
+    
+    gc_unordered_map<ScopedNode*, SymbolTable*> allScopes_;
+    gc_deque<SymbolTable*> scopeStack_;
+    
+public:
+    SymbolTable *enterScope(ScopedNode *forNode) {
+        SymbolTable *scope = allScopes_[forNode];
+        if(scope == nullptr) {
+            ScopeInfo s_info = forNode->scopeInfo();
+            scope = new ScopeSymbolTable(s_info.storageKind, s_info.scopeName);
+    
+            allScopes_[forNode] = scope;
+        }
+        scopeStack_.emplace_back(scope);
+        return scope;
+    }
+    
+    SymbolTable *currentScope() {
+        return scopeStack_.back();
+    }
+    
+    void exitScope() {
+        scopeStack_.pop_back();
+    }
+    
+};
 
 }}}

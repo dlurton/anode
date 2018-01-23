@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "ScopeFollowingAstVisitor.h"
 
 #include "front/ErrorStream.h"

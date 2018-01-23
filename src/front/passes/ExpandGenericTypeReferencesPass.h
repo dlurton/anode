@@ -84,10 +84,6 @@ public:
             if(foundClassType == nullptr) {
                 auto &genericClass = world_.getGenericClassDefinition(genericType->astNodeId());
 
-                //FIXME:  the term "template arguments" seems to be rather overloaded here, since "TemplateArgVector" means
-                //something a bit different than typeRef.templateArg*s()
-                //May need to refactor some things so that they store TemplateArgument instead of TypeResolutionDeferredTypeRef...
-
                 //Constitute a proper array of TemplateArgument (which has name and typeRef)
                 ast::TemplateArgVector argVector;
                 argVector.reserve(templateArgTypes.size());
@@ -115,6 +111,7 @@ public:
                 }
                 ast::ExprStmt *expandedTemplate = expandedTemplateWrapper;
 
+                //TODO: set expandedTemplateWrapper->scope() to an instance of DelegateSymbolTable
                 expandedTemplateWrapper->scope().setParent(genericClass.symbol()->symbolTable());
 
                 module_.body().append(*expandedTemplate);

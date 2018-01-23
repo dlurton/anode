@@ -9,7 +9,7 @@ set(EXECUTE_SOURCE_FILES
         ${ANODE_INCLUDE_DIR}/front
         ExecutionContextImpl.cpp
         AnodeJit.h
-        llvm.h)
+        llvm.h ../include/anode/ast/AstVisitor.h)
 
 add_library(anode-execute ${EXECUTE_SOURCE_FILES})
 target_link_libraries(anode-execute anode-front anode-back anode-runtime ${LLVM_LIBS})

@@ -1,7 +1,7 @@
 
 #pragma once
 #include "front/scope.h"
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "front/ErrorStream.h"
 
 namespace anode { namespace front {

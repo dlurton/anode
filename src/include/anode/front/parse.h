@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ast.h"
+#include "ast/ast.h"
 #include <fstream>
 
 #include <string>

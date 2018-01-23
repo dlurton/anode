@@ -1,6 +1,6 @@
 
 #include "back/compile.h"
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "emit.h"
 #include "CompileContext.h"
 #include "CompileAstVisitor.h"

@@ -2,7 +2,7 @@
 
 #include "AnodeLexer.h"
 #include "PrattParser.h"
-#include "front/ast.h"
+#include "ast/ast.h"
 
 #include <functional>
 #include <fstream>

@@ -1,6 +1,6 @@
 
 #pragma once
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "front/ErrorStream.h"
 
 namespace anode { namespace front { namespace passes {

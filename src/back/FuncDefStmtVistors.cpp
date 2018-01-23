@@ -1,7 +1,7 @@
 
 
 #include "CompileAstVisitor.h"
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "emit.h"
 
 namespace anode { namespace back {

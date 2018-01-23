@@ -4,6 +4,9 @@ set(FRONT_SRC_FILES
         ${ANODE_INCLUDE_DIR}/front
         ${ANODE_INCLUDE_DIR}/front/type.h
         ${ANODE_INCLUDE_DIR}/front/ErrorStream.h
+        ${ANODE_INCLUDE_DIR}/ast/ast.h
+        ${ANODE_INCLUDE_DIR}/ast/AstVisitor.h
+        ${ANODE_INCLUDE_DIR}/ast/RewritingVisitor.h
         ast.cpp
         visualize.cpp
         type.cpp
@@ -38,7 +41,9 @@ set(FRONT_SRC_FILES
         passes/run_passes.h
         passes/PopulateGenericTypesWithCompleteTypesPass.h
         passes/ConvertGenericTypeRefsToCompletePass.h
-        passes/ExpandGenericTypeReferencesPass.h)
+        passes/ExpandGenericTypeReferencesPass.h
+
+        )
 
 
 

@@ -1,5 +1,5 @@
 
-#include "front/ast.h"
+#include "ast/ast.h"
 
 #include <atomic>
 
@@ -7,7 +7,7 @@ namespace anode { namespace front { namespace ast {
 
 unsigned long astNodesDestroyedCount = 0;
 
-AstNode::AstNode() : nodeId_{GetNextUniqueId()} {
+AstNode::AstNode(const source::SourceSpan &span) : nodeId_{GetNextUniqueId()}, sourceSpan_{span} {
 
 }
 

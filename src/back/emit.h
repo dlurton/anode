@@ -1,5 +1,5 @@
 
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "CompileContext.h"
 
 #pragma once

@@ -11,7 +11,7 @@ set(COMPILE_SOURCE_FILES
         llvm.h
         CompileAstVisitor.h
         emit.h
-        ExprStmtAstVisitor.cpp FuncDefStmtVistors.cpp GlobalVariableAstVisitor.h)
+        ExprStmtAstVisitor.cpp FuncDefStmtVistors.cpp GlobalVariableAstVisitor.h ../include/anode/ast/AstVisitor.h)
 
 add_library(anode-back ${COMPILE_SOURCE_FILES})
 target_link_libraries(anode-back anode-front ${LLVM_LIBS})

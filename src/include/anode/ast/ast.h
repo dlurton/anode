@@ -2,9 +2,9 @@
 
 #include "anode.h"
 #include "front/unique_id.h"
-#include "type.h"
-#include "scope.h"
-#include "source.h"
+#include "front/type.h"
+#include "front/scope.h"
+#include "front/source.h"
 
 #include <string>
 #include <functional>
@@ -14,139 +14,8 @@
 #include <iostream>
 #include <iterator>
 
+#include "AstVisitor.h"
 namespace anode { namespace front { namespace ast {
-
-class AstNode;
-class Stmt;
-class ExprStmt;
-class CompoundExpr;
-class ExpressionList;
-class ParameterDef;
-class FuncDefStmt;
-class FuncCallExpr;
-class ClassDefinition;
-class GenericClassDefinition;
-class CompleteClassDefinition;
-class MethodRefExpr;
-//class ReturnStmt;
-class IfExprStmt;
-class WhileExpr;
-class LiteralBoolExpr;
-class LiteralInt32Expr;
-class LiteralFloatExpr;
-class UnaryExpr;
-class BinaryExpr;
-class DotExpr;
-class VariableDeclExpr;
-class VariableRefExpr;
-class CastExpr;
-class NewExpr;
-class ResolutionDeferredTypeRef;
-class KnownTypeRef;
-class AssertExprStmt;
-class NamespaceExpr;
-class TemplateParameter;
-class AnonymousTemplateExprStmt;
-class NamedTemplateExprStmt;
-class TemplateExpansionExprStmt;
-class Module;
-class AnodeWorld;
-
-class AstVisitor : public gc {
-public:
-    virtual bool shouldVisitChildren() { return true; }
-
-    virtual void beforeAccept(AstNode &) { }
-    virtual void afterAccept(AstNode &) { }
-
-    //////////// Statements
-    virtual void visitingParameterDef(ParameterDef &) { }
-    virtual void visitedParameterDef(ParameterDef &) { }
-
-    virtual void visitingFuncDefStmt(FuncDefStmt &) { }
-    virtual void visitedFuncDeclStmt(FuncDefStmt &) { }
-
-    virtual void visitingFuncCallExpr(FuncCallExpr &) {  }
-    virtual void visitedFuncCallExpr(FuncCallExpr &) { }
-
-//    virtual void visitingClassDefinition(ClassDefinition &) { }
-//    virtual void visitedClassDefinition(ClassDefinition &) { }
-
-    virtual void visitingGenericClassDefinition(GenericClassDefinition &) { }
-    virtual void visitedGenericClassDefinition(GenericClassDefinition &) { }
-
-    virtual void visitingCompleteClassDefinition(CompleteClassDefinition &) { }
-    virtual void visitedCompleteClassDefinition(CompleteClassDefinition &) { }
-
-//    virtual void visitingReturnStmt(ReturnStmt &) { }
-//    virtual void visitedReturnStmt(ReturnStmt &) { }
-
-    //////////// Expressions
-    virtual void visitingAssertExprStmt(AssertExprStmt &) { }
-    virtual void visitedAssertExprStmt(AssertExprStmt &) { }
-
-    virtual void visitingVariableDeclExpr(VariableDeclExpr &) { }
-    virtual void visitedVariableDeclExpr(VariableDeclExpr &) { }
-
-    virtual void visitingIfExpr(IfExprStmt &) { }
-    virtual void visitedIfExpr(IfExprStmt &) { }
-
-    virtual void visitingWhileExpr(WhileExpr &) { }
-    virtual void visitedWhileExpr(WhileExpr &) { }
-
-    virtual void visitingBinaryExpr(BinaryExpr &) { }
-    virtual void visitedBinaryExpr(BinaryExpr &) { }
-
-    virtual void visitingUnaryExpr(UnaryExpr &) { }
-    virtual void visitedUnaryExpr(UnaryExpr &) { }
-
-    virtual void visitLiteralBoolExpr(LiteralBoolExpr &) { }
-
-    virtual void visitLiteralInt32Expr(LiteralInt32Expr &) { }
-
-    virtual void visitLiteralFloatExpr(LiteralFloatExpr &) { }
-
-    virtual void visitVariableRefExpr(VariableRefExpr &) { }
-
-    virtual void visitMethodRefExpr(MethodRefExpr &) { }
-
-    virtual void visitingCastExpr(CastExpr &) { }
-    virtual void visitedCastExpr(CastExpr &) { }
-
-    virtual void visitingNewExpr(NewExpr &) { }
-    virtual void visitedNewExpr(NewExpr &) { }
-
-    virtual void visitingDotExpr(DotExpr &) { }
-    virtual void visitedDotExpr(DotExpr &) { }
-
-    virtual void visitingCompoundExpr(CompoundExpr &) { }
-    virtual void visitedCompoundExpr(CompoundExpr &) { }
-
-    virtual void visitingExpressionList(ExpressionList &) { }
-    virtual void visitedExpressionList(ExpressionList &) { }
-
-    virtual void visitingNamespaceExpr(NamespaceExpr &) { }
-    virtual void visitedNamespaceExpr(NamespaceExpr &) { }
-
-    virtual void visitingNamedTemplateExprStmt(NamedTemplateExprStmt &) { }
-    virtual void visitedNamedTemplateExprStmt(NamedTemplateExprStmt &) { }
-
-    virtual void visitingAnonymousTemplateExprStmt(AnonymousTemplateExprStmt &) { }
-    virtual void visitedAnonymousTemplateExprStmt(AnonymousTemplateExprStmt &) { }
-
-    virtual void visitingTemplateExpansionExprStmt(TemplateExpansionExprStmt &) { }
-    virtual void visitedTemplateExpansionExprStmt(TemplateExpansionExprStmt &) { }
-
-    //////////// Misc
-    virtual void visitedResolutionDeferredTypeRef(ResolutionDeferredTypeRef &) { }
-
-    virtual void visitKnownTypeRef(KnownTypeRef &) { }
-
-    virtual void visitTemplateParameter(TemplateParameter &) { }
-    virtual void visitingModule(Module &) { }
-
-    virtual void visitedModule(Module &) { }
-};
 
 
 extern unsigned long astNodesDestroyedCount;
@@ -234,20 +103,27 @@ public:
 /** Base class for all nodes */
 class AstNode : public Object {
     UniqueId nodeId_;
+    const source::SourceSpan sourceSpan_;
+    
     AstNode *parent_ = nullptr;
+    
 protected:
 
     /** This method should *never* be invoked directly--only thru acceptVisitor(). */
     virtual void accept(AstVisitor &visitor) = 0;
 public:
     //NO_COPY_NO_ASSIGN(AstNode)
-    AstNode();
-    AstNode(const AstNode &) : AstNode(){ }
+    AstNode(const source::SourceSpan &span);
+    AstNode(const AstNode &n) : AstNode(n.sourceSpan_){ }
 
     virtual ~AstNode() {
         astNodesDestroyedCount++;
     }
-
+    
+    const source::SourceSpan &sourceSpan() const {
+        return sourceSpan_;
+    }
+    
     UniqueId nodeId() const { return nodeId_; }
 
     AstNode &parent() const {
@@ -266,34 +142,12 @@ public:
     }
 };
 
-/** A statement any kind of non-terminal that may appear within a CompoundStatement (i.e. between { and }), or
- * at the global scope, i.e. global variables, assignments, class definitions,
- */
-class Stmt : public AstNode {
-protected:
-    const source::SourceSpan sourceSpan_;
-    explicit Stmt(const source::SourceSpan &sourceSpan) : sourceSpan_(sourceSpan) { }
-    explicit Stmt(const Stmt &from) : AstNode(from), sourceSpan_{from.sourceSpan_} {}
-public:
-    //virtual StmtKind stmtKind() const = 0;
-
-    const source::SourceSpan &sourceSpan() const {
-        return sourceSpan_;
-    }
-};
 
 /** AST node representing a reference to a data type. */
 class TypeRef : public AstNode {
-    source::SourceSpan sourceSpan_;
 protected:
-    TypeRef(const source::SourceSpan &sourceSpan) : sourceSpan_{sourceSpan} { }
+    TypeRef(const source::SourceSpan &sourceSpan) : AstNode{sourceSpan} { }
 public:
-    source::SourceSpan sourceSpan() const {
-
-
-        return sourceSpan_;
-    }
-
     virtual type::Type &type() const = 0;
     virtual const MultiPartIdentifier &name() const = 0;
     virtual TypeRef &deepCopyForTemplate() const = 0;
@@ -407,10 +261,10 @@ public:
 };
 
 typedef gc_ref_vector<TemplateArgument> TemplateArgVector;
-class TemplateParameter : public Stmt {
+class TemplateParameter : public AstNode {
     const Identifier name_;
 public:
-    TemplateParameter(const source::SourceSpan &sourceSpan, const Identifier &name) : Stmt(sourceSpan), name_{name} { }
+    TemplateParameter(const source::SourceSpan &sourceSpan, const Identifier &name) : AstNode(sourceSpan), name_{name} { }
 
     const Identifier &name() const { return name_; }
 
@@ -419,7 +273,7 @@ public:
     }
 
     TemplateParameter &deepCopyForTemplate() const {
-        return *new TemplateParameter(sourceSpan_, name());
+        return *new TemplateParameter(sourceSpan(), name());
     }
 };
 
@@ -438,10 +292,10 @@ struct TemplateExpansionContext {
 
 
 /** Base class for all expressions. */
-class ExprStmt : public Stmt {
+class ExprStmt : public AstNode {
 protected:
-    explicit ExprStmt(const source::SourceSpan &sourceSpan) : Stmt(sourceSpan) { }
-    explicit ExprStmt(const ExprStmt &from) : Stmt(from) { }
+    explicit ExprStmt(const source::SourceSpan &sourceSpan) : AstNode(sourceSpan) { }
+    explicit ExprStmt(const ExprStmt &from) : AstNode(from) { }
 public:
     ~ExprStmt() override = default;
 
@@ -505,14 +359,14 @@ public:
         for(ExprStmt &exprStmt : expressions_) {
             clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(expansionContext));
         }
-        return *new ExpressionList(sourceSpan_, clonedExprs);
+        return *new ExpressionList(sourceSpan(), clonedExprs);
     }
 };
 
 /** Contains a series of expressions within a lexical scope, i.e. those contained within { and }.
  * TODO: inherit from ExpressionList? */
 class CompoundExpr : public ExprStmt {
-    scope::ScopeSymbolTable scope_;
+    scope::SymbolTable *scope_;
     gc_ref_vector<ExprStmt> expressions_;
 public:
     CompoundExpr(
@@ -520,14 +374,22 @@ public:
         scope::StorageKind storageKind,
         const gc_ref_vector<ExprStmt> &expressions,
         const std::string &scopeName)
+        : CompoundExpr(sourceSpan, expressions, new scope::ScopeSymbolTable(storageKind, scopeName))
+    {
+
+    }
+    CompoundExpr(
+        source::SourceSpan sourceSpan,
+        const gc_ref_vector<ExprStmt> &expressions,
+        scope::SymbolTable *symbolTable)
         : ExprStmt(sourceSpan),
-          scope_{storageKind, scopeName},
+          scope_{symbolTable},
           expressions_{expressions}
     {
 
     }
 
-    scope::SymbolTable &scope() { return scope_; }
+    scope::SymbolTable &scope() { return *scope_; }
 
     type::Type &exprType() const override {
         ASSERT(expressions_.size() > 0);
@@ -564,7 +426,7 @@ public:
         for(ExprStmt &exprStmt : expressions_) {
             clonedExprs.emplace_back(exprStmt.deepCopyExpandTemplate(expansionContext));
         }
-        return *new CompoundExpr(sourceSpan_, scope_.storageKind(), clonedExprs, scope_.name());
+        return *new CompoundExpr(sourceSpan(), scope_->storageKind(), clonedExprs, scope_->name());
     }
 
 };
@@ -603,7 +465,7 @@ public:
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<TemplateParameter> copiedParameters = deepCopyTemplateParameters();
         auto &copiedBody = body_.deepCopyExpandTemplate(expansionContext);
-        return *new AnonymousTemplateExprStmt(sourceSpan_, copiedParameters, copiedBody);
+        return *new AnonymousTemplateExprStmt(sourceSpan(), copiedParameters, copiedBody);
     }
 
     void accept(AstVisitor &visitor) override {
@@ -639,7 +501,7 @@ public:
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         gc_ref_vector<ast::TemplateParameter> copiedParameters = deepCopyTemplateParameters();
         auto &copiedBody = body_.deepCopyExpandTemplate(expansionContext);
-        return *new NamedTemplateExprStmt(sourceSpan_, name_, copiedParameters,
+        return *new NamedTemplateExprStmt(sourceSpan(), name_, copiedParameters,
                                      upcast<ExpressionList>(copiedBody));
     }
 
@@ -711,7 +573,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
-        return *new TemplateExpansionExprStmt(sourceSpan_, templateName_, deepCopyVector(typeArguments_));
+        return *new TemplateExpansionExprStmt(sourceSpan(), templateName_, deepCopyVector(typeArguments_));
     }
 };
 
@@ -731,7 +593,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
-        return *new LiteralBoolExpr(sourceSpan_, value_);
+        return *new LiteralBoolExpr(sourceSpan(), value_);
     }
 };
 
@@ -750,7 +612,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
-        return *new LiteralInt32Expr(sourceSpan_, value_);
+        return *new LiteralInt32Expr(sourceSpan(), value_);
     }
 };
 
@@ -770,7 +632,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
-        return *new LiteralFloatExpr(sourceSpan_, value_);
+        return *new LiteralFloatExpr(sourceSpan(), value_);
     }
 
 };
@@ -819,7 +681,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new UnaryExpr(sourceSpan_, valueExpr_->deepCopyExpandTemplate(expansionContext), operation_, operatorSpan_);
+        return *new UnaryExpr(sourceSpan(), valueExpr_->deepCopyExpandTemplate(expansionContext), operation_, operatorSpan_);
     }
 };
 
@@ -953,7 +815,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new BinaryExpr(sourceSpan_,
+        return *new BinaryExpr(sourceSpan(),
                               lValue_->deepCopyExpandTemplate(expansionContext),
                               operation_,
                               operatorSpan_,
@@ -1095,7 +957,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new CastExpr(sourceSpan_, toType_.deepCopyForTemplate(), valueExpr_.deepCopyExpandTemplate(expansionContext), castKind_);
+        return *new CastExpr(sourceSpan(), toType_.deepCopyForTemplate(), valueExpr_.deepCopyExpandTemplate(expansionContext), castKind_);
     }
 };
 
@@ -1126,7 +988,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &) const override {
-        return *new NewExpr(sourceSpan_, typeRef_.deepCopyForTemplate());
+        return *new NewExpr(sourceSpan(), typeRef_.deepCopyForTemplate());
     }
 };
 
@@ -1184,7 +1046,7 @@ public:
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         return *new IfExprStmt(
-            sourceSpan_,
+            sourceSpan(),
             condition_->deepCopyExpandTemplate(expansionContext),
             thenExpr_->deepCopyExpandTemplate(expansionContext),
             elseExpr_ ? &elseExpr_->deepCopyExpandTemplate(expansionContext) : nullptr);
@@ -1229,22 +1091,20 @@ public:
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         return *new WhileExpr(
-            sourceSpan_,
+            sourceSpan(),
             condition_->deepCopyExpandTemplate(expansionContext),
             body_.deepCopyExpandTemplate(expansionContext));
     }
 };
 
 class ParameterDef : public AstNode {
-    source::SourceSpan span_;
     const Identifier name_;
     TypeRef& typeRef_;
     scope::VariableSymbol *symbol_ = nullptr;
 public:
     ParameterDef(source::SourceSpan span, const Identifier &name, TypeRef &typeRef)
-        : span_{span}, name_{name}, typeRef_{typeRef} { }
+        : AstNode(span), name_{name}, typeRef_{typeRef} { }
 
-    source::SourceSpan span() { return span_; }
     const Identifier &name() { return name_; }
     type::Type &type() { return typeRef_.type(); }
     TypeRef &typeRef() { return typeRef_; }
@@ -1265,7 +1125,7 @@ public:
 
     ParameterDef &deepCopy() {
         //I'm not sure that the typeRef_ really needs to be copied.
-        return *new ParameterDef(span_, name_, typeRef_.deepCopyForTemplate());
+        return *new ParameterDef(sourceSpan(), name_, typeRef_.deepCopyForTemplate());
     }
 };
 type::FunctionType &createFunctionType(type::Type &returnType, const gc_ref_vector<ParameterDef> &parameters);
@@ -1335,7 +1195,7 @@ public:
         for(ParameterDef &p : parameters_) {
             clonedParameters.emplace_back(p.deepCopy());
         }
-        return *new FuncDefStmt(sourceSpan_,
+        return *new FuncDefStmt(sourceSpan(),
                                name_,
                                returnTypeRef_.deepCopyForTemplate(),
                                clonedParameters,
@@ -1434,7 +1294,7 @@ public:
         for(ExprStmt &a : arguments_) {
             clonedArguments.emplace_back(a.deepCopyExpandTemplate(expansionContext));
         }
-        return *new FuncCallExpr(sourceSpan_,
+        return *new FuncCallExpr(sourceSpan(),
                                  (instanceExpr_ ? &instanceExpr_->deepCopyExpandTemplate(expansionContext) : nullptr),
                                 openParenSpan_,
                                 funcExpr_.deepCopyExpandTemplate(expansionContext),
@@ -1473,7 +1333,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new NamespaceExpr(sourceSpan_, qualifiedName_, upcast<ExpressionList>(body_.deepCopyExpandTemplate(expansionContext)));
+        return *new NamespaceExpr(sourceSpan(), qualifiedName_, upcast<ExpressionList>(body_.deepCopyExpandTemplate(expansionContext)));
     }
 };
 
@@ -1558,7 +1418,7 @@ public:
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
         //Only once inside an expanded template, a generic class not generic anymore.
         auto &completeClassDef = *new CompleteClassDefinition(
-            sourceSpan_,
+            sourceSpan(),
             name(),
             templateArguments_,
             upcast<CompoundExpr>(body().deepCopyExpandTemplate(expansionContext)));
@@ -1623,7 +1483,7 @@ public:
         switch(expansionContext.expansionKind) {
             case ExpansionKind::AnonymousTemplate: {
                 auto &completeClassDef = *new CompleteClassDefinition(
-                    sourceSpan_,
+                    sourceSpan(),
                     name(),
                     expansionContext.args,
                     upcast<CompoundExpr>(body().deepCopyExpandTemplate(expansionContext)));
@@ -1638,7 +1498,7 @@ public:
         }
         //Only once inside an expanded template, a generic class is not generic anymore so construct CompleteClassDefinition
         auto &completeClassDef = *new CompleteClassDefinition(
-            sourceSpan_,
+            sourceSpan(),
             name(),
             expansionContext.args,
             upcast<CompoundExpr>(body().deepCopyExpandTemplate(expansionContext)));
@@ -1692,7 +1552,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new DotExpr(sourceSpan_, dotSourceSpan_, lValue_.deepCopyExpandTemplate(expansionContext), memberName_);
+        return *new DotExpr(sourceSpan(), dotSourceSpan_, lValue_.deepCopyExpandTemplate(expansionContext), memberName_);
     }
 };
 
@@ -1718,7 +1578,7 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new AssertExprStmt(sourceSpan_, condition_->deepCopyExpandTemplate(expansionContext));
+        return *new AssertExprStmt(sourceSpan(), condition_->deepCopyExpandTemplate(expansionContext));
     }
 };
 
@@ -1728,7 +1588,7 @@ class Module : public AstNode {
     //gc_unordered_map<std::string, TemplateExprStmt*> templates_;
 public:
     Module(const std::string &name, CompoundExpr& body)
-        : name_{name}, body_{body} {
+        : AstNode(body.sourceSpan()), name_{name}, body_{body} {
     }
 
     std::string name() const { return name_; }

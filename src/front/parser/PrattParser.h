@@ -1,6 +1,6 @@
 
 #include "AnodeLexer.h"
-#include "front/ast.h"
+#include "ast/ast.h"
 #include "front/parse.h"
 
 #pragma once

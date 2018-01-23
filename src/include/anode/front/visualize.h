@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ast.h"
+#include "ast/ast.h"
 
 namespace anode { namespace front {  namespace visualize {
 

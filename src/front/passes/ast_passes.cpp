@@ -61,7 +61,6 @@ public:
     }
 };
 
-
 bool runPasses(
     const gc_ref_vector<ast::AstVisitor> &visitors,
     ast::AstNode &node,

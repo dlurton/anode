@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ast.h"
+#include "ast/ast.h"
 #include "ErrorStream.h"
 #include "common/containers.h"
 

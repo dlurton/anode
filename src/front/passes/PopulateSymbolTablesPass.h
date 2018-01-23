@@ -55,7 +55,7 @@ public:
                 if (funcDeclStmt.parameterScope().findSymbolInCurrentScope(p.get().name().text())) {
                     errorStream_.error(
                         error::ErrorKind::SymbolAlreadyDefinedInScope,
-                        p.get().span(),
+                        p.get().sourceSpan(),
                         "Duplicate parameter name '%s'",
                         p.get().name().text().c_str());
                 } else {
