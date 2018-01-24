@@ -93,8 +93,8 @@ public:
                     argVector.emplace_back(*new ast::TemplateArgument(argNames[i].get().name(), argTypeRefs[i]));
                 }
                 ast::TemplateExpansionContext context{ast::ExpansionKind::AnonymousTemplate, argVector};
-                auto &completedClass = upcast<ast::ClassDefinition>(genericClass.deepCopyExpandTemplate(context));
-                genericType->addExpandedClass(templateArgTypes, upcast<type::ClassType>(completedClass.definedType()));
+                auto &completedClass = downcast<ast::ClassDefinition>(genericClass.deepCopyExpandTemplate(context));
+                genericType->addExpandedClass(templateArgTypes, downcast<type::ClassType>(completedClass.definedType()));
 
 
                 gc_ref_vector<ast::ExprStmt> compoundExprBody;

@@ -17,7 +17,7 @@ public:
     void visitedResolutionDeferredTypeRef(ast::ResolutionDeferredTypeRef &typeRef) override {
         if(typeRef.type().isGeneric()) {
             gc_ref_vector<type::Type> templateArgs = typeRef.resolutionDeferredType()->typeArguments();
-            auto genericType = upcast<type::GenericType>(typeRef.type().actualType());
+            auto genericType = downcast<type::GenericType>(typeRef.type().actualType());
             if(genericType->templateParameterCount() != (int)templateArgs.size()) {
                 errorStream_.error(
                     error::ErrorKind::IncorrectNumberOfGenericArguments,

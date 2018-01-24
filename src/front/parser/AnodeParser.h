@@ -399,7 +399,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt &parseNamespace(Token &namespaceKeyword) {
         ast::MultiPartIdentifier namespaceId = parseQualifiedIdentifier();
-        auto &body = upcast<ast::ExpressionListStmt>(parseExpressionList());
+        auto &body = downcast<ast::ExpressionListStmt>(parseExpressionList());
         return *new ast::NamespaceExprStmt(
             makeSourceSpan(namespaceKeyword.span(), body.sourceSpan()),
             namespaceId,
@@ -413,7 +413,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters(TemplateParameterRequirement::Optional);
 
         templateParameterStack_.emplace_back(parameters);
-        auto &&body = upcast<ast::ExpressionListStmt>(parseExpressionList());
+        auto &&body = downcast<ast::ExpressionListStmt>(parseExpressionList());
         templateParameterStack_.pop_back();
 
         return *new ast::NamedTemplateExprStmt(

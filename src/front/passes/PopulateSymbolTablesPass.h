@@ -80,7 +80,7 @@ public:
     }
 
     void visitingAnonymousTemplateExprStmt(ast::AnonymousTemplateExprStmt &templ) override {
-        auto cd = upcast<ast::GenericClassDefExprStmt>(&templ.body());
+        auto cd = downcast<ast::GenericClassDefExprStmt>(&templ.body());
         if (currentScope().findSymbolInCurrentScope(cd->name().text())) {
             symbolPreviouslyDefinedError(cd->name());
         } else {

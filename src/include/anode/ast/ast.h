@@ -234,7 +234,7 @@ public:
     TypeRef& deepCopyForTemplate() const override {
         gc_ref_vector<ResolutionDeferredTypeRef> templateArgs;
         for(ResolutionDeferredTypeRef &ta : templateArgs_) {
-            templateArgs.emplace_back(upcast<ResolutionDeferredTypeRef>(ta.deepCopyForTemplate()));
+            templateArgs.emplace_back(downcast<ResolutionDeferredTypeRef>(ta.deepCopyForTemplate()));
         }
 
         return *new ResolutionDeferredTypeRef(sourceSpan(), name_, templateArgs);
@@ -502,7 +502,7 @@ public:
         gc_ref_vector<ast::TemplateParameter> copiedParameters = deepCopyTemplateParameters();
         auto &copiedBody = body_.deepCopyExpandTemplate(expansionContext);
         return *new NamedTemplateExprStmt(sourceSpan(), name_, copiedParameters,
-                                     upcast<ExpressionListStmt>(copiedBody));
+                                          downcast<ExpressionListStmt>(copiedBody));
     }
 
     void accept(AstVisitor &visitor) override {
@@ -1259,7 +1259,7 @@ public:
     bool canWrite() const override { return false; };
 
     type::Type &exprType() const override {
-        auto &functionType = upcast<type::FunctionType>(funcExpr_.exprType());
+        auto &functionType = downcast<type::FunctionType>(funcExpr_.exprType());
         return *functionType.returnType();
     }
 
@@ -1333,7 +1333,8 @@ public:
     }
 
     ExprStmt &deepCopyExpandTemplate(const TemplateExpansionContext &expansionContext) const override {
-        return *new NamespaceExprStmt(sourceSpan(), qualifiedName_, upcast<ExpressionListStmt>(body_.deepCopyExpandTemplate(expansionContext)));
+        return *new NamespaceExprStmt(sourceSpan(), qualifiedName_,
+                                      downcast<ExpressionListStmt>(body_.deepCopyExpandTemplate(expansionContext)));
     }
 };
 
@@ -1395,7 +1396,7 @@ public:
     bool hasTemplateArguments() { return !templateArguments_.empty(); }
 
     void populateClassType() {
-        auto &ct = upcast<type::ClassType>(definedType_);
+        auto &ct = downcast<type::ClassType>(definedType_);
 
         for (auto &&variable : this->body().scope().variables()) {
             ct.addField(variable.get().name(), variable.get().type());
@@ -1420,8 +1421,7 @@ public:
         auto &completeClassDef = *new CompleteClassDefExprStmt(
             sourceSpan(),
             name(),
-            templateArguments_,
-            upcast<CompoundExprStmt>(body().deepCopyExpandTemplate(expansionContext)));
+            templateArguments_, downcast<CompoundExprStmt>(body().deepCopyExpandTemplate(expansionContext)));
 
         return completeClassDef;
     }
@@ -1485,10 +1485,9 @@ public:
                 auto &completeClassDef = *new CompleteClassDefExprStmt(
                     sourceSpan(),
                     name(),
-                    expansionContext.args,
-                    upcast<CompoundExprStmt>(body().deepCopyExpandTemplate(expansionContext)));
-
-                upcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
+                    expansionContext.args, downcast<CompoundExprStmt>(body().deepCopyExpandTemplate(expansionContext)));
+    
+                downcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
                 return completeClassDef;
             }
             case ExpansionKind::NamedTemplate:
@@ -1500,10 +1499,9 @@ public:
         auto &completeClassDef = *new CompleteClassDefExprStmt(
             sourceSpan(),
             name(),
-            expansionContext.args,
-            upcast<CompoundExprStmt>(body().deepCopyExpandTemplate(expansionContext)));
-
-        upcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
+            expansionContext.args, downcast<CompoundExprStmt>(body().deepCopyExpandTemplate(expansionContext)));
+    
+        downcast<type::ClassType>(completeClassDef.definedType()).setGenericType(definedType_);
 
         return completeClassDef;
     }

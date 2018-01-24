@@ -20,12 +20,12 @@ class PopulateGenericTypesWithCompleteTypesPass : public ErrorContextAstVisitor 
             : ScopeFollowingAstVisitor(errorStream), templateArguments_(templateArgs) { }
 
         void beforeVisit(ast::CompleteClassDefExprStmt &cd) override {
-            auto genericType = upcast<type::ClassType>(cd.definedType()).genericType();
+            auto genericType = downcast<type::ClassType>(cd.definedType()).genericType();
             if(genericType) {
                 if (genericType->findExpandedClassType(templateArguments_)) {
                     return;
                 }
-                genericType->addExpandedClass(templateArguments_, upcast<type::ClassType>(cd.definedType()));
+                genericType->addExpandedClass(templateArguments_, downcast<type::ClassType>(cd.definedType()));
             }
         }
     };

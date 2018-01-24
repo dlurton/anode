@@ -87,10 +87,10 @@ bool isInstanceOf(Object &node) {
 }
 
 template<typename TObject>
-TObject *upcast(Object *node) {
+TObject *downcast(Object *node) {
     TObject *upcasted = dynamic_cast<TObject*>(node);
     if(!upcasted){
-        ASSERT_FAIL("Attempted to perform an invalid upcast");
+        ASSERT_FAIL("Attempted to perform an invalid downcast");
     }
 
     return upcasted;
@@ -98,10 +98,10 @@ TObject *upcast(Object *node) {
 
 
 template<typename TObject>
-TObject &upcast(Object &node) {
+TObject &downcast(Object &node) {
     TObject *upcasted = dynamic_cast<TObject*>(&node);
     if(!upcasted){
-        ASSERT_FAIL("Attempted to perform an invalid upcast");
+        ASSERT_FAIL("Attempted to perform an invalid downcast");
     }
 
     return *upcasted;
