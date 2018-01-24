@@ -551,7 +551,7 @@ public:
           typeArguments_{typeArguments},
           templateParameterScope_{scope::StorageKind::TemplateParameter, templateName.qualifedName() + scope::ScopeSeparator + "expanded_arguments"}
     { }
-    virtual ExprStmtKind exprStmtKind() override { return ExprStmtKind::AnonymousTemplate; }
+    virtual ExprStmtKind exprStmtKind() override { return ExprStmtKind::TemplateExpansion; }
     
     bool canWrite() const override { return false; }
     type::Type &exprType() const override {

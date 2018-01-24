@@ -3,6 +3,9 @@
 #include "front/parse.h"
 #include "parser/AnodeParser.h"
 
+#ifdef ANODE_DEBUG
+#include "ast/AstRewriter.h"
+#endif
 
 namespace anode { namespace front {
 
@@ -21,7 +24,13 @@ namespace anode { namespace front {
             throw ParseAbortedException("Parse aborted.");
         }
 
+#ifdef ANODE_DEBUG
+        //Use the plain AstRewriter which just copies the AST to verify that it's working correctly.
+        front::ast::AstRewriter rewriter;
+        return *rewriter.visitModule(&module);
+#else
         return module;
+#endif
     }
 
     ast::Module &parseModule(const std::string &filename)

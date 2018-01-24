@@ -26,7 +26,6 @@ enum class ExprStmtKind {
     VariableRef,
     Cast,
     New,
-    Known,
     Assert,
     Namespace,
     AnonymousTemplate,
