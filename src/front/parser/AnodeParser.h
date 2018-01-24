@@ -130,7 +130,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         ast::MultiPartIdentifier identifier = parseQualifiedIdentifier(firstPart);
         if(consumeOptional(TokenKind::OP_DEF)) {
             ast::ResolutionDeferredTypeRef &typeRef = parseTypeRef();
-            return *new ast::VariableDeclExpr(
+            return *new ast::VariableDeclExprStmt(
                 makeSourceSpan(firstPart.span(), typeRef.sourceSpan()),
                 identifier,
                 typeRef);
@@ -181,11 +181,11 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         Token *openCurly = consumeOptional(TokenKind::OPEN_CURLY);
         if (openCurly) {
             Token &closeCurly = parseUntilCloseCurly(stmts);
-            return *new ast::ExpressionListStmt(makeSourceSpan(openCurly->span(), closeCurly.span()), stmts);
+            return *new ast::ExpressionListExprStmt(makeSourceSpan(openCurly->span(), closeCurly.span()), stmts);
         } else {
             ast::ExprStmt &expr = parseExpr();
             stmts.emplace_back(expr);
-            return *new ast::ExpressionListStmt(expr.sourceSpan(), stmts);
+            return *new ast::ExpressionListExprStmt(expr.sourceSpan(), stmts);
         }
     }
 
@@ -205,7 +205,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         ast::ExprStmt &valueExpr = parseExpr();
         Token &closeParen = consumeCloseParen();
 
-        return *new ast::CastExprStmtStmt(
+        return *new ast::CastExprStmt(
             makeSourceSpan(castKeyword.span(), closeParen.span()),
             typeRef,
             valueExpr,
@@ -399,7 +399,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
 
     ast::ExprStmt &parseNamespace(Token &namespaceKeyword) {
         ast::MultiPartIdentifier namespaceId = parseQualifiedIdentifier();
-        auto &body = downcast<ast::ExpressionListStmt>(parseExpressionList());
+        auto &body = downcast<ast::ExpressionListExprStmt>(parseExpressionList());
         return *new ast::NamespaceExprStmt(
             makeSourceSpan(namespaceKeyword.span(), body.sourceSpan()),
             namespaceId,
@@ -413,7 +413,7 @@ class AnodeParser : public PrattParser<ast::ExprStmt> {
         gc_ref_vector<ast::TemplateParameter> parameters = parseTemplateParameters(TemplateParameterRequirement::Optional);
 
         templateParameterStack_.emplace_back(parameters);
-        auto &&body = downcast<ast::ExpressionListStmt>(parseExpressionList());
+        auto &&body = downcast<ast::ExpressionListExprStmt>(parseExpressionList());
         templateParameterStack_.pop_back();
 
         return *new ast::NamedTemplateExprStmt(

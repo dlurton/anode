@@ -12,7 +12,7 @@ class CastExprSemanticPass : public ErrorContextAstVisitor {
 public:
     explicit CastExprSemanticPass(error::ErrorStream &errorStream) : ErrorContextAstVisitor(errorStream) { }
 
-    void visitingCastExprStmt(ast::CastExprStmtStmt &expr) override {
+    void visitingCastExprStmt(ast::CastExprStmt &expr) override {
         //Note:  we are not excluding implicit casts here...
         //This is a form of "double-checking" the AddImplicitCastsVisitor that we
         //get for free as long as we don't exclude implicit casts.

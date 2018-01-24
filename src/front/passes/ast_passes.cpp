@@ -1,5 +1,7 @@
 #include "front/ast_passes.h"
 
+#include "ast/AstRewriter.h"
+
 #include "ScopeFollowingAstVisitor.h"
 #include "PopulateSymbolTablesPass.h"
 #include "AddImplicitCastsPass.h"

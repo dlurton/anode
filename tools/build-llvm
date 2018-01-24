@@ -14,7 +14,7 @@ LLVM_SRC_DIR=$SCRATCH_DIR/llvm
 LLVM_CMAKE_DIR=$SCRATCH_DIR/${ANODE_BUILD_TYPE,,}/llvm-cmake
 
 if [ "$LLVM_BRANCH" = "" ]; then
-    LLVM_BRANCH=master
+    LLVM_BRANCH=release_60
 fi
 
 

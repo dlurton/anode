@@ -3,6 +3,7 @@
 #include <chrono>
 #include "catch.hpp"
 #include <front/parse.h>
+#include <ast/AstRewriter.h>
 
 namespace anode { namespace test_util {
 
@@ -31,6 +32,11 @@ std::vector<anode::execute::StmtResult> testWithResults(std::shared_ptr<execute:
     } catch(anode::front::ParseAbortedException&) {
         FAIL("Parse aborted.");
     }
+    
+    //Pass the resulting AST through AstRerwiter just as a test to make sure it works correctly.
+    front::ast::AstRewriter rewriter;
+    module = rewriter.visitModule(module);
+    
 
     if(executionContext->prepareModule(module)) {
         FAIL("Module preparation failed.");

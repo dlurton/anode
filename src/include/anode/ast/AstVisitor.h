@@ -1,40 +1,10 @@
 #pragma once
 
+#include "ast_forward_decls.h"
+
 namespace anode { namespace front { namespace ast {
 
-class AstNode;
-class ExprStmt;
-class CompoundExprStmt;
-class ExpressionListStmt;
-class ParameterDef;
-class FuncDefExprStmt;
-class FuncCallExprStmt;
-class ClassDefinition;
-class GenericClassDefExprStmt;
-class CompleteClassDefExprStmt;
-class MethodRefExprStmt;
-class IfExprStmt;
-class WhileExprStmt;
-class LiteralBoolExprStmt;
-class LiteralInt32ExprStmt;
-class LiteralFloatExprStmt;
-class UnaryExprStmt;
-class BinaryExprStmt;
-class DotExprStmt;
-class VariableDeclExpr;
-class VariableRefExprStmt;
-class CastExprStmtStmt;
-class NewExprStmt;
-class ResolutionDeferredTypeRef;
-class KnownTypeRef;
-class AssertExprStmt;
-class NamespaceExprStmt;
-class TemplateParameter;
-class AnonymousTemplateExprStmt;
-class NamedTemplateExprStmt;
-class TemplateExpansionExprStmt;
-class Module;
-class AnodeWorld;
+
 
 class AstVisitor : public gc {
 public:
@@ -63,8 +33,8 @@ public:
     virtual void visitingAssertExprStmt(AssertExprStmt &) { }
     virtual void visitedAssertExprStmt(AssertExprStmt &) { }
     
-    virtual void beforeVisit(VariableDeclExpr &) { }
-    virtual void visitedVariableDeclExpr(VariableDeclExpr &) { }
+    virtual void beforeVisit(VariableDeclExprStmt &) { }
+    virtual void visitedVariableDeclExpr(VariableDeclExprStmt &) { }
     
     virtual void beforeVisit(IfExprStmt &) { }
     virtual void visitedIfExpr(IfExprStmt &) { }
@@ -88,8 +58,8 @@ public:
     
     virtual void visitMethodRefExpr(MethodRefExprStmt &) { }
     
-    virtual void visitingCastExprStmt(CastExprStmtStmt &) { }
-    virtual void visitedCastExprStmt(CastExprStmtStmt &) { }
+    virtual void visitingCastExprStmt(CastExprStmt &) { }
+    virtual void visitedCastExprStmt(CastExprStmt &) { }
     
     virtual void visitingNewExpr(NewExprStmt &) { }
     virtual void visitedNewExpr(NewExprStmt &) { }
@@ -100,8 +70,8 @@ public:
     virtual void visitingCompoundExpr(CompoundExprStmt &) { }
     virtual void visitedCompoundExpr(CompoundExprStmt &) { }
     
-    virtual void visitingExpressionList(ExpressionListStmt &) { }
-    virtual void visitedExpressionList(ExpressionListStmt &) { }
+    virtual void visitingExpressionList(ExpressionListExprStmt &) { }
+    virtual void visitedExpressionList(ExpressionListExprStmt &) { }
     
     virtual void visitingNamespaceExpr(NamespaceExprStmt &) { }
     virtual void visitedNamespaceExpr(NamespaceExprStmt &) { }

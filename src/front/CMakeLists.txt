@@ -6,7 +6,7 @@ set(FRONT_SRC_FILES
         ${ANODE_INCLUDE_DIR}/front/ErrorStream.h
         ${ANODE_INCLUDE_DIR}/ast/ast.h
         ${ANODE_INCLUDE_DIR}/ast/AstVisitor.h
-        ${ANODE_INCLUDE_DIR}/ast/RewritingVisitor.h
+        ../include/anode/ast/AstRewriter.h
         ast.cpp
         visualize.cpp
         type.cpp
@@ -43,7 +43,7 @@ set(FRONT_SRC_FILES
         passes/ConvertGenericTypeRefsToCompletePass.h
         passes/ExpandGenericTypeReferencesPass.h
 
-        )
+        ../include/anode/ast/ast_forward_decls.h)
 
 
 

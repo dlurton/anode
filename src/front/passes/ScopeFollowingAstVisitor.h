@@ -56,7 +56,7 @@ public:
     
     }
     
-    void beforeVisit(ast::VariableDeclExpr &expr) override {
+    void beforeVisit(ast::VariableDeclExprStmt &expr) override {
         //This member function looks like it doesn't do anything but just try to remove it I dare you.
         ErrorContextAstVisitor::beforeVisit(expr);
     }
@@ -73,8 +73,8 @@ public:
     void visitingNamespaceExpr(ast::NamespaceExprStmt &namespaceExpr) override {
         scope::SymbolTable *current = &currentScope();
 
-        ast::MultiPartIdentifier::part_iterator end = namespaceExpr.name().end();
-        for(ast::MultiPartIdentifier::part_iterator itr = namespaceExpr.name().begin(); itr != end; ++itr) {
+        ast::MultiPartIdentifier::part_iterator end = namespaceExpr.qualifiedName().end();
+        for(ast::MultiPartIdentifier::part_iterator itr = namespaceExpr.qualifiedName().begin(); itr != end; ++itr) {
             const ast::Identifier &nsName = (*itr);
             current = descendIntoNamespace(current, nsName);
             symbolTableStack_.emplace_back(*current);
@@ -112,7 +112,7 @@ private:
 public:
     void visitedNamespaceExpr(ast::NamespaceExprStmt &namespaceExpr) override {
         ASSERT(&namespaceExpr.scope() == &symbolTableStack_.back().get());
-        for(int i = 0; i < namespaceExpr.name().size(); ++i) {
+        for(int i = 0; i < namespaceExpr.qualifiedName().size(); ++i) {
             symbolTableStack_.pop_back();
         }
     }

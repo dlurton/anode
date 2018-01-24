@@ -49,7 +49,7 @@ public:
                         argument.exprType().nameForDisplay().c_str(),
                         parameterType.nameForDisplay().c_str());
                 } else {
-                    auto &implicitCast = ast::CastExprStmtStmt::createImplicit(argument, parameterType);
+                    auto &implicitCast = ast::CastExprStmt::createImplicit(argument, parameterType);
                     funcCallExpr.replaceArgument(i, implicitCast);
                 }
             }

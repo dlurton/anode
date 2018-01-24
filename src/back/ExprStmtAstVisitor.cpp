@@ -85,7 +85,7 @@ public:
         setValue(result);
     }
 
-    void visitedCastExprStmt(ast::CastExprStmtStmt &expr) override {
+    void visitedCastExprStmt(ast::CastExprStmt &expr) override {
         llvm::Value *value = emitExpr(expr.valueExpr(), cc());
 
         ASSERT(expr.exprType().isPrimitive());
@@ -153,7 +153,7 @@ public:
         setValue(castedValue);
     }
 
-    void visitedVariableDeclExpr(ast::VariableDeclExpr &expr) override {
+    void visitedVariableDeclExpr(ast::VariableDeclExprStmt &expr) override {
         switch (expr.symbol()->storageKind()) {
             case scope::StorageKind::Global: {
                 llvm::GlobalVariable *globalVariable = cc().llvmModule().getNamedGlobal(expr.symbol()->fullyQualifiedName());
@@ -164,7 +164,7 @@ public:
                 break;
             }
             case scope::StorageKind::Local: {
-                ASSERT(expr.name().size() == 1 && "TODO: semantic error or refactor VariableDeclExpr and VariableRefExprStmt so they don't both have to use MultiPartIdentifier");
+                ASSERT(expr.name().size() == 1 && "TODO: semantic error or refactor VariableDeclExprStmt and VariableRefExprStmt so they don't both have to use MultiPartIdentifier");
                 llvm::Type *localVariableType = cc().typeMap().toLlvmType(expr.exprType());
                 llvm::Value *localVariable = cc().irBuilder().CreateAlloca(localVariableType, nullptr, expr.name().front().text());
                 cc().mapSymbolToValue(*expr.symbol(), localVariable);
@@ -514,7 +514,7 @@ private:
         visitExpressions(compoundExpr.expressions());
     }
 
-    void visitingExpressionList(ast::ExpressionListStmt &expressionList) override {
+    void visitingExpressionList(ast::ExpressionListExprStmt &expressionList) override {
         visitExpressions(expressionList.expressions());
     }
 

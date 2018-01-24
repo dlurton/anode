@@ -87,13 +87,13 @@ public:
         writer_.writeln("LiteralFloat: " + std::to_string(expr.value()));
     }
 
-    void beforeVisit(VariableDeclExpr &expr) override {
-        writer_.writeln("VariableDeclExpr: (%s:%s)", expr.name().qualifedName().c_str(),
+    void beforeVisit(VariableDeclExprStmt &expr) override {
+        writer_.writeln("VariableDeclExprStmt: (%s:%s)", expr.name().qualifedName().c_str(),
                         expr.typeRef().name().qualifedName().c_str());
         writer_.incIndent();
     }
 
-    void visitedVariableDeclExpr(VariableDeclExpr &) override {
+    void visitedVariableDeclExpr(VariableDeclExprStmt &) override {
         writer_.decIndent();
 
     }
@@ -129,8 +129,8 @@ public:
         writer_.decIndent();
     }
 
-    void visitingCastExprStmt(CastExprStmtStmt &expr) override {
-        writer_.writeln("CastExprStmtStmt(%s):",
+    void visitingCastExprStmt(CastExprStmt &expr) override {
+        writer_.writeln("CastExprStmt(%s):",
                         expr.castKind() == CastKind::Implicit ? "implicit" : "explicit");
 
         writer_.incIndent();
@@ -142,7 +142,7 @@ public:
         writer_.incIndent();
     }
 
-    void visitedCastExprStmt(CastExprStmtStmt &) override {
+    void visitedCastExprStmt(CastExprStmt &) override {
         writer_.decIndent();
     }
 
@@ -196,11 +196,11 @@ public:
         writer_.decIndent();
     }
 
-    void visitingExpressionList(ExpressionListStmt &) override {
-        writer_.writeln("ExpressionListStmt");
+    void visitingExpressionList(ExpressionListExprStmt &) override {
+        writer_.writeln("ExpressionListExprStmt");
         writer_.incIndent();
     }
-    void visitedExpressionList(ExpressionListStmt &) override {
+    void visitedExpressionList(ExpressionListExprStmt &) override {
         writer_.decIndent();
     }
 
@@ -236,7 +236,7 @@ public:
     }
 
     void visitingNamespaceExpr(ast::NamespaceExprStmt &namespaceExpr) override {
-        writer_.writeln("NamespaceExprStmt: " + namespaceExpr.name().qualifedName());
+        writer_.writeln("NamespaceExprStmt: " + namespaceExpr.qualifiedName().qualifedName());
         writer_.incIndent();
     }
 

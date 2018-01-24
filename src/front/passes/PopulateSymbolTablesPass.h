@@ -67,8 +67,8 @@ public:
         ScopeFollowingAstVisitor::visitingFuncDefExprStmt(funcDeclStmt);
     }
 
-    void beforeVisit(ast::VariableDeclExpr &expr) override {
-        ASSERT(expr.name().size() == 1 && "TODO:  semantic error when variable declarations have more than 1 part or refactor VariableDeclExpr and VariableRefExprStmt.");
+    void beforeVisit(ast::VariableDeclExprStmt &expr) override {
+        ASSERT(expr.name().size() == 1 && "TODO:  semantic error when variable declarations have more than 1 part or refactor VariableDeclExprStmt and VariableRefExprStmt.");
 
         if(currentScope().findSymbolInCurrentScope(expr.name().front().text())) {
             symbolPreviouslyDefinedError(expr.name().front());
